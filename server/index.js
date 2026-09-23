@@ -37,10 +37,7 @@ function authUser(request, response, next) {
 }
 
 function getUserProfile(userId) {
-  return db.prepare(`SELECT u.id, u.nom, u.email, u.telephone, u.code_postal AS codePostal,
-    CASE WHEN p.utilisateur_id IS NOT NULL THEN 1 ELSE 0 END AS isPrestataire,
-    p.nom_entreprise AS raisonSociale, p.siret, p.description AS descriptionPrestataire, p.site_web AS siteWeb
-    FROM utilisateur u LEFT JOIN prestataire p ON p.utilisateur_id = u.id WHERE u.id = ?`).get(userId);
+  return db.prepare('SELECT id, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
 }
 
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
@@ -50,7 +47,7 @@ app.get('/api/reference/event-types', (_request, response) => {
 });
 
 app.post('/api/auth/register', (request, response) => {
-  const { nom, email, motDePasse, typeCompte = 'client' } = request.body;
+  const { nom, email, motDePasse } = request.body;
   if (!nom || !email || !motDePasse || motDePasse.length < 8) {
     return response.status(400).json({ error: 'Nom, email et mot de passe de 8 caractères minimum requis.' });
   }
@@ -58,15 +55,11 @@ app.post('/api/auth/register', (request, response) => {
   try {
     const createUser = db.transaction(() => {
       const user = db.prepare('INSERT INTO utilisateur (nom, email, mot_de_passe_hash) VALUES (?, ?, ?)').run(nom.trim(), email.trim(), hashPassword(motDePasse));
-      if (typeCompte === 'prestataire') {
-        db.prepare('INSERT INTO prestataire (utilisateur_id) VALUES (?)').run(user.lastInsertRowid);
-      } else {
-        db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.lastInsertRowid);
-      }
+      db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.lastInsertRowid);
       return Number(user.lastInsertRowid);
     });
     const userId = createUser();
-    response.status(201).json({ token: createSession(userId), user: { id: userId, nom, email, typeCompte } });
+    response.status(201).json({ token: createSession(userId), user: getUserProfile(userId) });
   } catch (error) {
     if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     response.status(500).json({ error: 'Impossible de créer le compte.' });
@@ -77,7 +70,7 @@ app.post('/api/auth/login', (request, response) => {
   const { email, motDePasse } = request.body;
   const user = db.prepare('SELECT id, nom, email, mot_de_passe_hash FROM utilisateur WHERE email = ?').get(email?.trim());
   if (!user || !verifyPassword(motDePasse || '', user.mot_de_passe_hash)) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-  response.json({ token: createSession(user.id), user: { id: user.id, nom: user.nom, email: user.email } });
+  response.json({ token: createSession(user.id), user: getUserProfile(user.id) });
 });
 
 app.get('/api/me', authUser, (request, response) => {
@@ -87,18 +80,13 @@ app.get('/api/me', authUser, (request, response) => {
 });
 
 app.put('/api/me', authUser, (request, response) => {
-  const { nom, email, telephone, codePostal, raisonSociale, siret, descriptionPrestataire, siteWeb } = request.body;
+  const { nom, email, telephone, codePostal } = request.body;
   if (!nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le nom et l’adresse email sont requis.' });
 
   try {
     db.prepare('UPDATE utilisateur SET nom = ?, email = ?, telephone = ?, code_postal = ? WHERE id = ?').run(
       nom.trim(), email.trim(), telephone?.trim() || null, codePostal?.trim() || null, request.userId,
     );
-    if (db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(request.userId)) {
-      db.prepare('UPDATE prestataire SET nom_entreprise = ?, siret = ?, description = ?, site_web = ? WHERE utilisateur_id = ?').run(
-        raisonSociale?.trim() || null, siret?.trim() || null, descriptionPrestataire?.trim() || null, siteWeb?.trim() || null, request.userId,
-      );
-    }
     const user = getUserProfile(request.userId);
     response.json({ user });
   } catch (error) {

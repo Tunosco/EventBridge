@@ -6,16 +6,18 @@ import Process from './components/Process';
 import ContactModal from './components/ContactModal';
 import Profile from './components/Profile';
 import Settings from './components/Settings';
+import ProviderSpace from './components/ProviderSpace';
 import { getCurrentUser } from './lib/api';
 import './styles/global.css';
 import './styles/responsive-menu.css';
 import './styles/nav-link.css';
-import './styles/provider-profile.css';
+import './styles/provider-space.css';
 
 export default function App() {
   const [contactType, setContactType] = useState(null);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
+  const handleProjectClick = (type) => type === 'prestataire' ? setPage('provider') : setContactType(type);
 
   useEffect(() => {
     getCurrentUser().then(setUser);
@@ -28,20 +30,22 @@ export default function App() {
 
   return (
     <>
-      <Header onNavigate={setPage} onProjectClick={setContactType} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
-      {page === 'profile' && user ? (
+      <Header onNavigate={setPage} onProjectClick={handleProjectClick} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
+      {page === 'provider' ? (
+        <ProviderSpace onBack={() => setPage('home')} />
+      ) : page === 'profile' && user ? (
         <Profile user={user} onBack={() => setPage('home')} />
       ) : page === 'settings' && user ? (
         <Settings user={user} onUserUpdated={setUser} onDeleted={() => { setUser(null); setPage('home'); }} onBack={() => setPage('home')} />
       ) : (
         <main>
-          <Hero onProjectClick={setContactType} />
+          <Hero onProjectClick={handleProjectClick} />
           <div className="trust"><span>Une plateforme pensée pour les projets qui comptent</span><div className="trust-list"><span>Profils vérifiés</span><span>Échanges directs</span><span>Projets sur mesure</span></div></div>
           <Mission />
           <Process />
         </main>
       )}
-      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire">Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
+      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); setPage('provider'); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
       {contactType && <ContactModal type={contactType} user={user} onAuthenticated={setUser} onLoggedOut={() => setUser(null)} onClose={() => setContactType(null)} />}
     </>
   );

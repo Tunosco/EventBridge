@@ -19,8 +19,6 @@ CREATE TABLE IF NOT EXISTS prestataire (
   utilisateur_id INTEGER PRIMARY KEY,
   nom_entreprise TEXT,
   description TEXT,
-  siret TEXT,
-  site_web TEXT,
   FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id) ON DELETE CASCADE
 );
 
