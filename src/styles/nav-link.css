@@ -5,3 +5,20 @@
   background: transparent;
   font-weight: 700;
 }
+
+.modal-switch {
+  display: block;
+  margin: 18px auto 0;
+  border: 0;
+  border-bottom: 1px solid var(--navy);
+  padding: 0 0 3px;
+  background: transparent;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.modal-switch:hover {
+  color: var(--coral);
+  border-color: var(--coral);
+}
