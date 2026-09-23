@@ -1,0 +1,118 @@
+.provider-space.is-sidebar-collapsed {
+  display: block;
+}
+
+.provider-sidebar-toggle,
+.provider-sidebar-reopen {
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.provider-sidebar-toggle {
+  display: block;
+  margin-top: 22px;
+}
+
+.provider-sidebar-toggle:hover,
+.provider-sidebar-reopen:hover {
+  border-color: var(--coral);
+  color: var(--coral);
+}
+
+.provider-sidebar-reopen {
+  margin-bottom: 24px;
+  border-color: var(--line);
+  color: var(--navy);
+}
+
+.provider-public-profile {
+  max-width: 760px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.provider-public-banner {
+  min-height: 220px;
+  background: var(--mint) center / cover;
+}
+
+.provider-public-body {
+  position: relative;
+  padding: 0 34px 36px;
+}
+
+.provider-public-avatar {
+  width: 116px;
+  height: 116px;
+  margin-top: -58px;
+  border: 5px solid var(--white);
+  border-radius: 50%;
+  background: var(--white);
+  object-fit: cover;
+}
+
+.provider-public-body .kicker {
+  display: block;
+  margin-top: 22px;
+}
+
+.provider-public-body h2 {
+  margin: 10px 0 18px;
+  font-size: 36px;
+}
+
+.provider-public-description {
+  margin: 0 0 24px;
+  color: var(--muted);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.provider-public-details {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.provider-public-details div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 16px;
+}
+
+.provider-public-details dt {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.provider-public-details dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.provider-public-details a {
+  color: var(--coral-dark);
+}
+
+@media (max-width: 700px) {
+  .provider-public-body {
+    padding: 0 22px 28px;
+  }
+
+  .provider-public-details div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

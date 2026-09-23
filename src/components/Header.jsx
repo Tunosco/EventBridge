@@ -44,8 +44,8 @@ export default function Header({ onNavigate, onProjectClick, onLoggedOut, onProf
         <nav className={`main-nav${menuOpen ? ' is-open' : ''}`}>
           <a href="#mission" onClick={closeMenu}>Notre mission</a>
           <a href="#fonctionnement" onClick={closeMenu}>Comment ça marche</a>
-          <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('provider'); }}>Espace prestataire</button>
           <button className="nav-link" onClick={() => { closeMenu(); onProjectClick('connexion'); }}>Mes événements</button>
+          <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('provider'); }}>Espace prestataire</button>
           {isAuthenticated ? (
             <div className="account-menu" ref={accountMenuRef}>
               <button

@@ -38,3 +38,11 @@ export function updateCurrentUser(payload) {
 export function deleteCurrentUser() {
   return request('/me', { method: 'DELETE', headers: authHeaders() });
 }
+
+export function getProviderProfile() {
+  return request('/me/provider-profile', { headers: authHeaders() });
+}
+
+export function updateProviderProfile(payload) {
+  return request('/me/provider-profile', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+}

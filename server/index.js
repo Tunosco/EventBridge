@@ -79,6 +79,30 @@ app.get('/api/me', authUser, (request, response) => {
   response.json({ user });
 });
 
+app.get('/api/me/provider-profile', authUser, (request, response) => {
+  const profile = db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
+    adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
+    FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
+  if (!profile) return response.status(403).json({ error: 'Aucun profil prestataire n’est associé à ce compte.' });
+  response.json({ profile });
+});
+
+app.put('/api/me/provider-profile', authUser, (request, response) => {
+  const { raisonSociale, siret, siteWeb, adressePostale, description, banniereUrl, photoUrl } = request.body;
+  if (!db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(request.userId)) {
+    return response.status(403).json({ error: 'Aucun profil prestataire n’est associé à ce compte.' });
+  }
+  db.prepare(`UPDATE prestataire SET nom_entreprise = ?, siret = ?, site_web = ?, adresse_postale = ?,
+    description = ?, banniere_url = ?, photo_url = ? WHERE utilisateur_id = ?`).run(
+    raisonSociale?.trim() || null, siret?.trim() || null, siteWeb?.trim() || null, adressePostale?.trim() || null,
+    description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null, request.userId,
+  );
+  const profile = db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
+    adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
+    FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
+  response.json({ profile });
+});
+
 app.put('/api/me', authUser, (request, response) => {
   const { nom, email, telephone, codePostal } = request.body;
   if (!nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le nom et l’adresse email sont requis.' });

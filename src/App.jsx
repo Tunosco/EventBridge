@@ -12,6 +12,8 @@ import './styles/global.css';
 import './styles/responsive-menu.css';
 import './styles/nav-link.css';
 import './styles/provider-space.css';
+import './styles/provider-profile-editor.css';
+import './styles/provider-space-controls.css';
 
 export default function App() {
   const [contactType, setContactType] = useState(null);
@@ -32,7 +34,7 @@ export default function App() {
     <>
       <Header onNavigate={setPage} onProjectClick={handleProjectClick} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
       {page === 'provider' ? (
-        <ProviderSpace onBack={() => setPage('home')} />
+        <ProviderSpace isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => setPage('home')} />
       ) : page === 'profile' && user ? (
         <Profile user={user} onBack={() => setPage('home')} />
       ) : page === 'settings' && user ? (
