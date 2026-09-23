@@ -73,6 +73,12 @@ app.post('/api/auth/login', (request, response) => {
   response.json({ token: createSession(user.id), user: { id: user.id, nom: user.nom, email: user.email } });
 });
 
+app.get('/api/me', authUser, (request, response) => {
+  const user = db.prepare('SELECT id, nom, email FROM utilisateur WHERE id = ?').get(request.userId);
+  if (!user) return response.status(401).json({ error: 'Session invalide.' });
+  response.json({ user });
+});
+
 app.get('/api/me/events', authUser, (request, response) => {
   const events = db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS dateEvenement,
     e.nombre_invites AS nombreInvites, e.budget, t.libelle AS typeEvenement

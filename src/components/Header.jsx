@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function Header({ onProjectClick }) {
+export default function Header({ onProjectClick, isAuthenticated }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = () => setMenuOpen(false);
 
@@ -14,7 +14,7 @@ export default function Header({ onProjectClick }) {
           <a href="#fonctionnement" onClick={closeMenu}>Comment ça marche</a>
           <button className="nav-link" onClick={() => { closeMenu(); onProjectClick('prestataire'); }}>Espace prestataire</button>
           <button className="nav-link" onClick={() => { closeMenu(); onProjectClick('connexion'); }}>Mes événements</button>
-          <button className="button button-primary nav-cta" onClick={() => { closeMenu(); onProjectClick('connexion'); }}>Se connecter</button>
+          <button className="button button-primary nav-cta" onClick={() => { closeMenu(); onProjectClick(isAuthenticated ? 'compte' : 'connexion'); }}>{isAuthenticated ? 'Mon compte' : 'Se connecter'}</button>
         </nav>
         <button className="menu-button" aria-label="Ouvrir le menu" onClick={() => setMenuOpen((open) => !open)}>☰</button>
       </header>
