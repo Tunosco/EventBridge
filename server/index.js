@@ -74,9 +74,33 @@ app.post('/api/auth/login', (request, response) => {
 });
 
 app.get('/api/me', authUser, (request, response) => {
-  const user = db.prepare('SELECT id, nom, email FROM utilisateur WHERE id = ?').get(request.userId);
+  const user = db.prepare('SELECT id, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(request.userId);
   if (!user) return response.status(401).json({ error: 'Session invalide.' });
   response.json({ user });
+});
+
+app.put('/api/me', authUser, (request, response) => {
+  const { nom, email, telephone, codePostal } = request.body;
+  if (!nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le nom et l’adresse email sont requis.' });
+
+  try {
+    db.prepare('UPDATE utilisateur SET nom = ?, email = ?, telephone = ?, code_postal = ? WHERE id = ?').run(
+      nom.trim(), email.trim(), telephone?.trim() || null, codePostal?.trim() || null, request.userId,
+    );
+    const user = db.prepare('SELECT id, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(request.userId);
+    response.json({ user });
+  } catch (error) {
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    response.status(500).json({ error: 'Impossible de mettre à jour le profil.' });
+  }
+});
+
+app.delete('/api/me', authUser, (request, response) => {
+  db.prepare('DELETE FROM utilisateur WHERE id = ?').run(request.userId);
+  for (const [token, userId] of sessions) {
+    if (userId === request.userId) sessions.delete(token);
+  }
+  response.status(204).end();
 });
 
 app.get('/api/me/events', authUser, (request, response) => {

@@ -26,3 +26,15 @@ export function getCurrentUser() {
     return null;
   });
 }
+
+function authHeaders() {
+  return { Authorization: `Bearer ${localStorage.getItem('eventbridge_token')}` };
+}
+
+export function updateCurrentUser(payload) {
+  return request('/me', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
+export function deleteCurrentUser() {
+  return request('/me', { method: 'DELETE', headers: authHeaders() });
+}

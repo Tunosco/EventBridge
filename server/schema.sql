@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS utilisateur (
   email TEXT NOT NULL UNIQUE COLLATE NOCASE,
   mot_de_passe_hash TEXT NOT NULL,
   telephone TEXT,
+  code_postal TEXT,
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

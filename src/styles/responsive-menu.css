@@ -11,4 +11,22 @@
     align-items: flex-start;
     border-bottom: 1px solid var(--line);
   }
+
+  .profile-page {
+    padding: 56px 5% 80px;
+  }
+
+  .profile-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 28px 22px;
+  }
+
+  .profile-photo {
+    align-self: center;
+  }
+
+  .profile-details {
+    width: 100%;
+  }
 }
