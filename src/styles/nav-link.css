@@ -22,3 +22,9 @@
   color: var(--coral);
   border-color: var(--coral);
 }
+
+.form-error {
+  color: #a63d32 !important;
+  font-size: 13px;
+  font-weight: 700;
+}
