@@ -22,7 +22,7 @@ export default function App() {
         <AudienceSolutions onProjectClick={setContactType} />
         <section className="quote"><div className="kicker">Le prochain chapitre commence ici</div><h2>Et si votre plus bel événement était celui que vous n'avez pas encore imaginé&nbsp;?</h2><p>Parlez-nous de votre projet ou rejoignez le réseau EventBridge.</p><button className="button button-primary" onClick={() => setContactType('particulier')}>Entrer en contact</button></section>
       </main>
-      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#solutions">Solutions</a></nav><small>© 2026 EventBridge</small></footer>
+      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire">Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
       {contactType && <ContactModal type={contactType} onClose={() => setContactType(null)} />}
     </>
   );
