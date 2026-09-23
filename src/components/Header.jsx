@@ -12,7 +12,8 @@ export default function Header({ onProjectClick }) {
         <nav className={`main-nav${menuOpen ? ' is-open' : ''}`}>
           <a href="#mission" onClick={closeMenu}>Notre mission</a>
           <a href="#fonctionnement" onClick={closeMenu}>Comment ça marche</a>
-          <a href="#prestataire" onClick={closeMenu}>Espace prestataire</a>
+          <button className="nav-link" onClick={() => { closeMenu(); onProjectClick('prestataire'); }}>Espace prestataire</button>
+          <button className="nav-link" onClick={() => { closeMenu(); onProjectClick('connexion'); }}>Mes événements</button>
           <button className="button button-primary nav-cta" onClick={() => { closeMenu(); onProjectClick('connexion'); }}>Se connecter</button>
         </nav>
         <button className="menu-button" aria-label="Ouvrir le menu" onClick={() => setMenuOpen((open) => !open)}>☰</button>
