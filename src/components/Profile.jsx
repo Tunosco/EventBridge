@@ -19,6 +19,17 @@ export default function Profile({ user, onBack }) {
           </div>
         </div>
       </section>
+      {user.isPrestataire ? (
+        <section className="provider-profile-card" aria-labelledby="provider-profile-title">
+          <span className="kicker">Activité professionnelle</span>
+          <h2 id="provider-profile-title">{user.raisonSociale || 'Raison sociale non renseignée'}</h2>
+          <dl className="provider-profile-details">
+            <div><dt>SIRET</dt><dd>{user.siret || 'Non renseigné'}</dd></div>
+            <div><dt>Site internet</dt><dd>{user.siteWeb ? <a href={user.siteWeb} target="_blank" rel="noreferrer">{user.siteWeb}</a> : 'Non renseigné'}</dd></div>
+          </dl>
+          <p className={!user.descriptionPrestataire ? 'is-empty' : ''}>{user.descriptionPrestataire || 'Aucune description renseignée.'}</p>
+        </section>
+      ) : null}
     </main>
   );
 }

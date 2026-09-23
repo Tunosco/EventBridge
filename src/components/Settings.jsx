@@ -7,6 +7,10 @@ export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
     email: user.email || '',
     telephone: user.telephone || '',
     codePostal: user.codePostal || '',
+    raisonSociale: user.raisonSociale || '',
+    siret: user.siret || '',
+    descriptionPrestataire: user.descriptionPrestataire || '',
+    siteWeb: user.siteWeb || '',
   });
   const [theme, setTheme] = useState(localStorage.getItem('eventbridge_theme') || 'default');
   const [message, setMessage] = useState('');
@@ -65,6 +69,15 @@ export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
           <label>Email<input name="email" type="email" value={form.email} onChange={updateField} required /></label>
           <label>Téléphone<input name="telephone" type="tel" value={form.telephone} onChange={updateField} /></label>
         </div>
+        {user.isPrestataire ? (
+          <div className="settings-section">
+            <h2>Informations professionnelles</h2>
+            <label>Raison sociale<input name="raisonSociale" value={form.raisonSociale} onChange={updateField} /></label>
+            <label>SIRET<input name="siret" value={form.siret} onChange={updateField} inputMode="numeric" /></label>
+            <label>Description<textarea name="descriptionPrestataire" value={form.descriptionPrestataire} onChange={updateField} rows="5" /></label>
+            <label>Lien vers votre site<input name="siteWeb" type="url" value={form.siteWeb} onChange={updateField} placeholder="https://exemple.fr" /></label>
+          </div>
+        ) : null}
         <div className="settings-section">
           <h2>Thème de la page</h2>
           <label>Apparence<select value={theme} onChange={handleThemeChange}><option value="default">Par défaut</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>

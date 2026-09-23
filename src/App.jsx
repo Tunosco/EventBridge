@@ -10,6 +10,7 @@ import { getCurrentUser } from './lib/api';
 import './styles/global.css';
 import './styles/responsive-menu.css';
 import './styles/nav-link.css';
+import './styles/provider-profile.css';
 
 export default function App() {
   const [contactType, setContactType] = useState(null);

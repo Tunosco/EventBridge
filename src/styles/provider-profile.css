@@ -1,0 +1,85 @@
+.provider-profile-card {
+  max-width: 700px;
+  margin: 24px auto 0;
+  padding: 30px 36px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.provider-profile-card h2 {
+  margin: 12px 0 22px;
+  color: var(--navy);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  font-weight: 400;
+}
+
+.provider-profile-details {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.provider-profile-details div {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 16px;
+}
+
+.provider-profile-details dt {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.provider-profile-details dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.provider-profile-details a {
+  color: var(--coral-dark);
+  overflow-wrap: anywhere;
+}
+
+.provider-profile-card p {
+  margin: 24px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.provider-profile-card .is-empty {
+  font-style: italic;
+}
+
+.settings-section textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  resize: vertical;
+}
+
+.settings-section textarea:focus {
+  outline: 2px solid var(--coral);
+  outline-offset: 1px;
+}
+
+@media (max-width: 600px) {
+  .provider-profile-card {
+    padding: 25px 22px;
+  }
+
+  .provider-profile-details div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
