@@ -23,12 +23,36 @@ function startOfDay(date) {
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
 const fullDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const shortDateFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+const weekdayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
+const cardMonthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
+
+function EventSummary({ event, isPast = false }) {
+  return (
+    <article className={`event-summary-card${isPast ? ' is-past' : ''}`}>
+      <time className="event-summary-date" dateTime={dateKey(event.parsedDate)}>
+        <span>{weekdayFormatter.format(event.parsedDate)}</span>
+        <strong>{event.parsedDate.getDate()}</strong>
+        <span>{cardMonthFormatter.format(event.parsedDate)}</span>
+      </time>
+      <div className="event-summary-body">
+        <span className="event-summary-type">{event.typeEvenement || 'Événement'}</span>
+        <h3>{event.titre}</h3>
+        {event.description && <p>{event.description}</p>}
+        <div className="event-summary-details">
+          {event.lieu && <span>{event.lieu}</span>}
+          {event.nombreInvites && <span>{event.nombreInvites} invités</span>}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export default function MyEvents({ onBack }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
+  const [view, setView] = useState('overview');
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -59,11 +83,15 @@ export default function MyEvents({ onBack }) {
   }, [reload]);
 
   const today = startOfDay(new Date());
-  const upcomingEvents = events
+  const datedEvents = events
     .map((event) => ({ ...event, parsedDate: parseEventDate(event.dateEvenement) }))
-    .filter((event) => event.parsedDate && startOfDay(event.parsedDate) >= today)
+    .filter((event) => event.parsedDate);
+  const upcomingEvents = datedEvents
+    .filter((event) => startOfDay(event.parsedDate) >= today)
     .sort((first, second) => first.parsedDate - second.parsedDate);
-  const nextEvent = upcomingEvents[0];
+  const pastEvents = datedEvents
+    .filter((event) => startOfDay(event.parsedDate) < today)
+    .sort((first, second) => second.parsedDate - first.parsedDate);
   const monthStart = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
   const dayOffset = (monthStart.getDay() + 6) % 7;
   const dayCount = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
@@ -87,41 +115,85 @@ export default function MyEvents({ onBack }) {
   };
 
   const changeSelectedDay = (date) => setSelectedDateKey(dateKey(date));
+  const openEventInCalendar = (event) => {
+    setVisibleMonth(new Date(event.parsedDate.getFullYear(), event.parsedDate.getMonth(), 1));
+    setSelectedDateKey(dateKey(event.parsedDate));
+    setView('calendar');
+  };
 
   return (
     <main className="my-events-page">
-      <div className="my-events-heading">
-        <button className="text-link my-events-back" onClick={onBack}>Retour à l’accueil</button>
-        <span className="kicker">Votre espace</span>
-        <h1>Mes événements</h1>
-        <p>Un aperçu simple de vos prochaines dates importantes.</p>
-      </div>
+      <div className="my-events-layout">
+        <aside className="my-events-sidebar" aria-label="Navigation de vos événements">
+          <div className="my-events-sidebar-heading">
+            <span className="summary-label">Votre agenda</span>
+            <strong>{loading ? '…' : `${upcomingEvents.length} à venir`}</strong>
+          </div>
+          <nav className="my-events-side-nav" aria-label="Vues des événements">
+            <button type="button" className={view === 'overview' ? 'is-active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => setView('overview')}>Vue d’ensemble</button>
+            <button type="button" className={view === 'calendar' ? 'is-active' : ''} aria-current={view === 'calendar' ? 'page' : undefined} onClick={() => setView('calendar')}>Calendrier</button>
+          </nav>
+          <section className="my-events-sidebar-list" aria-labelledby="sidebar-upcoming-title">
+            <div className="my-events-sidebar-list-heading">
+              <h2 id="sidebar-upcoming-title">Prochains événements</h2>
+              <span>{upcomingEvents.length}</span>
+            </div>
+            {loading ? <p className="sidebar-empty">Chargement…</p> : upcomingEvents.length ? (
+              <div className="sidebar-event-list">
+                {upcomingEvents.map((event) => (
+                  <button className="sidebar-event" type="button" key={event.id} onClick={() => openEventInCalendar(event)}>
+                    <time dateTime={dateKey(event.parsedDate)}>
+                      <strong>{event.parsedDate.getDate()}</strong>
+                      <span>{new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(event.parsedDate)}</span>
+                    </time>
+                    <span className="sidebar-event-copy">
+                      <strong>{event.titre}</strong>
+                      <small>{shortDateFormatter.format(event.parsedDate)}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : <p className="sidebar-empty">Aucun événement à venir.</p>}
+          </section>
+        </aside>
 
-      <section className="upcoming-summary" aria-label="Résumé des événements à venir">
-        <div className="upcoming-count">
-          <span className="summary-label">À venir</span>
-          <strong>{loading ? '…' : upcomingEvents.length}</strong>
-          <span>{upcomingEvents.length === 1 ? 'événement prévu' : 'événements prévus'}</span>
-        </div>
-        <div className="next-event-summary">
-          <span className="summary-label">Prochain rendez-vous</span>
-          {nextEvent ? (
-            <>
-              <strong>{nextEvent.titre}</strong>
-              <span>{shortDateFormatter.format(nextEvent.parsedDate)}{nextEvent.lieu ? ` · ${nextEvent.lieu}` : ''}</span>
-            </>
+        <div className="my-events-content">
+          <div className="my-events-heading">
+            <button className="text-link my-events-back" onClick={onBack}>Retour à l’accueil</button>
+            <span className="kicker">Votre espace</span>
+            <h1>Mes événements</h1>
+            <p>{view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.'}</p>
+          </div>
+
+          {error && <div className="my-events-error" role="alert">
+            <p>{error}</p>
+            <button className="text-link" onClick={() => setReload((value) => value + 1)}>Réessayer</button>
+          </div>}
+
+          {view === 'overview' ? (
+            <div className="event-overview">
+              <section className="event-summary-section" aria-labelledby="future-events-title">
+                <div className="event-summary-section-heading">
+                  <div><span className="summary-label">À venir</span><h2 id="future-events-title">Futurs événements</h2></div>
+                  <span className="event-section-count">{upcomingEvents.length}</span>
+                </div>
+                {loading ? <p className="event-list-empty">Chargement des événements…</p> : upcomingEvents.length ? (
+                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} key={event.id} />)}</div>
+                ) : <p className="event-list-empty">Aucun événement futur pour le moment.</p>}
+              </section>
+
+              <section className="event-summary-section past-events-section" aria-labelledby="past-events-title">
+                <div className="event-summary-section-heading">
+                  <div><span className="summary-label">Historique</span><h2 id="past-events-title">Événements passés</h2></div>
+                  <span className="event-section-count">{pastEvents.length}</span>
+                </div>
+                {loading ? <p className="event-list-empty">Chargement de l’historique…</p> : pastEvents.length ? (
+                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} isPast key={event.id} />)}</div>
+                ) : <p className="event-list-empty">Vos événements passés apparaîtront ici.</p>}
+              </section>
+            </div>
           ) : (
-            <strong>{loading ? 'Chargement de vos événements…' : 'Aucun événement à venir'}</strong>
-          )}
-        </div>
-      </section>
-
-      {error && <div className="my-events-error" role="alert">
-        <p>{error}</p>
-        <button className="text-link" onClick={() => setReload((value) => value + 1)}>Réessayer</button>
-      </div>}
-
-      <section className="events-calendar" aria-label="Calendrier des événements à venir">
+          <section className="events-calendar" aria-label="Calendrier des événements à venir">
         <div className="calendar-heading">
           <div>
             <span className="summary-label">Calendrier</span>
@@ -179,7 +251,10 @@ export default function MyEvents({ onBack }) {
             ))}</ul>
           ) : <p>Aucun événement prévu à cette date.</p>}
         </div>}
-      </section>
+          </section>
+          )}
+        </div>
+      </div>
     </main>
   );
 }
