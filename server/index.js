@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
 import { db } from './db.js';
 
 const app = express();
@@ -143,5 +144,12 @@ app.post('/api/me/events', authUser, (request, response) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(request.userId, typeEvenementId, titre, description || null, lieu || null, dateEvenement || null, nombreInvites || null, budget || null);
   response.status(201).json({ id: Number(result.lastInsertRowid) });
 });
+
+if (process.env.NODE_ENV === 'production') {
+  const frontendDirectory = path.resolve('dist');
+  app.use('/api', (_request, response) => response.status(404).json({ error: 'Route API introuvable.' }));
+  app.use(express.static(frontendDirectory));
+  app.get(/.*/, (_request, response) => response.sendFile(path.join(frontendDirectory, 'index.html')));
+}
 
 app.listen(port, () => console.log(`EventBridge API disponible sur http://localhost:${port}`));

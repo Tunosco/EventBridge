@@ -3,9 +3,10 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 const dataDirectory = path.resolve('data');
-fs.mkdirSync(dataDirectory, { recursive: true });
+const databasePath = process.env.DB_PATH || path.join(dataDirectory, 'eventbridge.sqlite');
+fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
-export const db = new Database(path.join(dataDirectory, 'eventbridge.sqlite'));
+export const db = new Database(databasePath);
 db.pragma('foreign_keys = ON');
 db.exec(fs.readFileSync(path.resolve('server/schema.sql'), 'utf8'));
 const userColumns = db.prepare('PRAGMA table_info(utilisateur)').all().map((column) => column.name);

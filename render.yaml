@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: eventbridge
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run server
+    disk:
+      name: eventbridge-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/eventbridge.sqlite
