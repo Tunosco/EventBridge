@@ -39,6 +39,10 @@ export function deleteCurrentUser() {
   return request('/me', { method: 'DELETE', headers: authHeaders() });
 }
 
+export function getMyEvents() {
+  return request('/me/events', { headers: authHeaders() });
+}
+
 export function getProviderProfile() {
   return request('/me/provider-profile', { headers: authHeaders() });
 }

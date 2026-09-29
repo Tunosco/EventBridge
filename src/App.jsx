@@ -6,6 +6,7 @@ import Process from './components/Process';
 import ContactModal from './components/ContactModal';
 import Profile from './components/Profile';
 import Settings from './components/Settings';
+import MyEvents from './components/MyEvents';
 import ProviderSpace from './components/ProviderSpace';
 import { getCurrentUser } from './lib/api';
 import './styles/global.css';
@@ -14,12 +15,17 @@ import './styles/nav-link.css';
 import './styles/provider-space.css';
 import './styles/provider-profile-editor.css';
 import './styles/provider-space-controls.css';
+import './styles/my-events.css';
 
 export default function App() {
   const [contactType, setContactType] = useState(null);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
   const handleProjectClick = (type) => type === 'prestataire' ? setPage('provider') : setContactType(type);
+  const handleEventsClick = () => {
+    setPage('events');
+    if (!user) setContactType('connexion');
+  };
 
   useEffect(() => {
     getCurrentUser().then(setUser);
@@ -32,9 +38,11 @@ export default function App() {
 
   return (
     <>
-      <Header onNavigate={setPage} onProjectClick={handleProjectClick} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
+      <Header onNavigate={setPage} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
       {page === 'provider' ? (
         <ProviderSpace isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => setPage('home')} />
+      ) : page === 'events' && user ? (
+        <MyEvents onBack={() => setPage('home')} />
       ) : page === 'profile' && user ? (
         <Profile user={user} onBack={() => setPage('home')} />
       ) : page === 'settings' && user ? (

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export default function Header({ onNavigate, onProjectClick, onLoggedOut, onProfileClick, onSettingsClick, isAuthenticated }) {
+export default function Header({ onNavigate, onProjectClick, onEventsClick, onLoggedOut, onProfileClick, onSettingsClick, isAuthenticated }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
@@ -38,13 +38,10 @@ export default function Header({ onNavigate, onProjectClick, onLoggedOut, onProf
 
   return (
     <>
-      <div className="topbar"><strong>EventBridge</strong> simplifie chaque étape, du premier brief au jour J.</div>
       <header className="site-header">
         <a className="brand" href="#accueil" onClick={() => onNavigate?.('home')}>Event<span>Bridge</span></a>
         <nav className={`main-nav${menuOpen ? ' is-open' : ''}`}>
-          <a href="#mission" onClick={closeMenu}>Notre mission</a>
-          <a href="#fonctionnement" onClick={closeMenu}>Comment ça marche</a>
-          <button className="nav-link" onClick={() => { closeMenu(); onProjectClick('connexion'); }}>Mes événements</button>
+          <button className="nav-link" onClick={() => { closeMenu(); onEventsClick?.(); }}>Mes événements</button>
           <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('provider'); }}>Espace prestataire</button>
           {isAuthenticated ? (
             <div className="account-menu" ref={accountMenuRef}>
