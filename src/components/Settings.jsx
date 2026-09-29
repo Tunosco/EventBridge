@@ -3,6 +3,7 @@ import { deleteCurrentUser, updateCurrentUser } from '../lib/api';
 
 export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
   const [form, setForm] = useState({
+    prenom: user.prenom || '',
     nom: user.nom || '',
     email: user.email || '',
     telephone: user.telephone || '',
@@ -60,6 +61,7 @@ export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
       <form className="settings-card" onSubmit={handleSubmit}>
         <div className="settings-section">
           <h2>Informations personnelles</h2>
+            <label>Prénom<input name="prenom" value={form.prenom} onChange={updateField} required /></label>
           <label>Nom<input name="nom" value={form.nom} onChange={updateField} required /></label>
           <label>Code postal<input name="codePostal" value={form.codePostal} onChange={updateField} inputMode="numeric" /></label>
           <label>Email<input name="email" type="email" value={form.email} onChange={updateField} required /></label>

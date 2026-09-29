@@ -38,7 +38,7 @@ function authUser(request, response, next) {
 }
 
 function getUserProfile(userId) {
-  return db.prepare('SELECT id, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
+  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
 }
 
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
@@ -48,14 +48,14 @@ app.get('/api/reference/event-types', (_request, response) => {
 });
 
 app.post('/api/auth/register', (request, response) => {
-  const { nom, email, motDePasse } = request.body;
-  if (!nom || !email || !motDePasse || motDePasse.length < 8) {
-    return response.status(400).json({ error: 'Nom, email et mot de passe de 8 caractères minimum requis.' });
+  const { prenom, nom, email, motDePasse } = request.body;
+  if (!prenom?.trim() || !nom?.trim() || !email || !motDePasse || motDePasse.length < 8) {
+    return response.status(400).json({ error: 'Prénom, nom, email et mot de passe de 8 caractères minimum requis.' });
   }
 
   try {
     const createUser = db.transaction(() => {
-      const user = db.prepare('INSERT INTO utilisateur (nom, email, mot_de_passe_hash) VALUES (?, ?, ?)').run(nom.trim(), email.trim(), hashPassword(motDePasse));
+      const user = db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash) VALUES (?, ?, ?, ?)').run(prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse));
       db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.lastInsertRowid);
       return Number(user.lastInsertRowid);
     });
@@ -105,12 +105,12 @@ app.put('/api/me/provider-profile', authUser, (request, response) => {
 });
 
 app.put('/api/me', authUser, (request, response) => {
-  const { nom, email, telephone, codePostal } = request.body;
-  if (!nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le nom et l’adresse email sont requis.' });
+  const { prenom, nom, email, telephone, codePostal } = request.body;
+  if (!prenom?.trim() || !nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le prénom, le nom et l’adresse email sont requis.' });
 
   try {
-    db.prepare('UPDATE utilisateur SET nom = ?, email = ?, telephone = ?, code_postal = ? WHERE id = ?').run(
-      nom.trim(), email.trim(), telephone?.trim() || null, codePostal?.trim() || null, request.userId,
+    db.prepare('UPDATE utilisateur SET prenom = ?, nom = ?, email = ?, telephone = ?, code_postal = ? WHERE id = ?').run(
+      prenom.trim(), nom.trim(), email.trim(), telephone?.trim() || null, codePostal?.trim() || null, request.userId,
     );
     const user = getUserProfile(request.userId);
     response.json({ user });

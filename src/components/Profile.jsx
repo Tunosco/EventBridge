@@ -10,7 +10,7 @@ export default function Profile({ user, onBack }) {
       <section className="profile-card" aria-labelledby="profile-name">
         <img className="profile-photo" src="https://i.pravatar.cc/240?img=12" alt="Photo de profil" />
         <div className="profile-details">
-          <h2 id="profile-name">{user.nom}</h2>
+          <h2 id="profile-name">{[user.prenom, user.nom].filter(Boolean).join(' ')}</h2>
           <div className="profile-contact-list">
             <a href={`mailto:${user.email}`}><span aria-hidden="true">✉</span>{user.email}</a>
             <a href={user.telephone ? `tel:${user.telephone}` : undefined} className={!user.telephone ? 'is-empty' : ''}>

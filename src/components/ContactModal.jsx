@@ -30,6 +30,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
           throw new Error('Les mots de passe ne correspondent pas.');
         }
         const result = await registerAccount({
+          prenom: formData.get('prenom'),
           nom: formData.get('nom'),
           email: formData.get('email'),
           motDePasse: formData.get('motDePasse'),
@@ -61,7 +62,11 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
         <p>{sent ? (isSignup ? 'Vous pouvez maintenant retrouver vos projets et vos échanges dans votre espace.' : mode === 'connexion' ? 'Votre espace EventBridge est prêt.' : 'Notre équipe reviendra vers vous rapidement pour faire avancer votre projet.') : account ? `Vous êtes connecté avec l’adresse ${user?.email || ''}.` : isSignup ? 'Créez votre compte pour enregistrer vos événements et échanger avec les bons prestataires.' : mode === 'connexion' ? 'Connectez-vous pour retrouver vos projets et vos échanges.' : 'Quelques informations suffisent pour que nous vous orientions vers les bons prestataires.'}</p>
         {error && <p className="form-error" role="alert">{error}</p>}
         {!sent && !account && <form onSubmit={handleSubmit}>
-          {(isSignup || !isAuth) && <input name="nom" aria-label="Nom" required placeholder="Votre nom" />}
+          {isSignup && <>
+            <input name="prenom" aria-label="Prénom" autoComplete="given-name" required placeholder="Votre prénom" />
+            <input name="nom" aria-label="Nom" autoComplete="family-name" required placeholder="Votre nom" />
+          </>}
+          {!isAuth && <input name="nom" aria-label="Nom" required placeholder="Votre nom" />}
           <input name="email" aria-label="Email" type="email" required placeholder="Votre adresse email" />
           {isAuth && <input name="motDePasse" aria-label="Mot de passe" type="password" minLength="8" required placeholder="Votre mot de passe" />}
           {isSignup && <input name="confirmation" aria-label="Confirmation du mot de passe" type="password" minLength="8" required placeholder="Confirmez votre mot de passe" />}
