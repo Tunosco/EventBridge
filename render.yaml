@@ -3,7 +3,7 @@ services:
     name: eventbridge
     runtime: node
     plan: starter
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && node ./node_modules/vite/bin/vite.js build
     startCommand: npm run server
     disk:
       name: eventbridge-data
