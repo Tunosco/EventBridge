@@ -1,9 +1,10 @@
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
 
 async function request(path, options = {}) {
+  const { headers: optionHeaders, ...requestOptions } = options;
   const response = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
+    ...requestOptions,
+    headers: { 'Content-Type': 'application/json', ...(optionHeaders || {}) },
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Une erreur est survenue.');
@@ -49,6 +50,30 @@ export function getEventTypes() {
 
 export function createEvent(payload) {
   return request('/me/events', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
+export function searchProviders(search, favoritesOnly = false) {
+  const parameters = new URLSearchParams();
+  if (search) parameters.set('q', search);
+  if (favoritesOnly) parameters.set('favoris', 'true');
+  const token = localStorage.getItem('eventbridge_token');
+  return request(`/providers?${parameters.toString()}`, { headers: token ? authHeaders() : {} });
+}
+
+export function favoriteProvider(providerId) {
+  return request(`/me/favorite-providers/${providerId}`, { method: 'POST', headers: authHeaders() });
+}
+
+export function unfavoriteProvider(providerId) {
+  return request(`/me/favorite-providers/${providerId}`, { method: 'DELETE', headers: authHeaders() });
+}
+
+export function updateEventProviders(eventId, prestatairesIds) {
+  return request(`/me/events/${eventId}/providers`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ prestatairesIds }),
+  });
 }
 
 export function getProviderProfile() {

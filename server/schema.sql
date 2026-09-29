@@ -28,6 +28,15 @@ CREATE TABLE IF NOT EXISTS prestataire (
   FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS favori_prestataire (
+  utilisateur_id INTEGER NOT NULL,
+  prestataire_id INTEGER NOT NULL,
+  date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (utilisateur_id, prestataire_id),
+  FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id) ON DELETE CASCADE,
+  FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS type_evenement (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   libelle TEXT NOT NULL UNIQUE
@@ -54,6 +63,15 @@ CREATE TABLE IF NOT EXISTS emplacement_evenement (
   evenement_id INTEGER NOT NULL,
   libelle TEXT NOT NULL,
   FOREIGN KEY (evenement_id) REFERENCES evenement(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS evenement_prestataire (
+  evenement_id INTEGER NOT NULL,
+  prestataire_id INTEGER NOT NULL,
+  date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (evenement_id, prestataire_id),
+  FOREIGN KEY (evenement_id) REFERENCES evenement(id) ON DELETE CASCADE,
+  FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS zone_intervention (

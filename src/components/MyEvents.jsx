@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { createEvent, getEventTypes, getMyEvents } from '../lib/api';
+import ProviderFinder from './ProviderFinder';
+import { createEvent, getEventTypes, getMyEvents, updateEventProviders } from '../lib/api';
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -34,6 +35,7 @@ const eventFormDefaults = {
   lieuxSecondaires: [],
   description: '',
   budget: '',
+  prestatairesIds: [],
 };
 
 function formatEventPeriod(event) {
@@ -44,7 +46,7 @@ function formatEventPeriod(event) {
     : `${startLabel} – ${shortDateFormatter.format(endDate)}`;
 }
 
-function EventSummary({ event, isPast = false }) {
+function EventSummary({ event, isPast = false, onManageProviders }) {
   const endDate = event.parsedEndDate || event.parsedDate;
   const isMultiDay = dateKey(endDate) !== dateKey(event.parsedDate);
   return (
@@ -65,6 +67,13 @@ function EventSummary({ event, isPast = false }) {
           {event.nombreInvites && <span>{event.nombreInvites} invités</span>}
           {event.budget !== null && event.budget !== undefined && <span>Budget {Number(event.budget).toLocaleString('fr-FR')} €</span>}
         </div>
+        {event.prestataires?.length > 0 && <div className="event-linked-providers">
+          <span className="event-linked-providers-label">Prestataires</span>
+          {event.prestataires.map((provider) => <span className="event-linked-provider" key={provider.id}>{provider.raisonSociale}</span>)}
+        </div>}
+        <button className="event-provider-manage" type="button" onClick={onManageProviders}>
+          {event.prestataires?.length ? 'Gérer les prestataires' : 'Ajouter des prestataires'}
+        </button>
       </div>
     </article>
   );
@@ -84,6 +93,10 @@ export default function MyEvents({ onBack }) {
   const [secondaryLocationDraft, setSecondaryLocationDraft] = useState('');
   const [formError, setFormError] = useState('');
   const [savingEvent, setSavingEvent] = useState(false);
+  const [managingEvent, setManagingEvent] = useState(null);
+  const [selectedProviderIds, setSelectedProviderIds] = useState([]);
+  const [providerSaveError, setProviderSaveError] = useState('');
+  const [savingProviders, setSavingProviders] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -127,16 +140,20 @@ export default function MyEvents({ onBack }) {
   }, []);
 
   useEffect(() => {
-    if (!showCreateForm) return undefined;
+    if (!showCreateForm && !managingEvent) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const handleEscape = (event) => { if (event.key === 'Escape') setShowCreateForm(false); };
+    const handleEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      if (showCreateForm && !savingEvent) setShowCreateForm(false);
+      if (managingEvent && !savingProviders) setManagingEvent(null);
+    };
     document.addEventListener('keydown', handleEscape);
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = previousOverflow;
     };
-  }, [showCreateForm]);
+  }, [showCreateForm, savingEvent, managingEvent, savingProviders]);
 
   const today = startOfDay(new Date());
   const datedEvents = events
@@ -199,6 +216,27 @@ export default function MyEvents({ onBack }) {
       ...current,
       lieuxSecondaires: current.lieuxSecondaires.filter((_, index) => index !== indexToRemove),
     }));
+  };
+  const openProviderManager = (event) => {
+    setManagingEvent(event);
+    setSelectedProviderIds((event.prestataires || []).map((provider) => provider.id));
+    setProviderSaveError('');
+  };
+  const saveEventProviders = async () => {
+    if (!managingEvent) return;
+    setSavingProviders(true);
+    setProviderSaveError('');
+    try {
+      const result = await updateEventProviders(managingEvent.id, selectedProviderIds);
+      setEvents((current) => current.map((event) => event.id === managingEvent.id
+        ? { ...event, prestataires: result.prestataires }
+        : event));
+      setManagingEvent(null);
+    } catch (saveError) {
+      setProviderSaveError(saveError.message);
+    } finally {
+      setSavingProviders(false);
+    }
   };
   const handleCreateEvent = async (event) => {
     event.preventDefault();
@@ -287,7 +325,7 @@ export default function MyEvents({ onBack }) {
                   <span className="event-section-count">{upcomingEvents.length}</span>
                 </div>
                 {loading ? <p className="event-list-empty">Chargement des événements…</p> : upcomingEvents.length ? (
-                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} key={event.id} />)}</div>
+                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} key={event.id} onManageProviders={() => openProviderManager(event)} />)}</div>
                 ) : <p className="event-list-empty">Aucun événement futur pour le moment.</p>}
               </section>
 
@@ -297,7 +335,7 @@ export default function MyEvents({ onBack }) {
                   <span className="event-section-count">{pastEvents.length}</span>
                 </div>
                 {loading ? <p className="event-list-empty">Chargement de l’historique…</p> : pastEvents.length ? (
-                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} isPast key={event.id} />)}</div>
+                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} isPast key={event.id} onManageProviders={() => openProviderManager(event)} />)}</div>
                 ) : <p className="event-list-empty">Vos événements passés apparaîtront ici.</p>}
               </section>
             </div>
@@ -397,12 +435,40 @@ export default function MyEvents({ onBack }) {
             </div>
             <label>Description<textarea name="description" value={eventForm.description} onChange={updateEventForm} required rows="4" maxLength="2000" placeholder="Décrivez votre projet et les détails utiles." /></label>
             <label>Budget prévisionnel (€)<input name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} min="0" step="0.01" required placeholder="Ex. 5000" /></label>
+            <section className="event-provider-picker" aria-labelledby="event-provider-picker-title">
+              <div><span className="summary-label">Équipe du projet</span><h3 id="event-provider-picker-title">Prestataires à associer</h3></div>
+              <ProviderFinder
+                selectionMode
+                selectedIds={eventForm.prestatairesIds}
+                onSelectionChange={(prestatairesIds) => setEventForm((current) => ({ ...current, prestatairesIds }))}
+                isAuthenticated
+              />
+            </section>
             {formError && <p className="event-form-error" role="alert">{formError}</p>}
             <div className="event-form-actions">
               <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => setShowCreateForm(false)}>Annuler</button>
               <button className="button button-primary" type="submit" disabled={savingEvent || eventTypes.length === 0}>{savingEvent ? 'Enregistrement…' : 'Enregistrer l’événement'}</button>
             </div>
           </form>
+        </section>
+      </div>}
+      {managingEvent && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingProviders) setManagingEvent(null); }}>
+        <section className="event-form-dialog provider-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="manage-event-providers-title">
+          <div className="event-form-heading">
+            <div><span className="kicker">Prestataires associés</span><h2 id="manage-event-providers-title">{managingEvent.titre}</h2></div>
+            <button className="event-form-close" type="button" aria-label="Fermer" title="Fermer" disabled={savingProviders} onClick={() => setManagingEvent(null)}>×</button>
+          </div>
+          <ProviderFinder
+            selectionMode
+            selectedIds={selectedProviderIds}
+            onSelectionChange={setSelectedProviderIds}
+            isAuthenticated
+          />
+          {providerSaveError && <p className="event-form-error" role="alert">{providerSaveError}</p>}
+          <div className="event-form-actions">
+            <button className="event-form-cancel" type="button" disabled={savingProviders} onClick={() => setManagingEvent(null)}>Annuler</button>
+            <button className="button button-primary" type="button" disabled={savingProviders} onClick={saveEventProviders}>{savingProviders ? 'Enregistrement…' : 'Enregistrer les prestataires'}</button>
+          </div>
         </section>
       </div>}
     </main>

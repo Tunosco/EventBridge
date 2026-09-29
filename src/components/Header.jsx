@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
-export default function Header({ onNavigate, onProjectClick, onEventsClick, onLoggedOut, onProfileClick, onSettingsClick, isAuthenticated }) {
+export default function Header({ onNavigate, onProjectClick, onEventsClick, onProviderSearch, onLoggedOut, onProfileClick, onSettingsClick, isAuthenticated }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const accountMenuRef = useRef(null);
   const closeMenu = () => setMenuOpen(false);
 
@@ -41,6 +42,14 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onLo
       <header className="site-header">
         <a className="brand" href="#accueil" onClick={() => onNavigate?.('home')}>Event<span>Bridge</span></a>
         <nav className={`main-nav${menuOpen ? ' is-open' : ''}`}>
+          <form className="provider-header-search" role="search" onSubmit={(event) => {
+            event.preventDefault();
+            closeMenu();
+            onProviderSearch?.(searchQuery.trim());
+          }}>
+            <input aria-label="Rechercher un prestataire" type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Chercher un prestataire" />
+            <button type="submit">Rechercher</button>
+          </form>
           <button className="nav-link" onClick={() => { closeMenu(); onEventsClick?.(); }}>Mes événements</button>
           <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('provider'); }}>Espace prestataire</button>
           {isAuthenticated ? (

@@ -51,7 +51,7 @@ export default function ProviderProfile() {
       </div>
       <form className="provider-profile-form" onSubmit={handleSubmit}>
         <div className="provider-form-grid">
-          <label>Raison sociale<input name="raisonSociale" value={profile.raisonSociale} onChange={updateField} /></label>
+          <label>Raison sociale<input name="raisonSociale" value={profile.raisonSociale} onChange={updateField} required /></label>
           <label>SIRET<input name="siret" value={profile.siret} onChange={updateField} inputMode="numeric" /></label>
           <label>Adresse postale<input name="adressePostale" value={profile.adressePostale} onChange={updateField} /></label>
           <label>Site internet<input name="siteWeb" type="url" value={profile.siteWeb} onChange={updateField} placeholder="https://exemple.fr" /></label>

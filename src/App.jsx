@@ -7,6 +7,7 @@ import ContactModal from './components/ContactModal';
 import Profile from './components/Profile';
 import Settings from './components/Settings';
 import MyEvents from './components/MyEvents';
+import ProviderDirectory from './components/ProviderDirectory';
 import ProviderSpace from './components/ProviderSpace';
 import { getCurrentUser } from './lib/api';
 import './styles/global.css';
@@ -16,15 +17,21 @@ import './styles/provider-space.css';
 import './styles/provider-profile-editor.css';
 import './styles/provider-space-controls.css';
 import './styles/my-events.css';
+import './styles/provider-directory.css';
 
 export default function App() {
   const [contactType, setContactType] = useState(null);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
+  const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const handleProjectClick = (type) => type === 'prestataire' ? setPage('provider') : setContactType(type);
   const handleEventsClick = () => {
     setPage('events');
     if (!user) setContactType('connexion');
+  };
+  const handleProviderSearch = (query) => {
+    setProviderSearchQuery(query);
+    setPage('providers');
   };
 
   useEffect(() => {
@@ -38,9 +45,11 @@ export default function App() {
 
   return (
     <>
-      <Header onNavigate={setPage} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
+      <Header onNavigate={setPage} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
       {page === 'provider' ? (
         <ProviderSpace isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => setPage('home')} />
+      ) : page === 'providers' ? (
+        <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} onBack={() => setPage('home')} />
       ) : page === 'events' && user ? (
         <MyEvents onBack={() => setPage('home')} />
       ) : page === 'profile' && user ? (

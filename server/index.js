@@ -47,10 +47,53 @@ function isValidEventDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
+function getProviders(search, userId, favoritesOnly = false) {
+  const searchPattern = `%${search.trim()}%`;
+  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
+    TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) AS nomContact, p.description,
+    p.adresse_postale AS adressePostale, p.site_web AS siteWeb, p.photo_url AS photoUrl,
+    (SELECT GROUP_CONCAT(DISTINCT c.libelle) FROM prestation pr
+      JOIN categorie_prestation c ON c.id = pr.categorie_id
+      WHERE pr.prestataire_id = p.utilisateur_id) AS categories,
+    CASE WHEN ? IS NULL THEN 0 ELSE EXISTS (
+      SELECT 1 FROM favori_prestataire f WHERE f.utilisateur_id = ? AND f.prestataire_id = p.utilisateur_id
+    ) END AS estFavori
+    FROM prestataire p JOIN utilisateur u ON u.id = p.utilisateur_id
+    WHERE TRIM(COALESCE(p.nom_entreprise, '')) <> ''
+      AND (? = '' OR LOWER(p.nom_entreprise) LIKE LOWER(?)
+        OR LOWER(COALESCE(p.description, '')) LIKE LOWER(?)
+        OR LOWER(COALESCE(p.adresse_postale, '')) LIKE LOWER(?)
+        OR EXISTS (SELECT 1 FROM prestation pr JOIN categorie_prestation c ON c.id = pr.categorie_id
+          WHERE pr.prestataire_id = p.utilisateur_id
+          AND (LOWER(pr.titre) LIKE LOWER(?) OR LOWER(c.libelle) LIKE LOWER(?))))
+      AND (? = 0 OR EXISTS (
+        SELECT 1 FROM favori_prestataire f WHERE f.utilisateur_id = ? AND f.prestataire_id = p.utilisateur_id
+      ))
+    ORDER BY p.nom_entreprise COLLATE NOCASE LIMIT 50`).all(
+    userId, userId, search.trim(), searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
+    favoritesOnly ? 1 : 0, userId,
+  );
+}
+
+function getEventProviders(eventId) {
+  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
+    p.description, p.adresse_postale AS adressePostale, p.photo_url AS photoUrl
+    FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
+    WHERE ep.evenement_id = ? ORDER BY p.nom_entreprise COLLATE NOCASE`).all(eventId);
+}
+
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
 
 app.get('/api/reference/event-types', (_request, response) => {
   response.json(db.prepare('SELECT id, libelle FROM type_evenement ORDER BY libelle').all());
+});
+
+app.get('/api/providers', (request, response) => {
+  const token = request.headers.authorization?.replace('Bearer ', '');
+  const userId = token ? sessions.get(token) || null : null;
+  const favoritesOnly = request.query.favoris === 'true';
+  if (favoritesOnly && !userId) return response.status(401).json({ error: 'Connectez-vous pour afficher vos favoris.' });
+  response.json(getProviders(String(request.query.q || ''), userId, favoritesOnly));
 });
 
 app.post('/api/auth/register', (request, response) => {
@@ -90,24 +133,45 @@ app.get('/api/me/provider-profile', authUser, (request, response) => {
   const profile = db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
     adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
-  if (!profile) return response.status(403).json({ error: 'Aucun profil prestataire n’est associé à ce compte.' });
-  response.json({ profile });
+  response.json({ profile: profile || {
+    raisonSociale: '', siret: '', siteWeb: '', adressePostale: '', description: '', banniereUrl: '', photoUrl: '',
+  } });
 });
 
 app.put('/api/me/provider-profile', authUser, (request, response) => {
   const { raisonSociale, siret, siteWeb, adressePostale, description, banniereUrl, photoUrl } = request.body;
-  if (!db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(request.userId)) {
-    return response.status(403).json({ error: 'Aucun profil prestataire n’est associé à ce compte.' });
-  }
-  db.prepare(`UPDATE prestataire SET nom_entreprise = ?, siret = ?, site_web = ?, adresse_postale = ?,
-    description = ?, banniere_url = ?, photo_url = ? WHERE utilisateur_id = ?`).run(
-    raisonSociale?.trim() || null, siret?.trim() || null, siteWeb?.trim() || null, adressePostale?.trim() || null,
-    description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null, request.userId,
+  if (!raisonSociale?.trim()) return response.status(400).json({ error: 'La raison sociale est requise pour publier le profil.' });
+  db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, siret, site_web, adresse_postale, description, banniere_url, photo_url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(utilisateur_id) DO UPDATE SET nom_entreprise = excluded.nom_entreprise, siret = excluded.siret,
+    site_web = excluded.site_web, adresse_postale = excluded.adresse_postale, description = excluded.description,
+    banniere_url = excluded.banniere_url, photo_url = excluded.photo_url`).run(
+    request.userId, raisonSociale.trim(), siret?.trim() || null, siteWeb?.trim() || null,
+    adressePostale?.trim() || null, description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null,
   );
   const profile = db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
     adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile });
+});
+
+app.get('/api/me/favorite-providers', authUser, (request, response) => {
+  response.json(getProviders('', request.userId, true));
+});
+
+app.post('/api/me/favorite-providers/:providerId', authUser, (request, response) => {
+  const providerId = Number(request.params.providerId);
+  if (providerId === request.userId) return response.status(400).json({ error: 'Vous ne pouvez pas ajouter votre propre profil en favori.' });
+  if (!db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(providerId)) {
+    return response.status(404).json({ error: 'Prestataire introuvable.' });
+  }
+  db.prepare('INSERT OR IGNORE INTO favori_prestataire (utilisateur_id, prestataire_id) VALUES (?, ?)').run(request.userId, providerId);
+  response.status(204).end();
+});
+
+app.delete('/api/me/favorite-providers/:providerId', authUser, (request, response) => {
+  db.prepare('DELETE FROM favori_prestataire WHERE utilisateur_id = ? AND prestataire_id = ?').run(request.userId, Number(request.params.providerId));
+  response.status(204).end();
 });
 
 app.put('/api/me', authUser, (request, response) => {
@@ -149,7 +213,42 @@ app.get('/api/me/events', authUser, (request, response) => {
     eventLocations.push(location.libelle);
     locationsByEvent.set(location.evenementId, eventLocations);
   }
-  response.json(events.map((event) => ({ ...event, lieuxSecondaires: locationsByEvent.get(event.id) || [] })));
+  const eventProviders = db.prepare(`SELECT ep.evenement_id AS evenementId, p.utilisateur_id AS id,
+    p.nom_entreprise AS raisonSociale, p.photo_url AS photoUrl
+    FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
+    JOIN evenement e ON e.id = ep.evenement_id WHERE e.client_id = ?
+    ORDER BY p.nom_entreprise COLLATE NOCASE`).all(request.userId);
+  const providersByEvent = new Map();
+  for (const provider of eventProviders) {
+    const eventProvidersList = providersByEvent.get(provider.evenementId) || [];
+    eventProvidersList.push({ id: provider.id, raisonSociale: provider.raisonSociale, photoUrl: provider.photoUrl });
+    providersByEvent.set(provider.evenementId, eventProvidersList);
+  }
+  response.json(events.map((event) => ({
+    ...event,
+    lieuxSecondaires: locationsByEvent.get(event.id) || [],
+    prestataires: providersByEvent.get(event.id) || [],
+  })));
+});
+
+app.put('/api/me/events/:eventId/providers', authUser, (request, response) => {
+  const eventId = Number(request.params.eventId);
+  const event = db.prepare('SELECT id FROM evenement WHERE id = ? AND client_id = ?').get(eventId, request.userId);
+  if (!event) return response.status(404).json({ error: 'Événement introuvable.' });
+  const providerIds = Array.isArray(request.body.prestatairesIds)
+    ? [...new Set(request.body.prestatairesIds.map(Number))]
+    : [];
+  const providerExists = db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?');
+  if (providerIds.some((providerId) => !Number.isInteger(providerId) || !providerExists.get(providerId))) {
+    return response.status(400).json({ error: 'Un prestataire sélectionné est invalide.' });
+  }
+  const replaceProviders = db.transaction(() => {
+    db.prepare('DELETE FROM evenement_prestataire WHERE evenement_id = ?').run(eventId);
+    const addProvider = db.prepare('INSERT INTO evenement_prestataire (evenement_id, prestataire_id) VALUES (?, ?)');
+    for (const providerId of providerIds) addProvider.run(eventId, providerId);
+  });
+  replaceProviders();
+  response.json({ prestataires: getEventProviders(eventId) });
 });
 
 app.post('/api/me/events', authUser, (request, response) => {
@@ -159,6 +258,9 @@ app.post('/api/me/events', authUser, (request, response) => {
   const estimatedBudget = Number(budget);
   const secondaryLocations = Array.isArray(request.body.lieuxSecondaires)
     ? request.body.lieuxSecondaires.map((location) => String(location).trim()).filter(Boolean)
+    : [];
+  const providerIds = Array.isArray(request.body.prestatairesIds)
+    ? [...new Set(request.body.prestatairesIds.map(Number))]
     : [];
   if (!titre?.trim() || !description?.trim() || !lieu?.trim() || !typeEvenementId
     || budget === '' || budget === null || budget === undefined || !Number.isFinite(estimatedBudget) || estimatedBudget < 0) {
@@ -171,6 +273,10 @@ app.post('/api/me/events', authUser, (request, response) => {
   if (!db.prepare('SELECT id FROM type_evenement WHERE id = ?').get(Number(typeEvenementId))) {
     return response.status(400).json({ error: 'Le type d’événement sélectionné est invalide.' });
   }
+  const providerExists = db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?');
+  if (providerIds.some((providerId) => !Number.isInteger(providerId) || !providerExists.get(providerId))) {
+    return response.status(400).json({ error: 'Un prestataire sélectionné est invalide.' });
+  }
   const createEvent = db.transaction(() => {
     const result = db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, date_fin, budget)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
@@ -179,6 +285,8 @@ app.post('/api/me/events', authUser, (request, response) => {
     const eventId = Number(result.lastInsertRowid);
     const insertLocation = db.prepare('INSERT INTO emplacement_evenement (evenement_id, libelle) VALUES (?, ?)');
     for (const location of secondaryLocations) insertLocation.run(eventId, location);
+    const addProvider = db.prepare('INSERT INTO evenement_prestataire (evenement_id, prestataire_id) VALUES (?, ?)');
+    for (const providerId of providerIds) addProvider.run(eventId, providerId);
     return eventId;
   });
   response.status(201).json({ id: createEvent() });
