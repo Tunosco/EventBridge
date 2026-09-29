@@ -9,6 +9,8 @@ fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 export const db = new Database(databasePath);
 db.pragma('foreign_keys = ON');
 db.exec(fs.readFileSync(path.resolve('server/schema.sql'), 'utf8'));
+const eventColumns = db.prepare('PRAGMA table_info(evenement)').all().map((column) => column.name);
+if (!eventColumns.includes('date_fin')) db.exec('ALTER TABLE evenement ADD COLUMN date_fin TEXT');
 const userColumns = db.prepare('PRAGMA table_info(utilisateur)').all().map((column) => column.name);
 if (!userColumns.includes('prenom')) db.exec('ALTER TABLE utilisateur ADD COLUMN prenom TEXT');
 if (!userColumns.includes('code_postal')) db.exec('ALTER TABLE utilisateur ADD COLUMN code_postal TEXT');

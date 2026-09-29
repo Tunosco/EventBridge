@@ -43,6 +43,14 @@ export function getMyEvents() {
   return request('/me/events', { headers: authHeaders() });
 }
 
+export function getEventTypes() {
+  return request('/reference/event-types');
+}
+
+export function createEvent(payload) {
+  return request('/me/events', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
 export function getProviderProfile() {
   return request('/me/provider-profile', { headers: authHeaders() });
 }

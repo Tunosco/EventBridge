@@ -41,6 +41,12 @@ function getUserProfile(userId) {
   return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
 }
 
+function isValidEventDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
 
 app.get('/api/reference/event-types', (_request, response) => {
@@ -130,19 +136,52 @@ app.delete('/api/me', authUser, (request, response) => {
 
 app.get('/api/me/events', authUser, (request, response) => {
   const events = db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS dateEvenement,
-    e.nombre_invites AS nombreInvites, e.budget, t.libelle AS typeEvenement
+    e.date_fin AS dateFin, e.nombre_invites AS nombreInvites, e.budget, t.libelle AS typeEvenement
     FROM evenement e JOIN type_evenement t ON t.id = e.type_evenement_id
     WHERE e.client_id = ? ORDER BY e.date_evenement`).all(request.userId);
-  response.json(events);
+  if (!events.length) return response.json([]);
+  const locations = db.prepare(`SELECT evenement_id AS evenementId, libelle FROM emplacement_evenement
+    JOIN evenement ON evenement.id = emplacement_evenement.evenement_id
+    WHERE evenement.client_id = ? ORDER BY emplacement_evenement.id`).all(request.userId);
+  const locationsByEvent = new Map();
+  for (const location of locations) {
+    const eventLocations = locationsByEvent.get(location.evenementId) || [];
+    eventLocations.push(location.libelle);
+    locationsByEvent.set(location.evenementId, eventLocations);
+  }
+  response.json(events.map((event) => ({ ...event, lieuxSecondaires: locationsByEvent.get(event.id) || [] })));
 });
 
 app.post('/api/me/events', authUser, (request, response) => {
-  const { titre, typeEvenementId, description, lieu, dateEvenement, nombreInvites, budget } = request.body;
-  if (!titre || !typeEvenementId) return response.status(400).json({ error: 'Le titre et le type d’événement sont requis.' });
+  const { titre, typeEvenementId, description, lieu, dateDebut, dateFin, dateEvenement, budget } = request.body;
+  const eventStartDate = dateDebut || dateEvenement;
+  const eventEndDate = dateFin || eventStartDate;
+  const estimatedBudget = Number(budget);
+  const secondaryLocations = Array.isArray(request.body.lieuxSecondaires)
+    ? request.body.lieuxSecondaires.map((location) => String(location).trim()).filter(Boolean)
+    : [];
+  if (!titre?.trim() || !description?.trim() || !lieu?.trim() || !typeEvenementId
+    || budget === '' || budget === null || budget === undefined || !Number.isFinite(estimatedBudget) || estimatedBudget < 0) {
+    return response.status(400).json({ error: 'Titre, type, description, budget et emplacement principal sont requis.' });
+  }
+  if (!isValidEventDate(eventStartDate) || !isValidEventDate(eventEndDate) || eventEndDate < eventStartDate) {
+    return response.status(400).json({ error: 'La date de fin doit être égale ou postérieure à la date de début.' });
+  }
   if (!db.prepare('SELECT utilisateur_id FROM client WHERE utilisateur_id = ?').get(request.userId)) return response.status(403).json({ error: 'Seul un client peut créer un événement.' });
-  const result = db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, nombre_invites, budget)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(request.userId, typeEvenementId, titre, description || null, lieu || null, dateEvenement || null, nombreInvites || null, budget || null);
-  response.status(201).json({ id: Number(result.lastInsertRowid) });
+  if (!db.prepare('SELECT id FROM type_evenement WHERE id = ?').get(Number(typeEvenementId))) {
+    return response.status(400).json({ error: 'Le type d’événement sélectionné est invalide.' });
+  }
+  const createEvent = db.transaction(() => {
+    const result = db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, date_fin, budget)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      request.userId, Number(typeEvenementId), titre.trim(), description.trim(), lieu.trim(), eventStartDate, eventEndDate, estimatedBudget,
+    );
+    const eventId = Number(result.lastInsertRowid);
+    const insertLocation = db.prepare('INSERT INTO emplacement_evenement (evenement_id, libelle) VALUES (?, ?)');
+    for (const location of secondaryLocations) insertLocation.run(eventId, location);
+    return eventId;
+  });
+  response.status(201).json({ id: createEvent() });
 });
 
 if (process.env.NODE_ENV === 'production') {

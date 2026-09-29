@@ -34,6 +34,17 @@
   font-size: 16px;
 }
 
+.my-events-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.create-event-button {
+  flex: 0 0 auto;
+}
+
 .upcoming-summary {
   display: grid;
   grid-template-columns: minmax(150px, .65fr) minmax(0, 1.35fr);
@@ -541,6 +552,12 @@
   font-size: 11px;
 }
 
+.event-summary-date .event-summary-end-date {
+  color: var(--coral-dark);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .event-summary-body {
   min-width: 0;
   align-self: center;
@@ -588,6 +605,207 @@
   font-size: 14px;
 }
 
+.event-form-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 24px;
+  background: rgba(16, 42, 67, .68);
+}
+
+.event-form-dialog {
+  width: min(680px, 100%);
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.event-form-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.event-form-heading h2 {
+  margin: 5px 0 0;
+  color: var(--navy);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.event-form-close {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--navy);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.event-form-close:hover:not(:disabled) {
+  border-color: var(--coral);
+  color: var(--coral-dark);
+}
+
+.event-creation-form {
+  display: grid;
+  gap: 14px;
+}
+
+.event-creation-form > label,
+.secondary-location-field {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.event-creation-form input,
+.event-creation-form select,
+.event-creation-form textarea,
+.secondary-location-add input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.event-creation-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.event-creation-form input:focus,
+.event-creation-form select:focus,
+.event-creation-form textarea:focus,
+.secondary-location-add input:focus {
+  outline: 2px solid var(--coral);
+  outline-offset: 1px;
+}
+
+.event-date-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.event-date-fields label {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.secondary-location-add {
+  display: flex;
+  gap: 8px;
+}
+
+.secondary-location-add-button {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: var(--sky);
+  color: var(--navy);
+}
+
+.secondary-location-add-button:hover:not(:disabled) {
+  border-color: var(--coral);
+}
+
+.secondary-location-add-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.secondary-location-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.secondary-location-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.secondary-location-list button {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 21px;
+}
+
+.secondary-location-list button:hover {
+  color: var(--coral-dark);
+}
+
+.event-form-error {
+  margin: 0;
+  color: #a63d32;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.event-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.event-form-actions button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.event-form-cancel {
+  border: 0;
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.event-form-cancel:hover:not(:disabled) {
+  color: var(--coral-dark);
+}
+
 @media (max-width: 700px) {
   .my-events-page {
     padding: 48px 4% 70px;
@@ -595,6 +813,15 @@
 
   .my-events-heading h1 {
     font-size: 40px;
+  }
+
+  .my-events-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .create-event-button {
+    width: 100%;
   }
 
   .my-events-layout {
@@ -623,6 +850,41 @@
 
   .event-summary-body h3 {
     font-size: 15px;
+  }
+
+  .event-form-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .event-form-dialog {
+    width: 100%;
+    max-height: 94vh;
+    padding: 22px 18px max(22px, env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 7px 7px 0 0;
+  }
+
+  .event-form-heading h2 {
+    font-size: 25px;
+  }
+
+  .event-date-fields {
+    gap: 9px;
+  }
+
+  .event-date-fields label {
+    font-size: 12px;
+  }
+
+  .event-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .event-form-actions > button {
+    width: 100%;
   }
 
   .upcoming-summary {

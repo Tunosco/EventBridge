@@ -41,11 +41,19 @@ CREATE TABLE IF NOT EXISTS evenement (
   description TEXT,
   lieu TEXT,
   date_evenement TEXT,
+  date_fin TEXT,
   nombre_invites INTEGER,
   budget REAL,
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (client_id) REFERENCES client(utilisateur_id) ON DELETE CASCADE,
   FOREIGN KEY (type_evenement_id) REFERENCES type_evenement(id)
+);
+
+CREATE TABLE IF NOT EXISTS emplacement_evenement (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  evenement_id INTEGER NOT NULL,
+  libelle TEXT NOT NULL,
+  FOREIGN KEY (evenement_id) REFERENCES evenement(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS zone_intervention (

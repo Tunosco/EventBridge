@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMyEvents } from '../lib/api';
+import { createEvent, getEventTypes, getMyEvents } from '../lib/api';
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -25,14 +25,35 @@ const fullDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', da
 const shortDateFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 const weekdayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
 const cardMonthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
+const eventFormDefaults = {
+  titre: '',
+  typeEvenementId: '',
+  dateDebut: '',
+  dateFin: '',
+  lieu: '',
+  lieuxSecondaires: [],
+  description: '',
+  budget: '',
+};
+
+function formatEventPeriod(event) {
+  const endDate = event.parsedEndDate || event.parsedDate;
+  const startLabel = shortDateFormatter.format(event.parsedDate);
+  return dateKey(event.parsedDate) === dateKey(endDate)
+    ? startLabel
+    : `${startLabel} – ${shortDateFormatter.format(endDate)}`;
+}
 
 function EventSummary({ event, isPast = false }) {
+  const endDate = event.parsedEndDate || event.parsedDate;
+  const isMultiDay = dateKey(endDate) !== dateKey(event.parsedDate);
   return (
     <article className={`event-summary-card${isPast ? ' is-past' : ''}`}>
-      <time className="event-summary-date" dateTime={dateKey(event.parsedDate)}>
+      <time className="event-summary-date" dateTime={isMultiDay ? `${dateKey(event.parsedDate)}/${dateKey(endDate)}` : dateKey(event.parsedDate)}>
         <span>{weekdayFormatter.format(event.parsedDate)}</span>
         <strong>{event.parsedDate.getDate()}</strong>
         <span>{cardMonthFormatter.format(event.parsedDate)}</span>
+        {isMultiDay && <span className="event-summary-end-date">au {shortDateFormatter.format(endDate)}</span>}
       </time>
       <div className="event-summary-body">
         <span className="event-summary-type">{event.typeEvenement || 'Événement'}</span>
@@ -40,7 +61,9 @@ function EventSummary({ event, isPast = false }) {
         {event.description && <p>{event.description}</p>}
         <div className="event-summary-details">
           {event.lieu && <span>{event.lieu}</span>}
+          {event.lieuxSecondaires?.length > 0 && <span>+ {event.lieuxSecondaires.join(', ')}</span>}
           {event.nombreInvites && <span>{event.nombreInvites} invités</span>}
+          {event.budget !== null && event.budget !== undefined && <span>Budget {Number(event.budget).toLocaleString('fr-FR')} €</span>}
         </div>
       </div>
     </article>
@@ -53,6 +76,14 @@ export default function MyEvents({ onBack }) {
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
   const [view, setView] = useState('overview');
+  const [eventTypes, setEventTypes] = useState([]);
+  const [eventTypesLoading, setEventTypesLoading] = useState(true);
+  const [eventTypesError, setEventTypesError] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [eventForm, setEventForm] = useState(eventFormDefaults);
+  const [secondaryLocationDraft, setSecondaryLocationDraft] = useState('');
+  const [formError, setFormError] = useState('');
+  const [savingEvent, setSavingEvent] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -69,12 +100,16 @@ export default function MyEvents({ onBack }) {
         setEvents(result);
         const today = startOfDay(new Date());
         const nextEvent = result
-          .map((event) => ({ date: parseEventDate(event.dateEvenement) }))
-          .filter((event) => event.date && startOfDay(event.date) >= today)
+          .map((event) => {
+            const date = parseEventDate(event.dateEvenement);
+            return { date, endDate: parseEventDate(event.dateFin) || date };
+          })
+          .filter((event) => event.date && event.endDate && startOfDay(event.endDate) >= today)
           .sort((first, second) => first.date - second.date)[0];
         if (nextEvent) {
-          setVisibleMonth(new Date(nextEvent.date.getFullYear(), nextEvent.date.getMonth(), 1));
-          setSelectedDateKey(dateKey(nextEvent.date));
+          const relevantDate = startOfDay(nextEvent.date) < today ? today : nextEvent.date;
+          setVisibleMonth(new Date(relevantDate.getFullYear(), relevantDate.getMonth(), 1));
+          setSelectedDateKey(dateKey(relevantDate));
         }
       })
       .catch((loadError) => { if (active) setError(loadError.message); })
@@ -82,16 +117,40 @@ export default function MyEvents({ onBack }) {
     return () => { active = false; };
   }, [reload]);
 
+  useEffect(() => {
+    let active = true;
+    getEventTypes()
+      .then((result) => { if (active) setEventTypes(result); })
+      .catch((loadError) => { if (active) setEventTypesError(loadError.message); })
+      .finally(() => { if (active) setEventTypesLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!showCreateForm) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleEscape = (event) => { if (event.key === 'Escape') setShowCreateForm(false); };
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showCreateForm]);
+
   const today = startOfDay(new Date());
   const datedEvents = events
-    .map((event) => ({ ...event, parsedDate: parseEventDate(event.dateEvenement) }))
-    .filter((event) => event.parsedDate);
+    .map((event) => {
+      const parsedDate = parseEventDate(event.dateEvenement);
+      return { ...event, parsedDate, parsedEndDate: parseEventDate(event.dateFin) || parsedDate };
+    })
+    .filter((event) => event.parsedDate && event.parsedEndDate);
   const upcomingEvents = datedEvents
-    .filter((event) => startOfDay(event.parsedDate) >= today)
+    .filter((event) => startOfDay(event.parsedEndDate) >= today)
     .sort((first, second) => first.parsedDate - second.parsedDate);
   const pastEvents = datedEvents
-    .filter((event) => startOfDay(event.parsedDate) < today)
-    .sort((first, second) => second.parsedDate - first.parsedDate);
+    .filter((event) => startOfDay(event.parsedEndDate) < today)
+    .sort((first, second) => second.parsedEndDate - first.parsedEndDate);
   const monthStart = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
   const dayOffset = (monthStart.getDay() + 6) % 7;
   const dayCount = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
@@ -99,11 +158,11 @@ export default function MyEvents({ onBack }) {
   const calendarDays = Array.from({ length: cellCount }, (_, index) => new Date(
     visibleMonth.getFullYear(), visibleMonth.getMonth(), index - dayOffset + 1,
   ));
-  const monthEvents = upcomingEvents.filter((event) => (
-    event.parsedDate.getFullYear() === visibleMonth.getFullYear()
-    && event.parsedDate.getMonth() === visibleMonth.getMonth()
+  const monthEnd = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0);
+  const monthEvents = upcomingEvents.filter((event) => event.parsedDate <= monthEnd && event.parsedEndDate >= monthStart);
+  const selectedEvents = upcomingEvents.filter((event) => (
+    selectedDateKey >= dateKey(event.parsedDate) && selectedDateKey <= dateKey(event.parsedEndDate)
   ));
-  const selectedEvents = upcomingEvents.filter((event) => dateKey(event.parsedDate) === selectedDateKey);
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const isCurrentMonth = monthStart.getTime() === currentMonth.getTime();
 
@@ -116,9 +175,54 @@ export default function MyEvents({ onBack }) {
 
   const changeSelectedDay = (date) => setSelectedDateKey(dateKey(date));
   const openEventInCalendar = (event) => {
-    setVisibleMonth(new Date(event.parsedDate.getFullYear(), event.parsedDate.getMonth(), 1));
-    setSelectedDateKey(dateKey(event.parsedDate));
+    const relevantDate = startOfDay(event.parsedDate) < today ? today : event.parsedDate;
+    setVisibleMonth(new Date(relevantDate.getFullYear(), relevantDate.getMonth(), 1));
+    setSelectedDateKey(dateKey(relevantDate));
     setView('calendar');
+  };
+  const updateEventForm = (event) => {
+    const { name, value } = event.target;
+    setEventForm((current) => {
+      const nextForm = { ...current, [name]: value };
+      if (name === 'dateDebut' && (!current.dateFin || current.dateFin < value)) nextForm.dateFin = value;
+      return nextForm;
+    });
+  };
+  const addSecondaryLocation = () => {
+    const location = secondaryLocationDraft.trim();
+    if (!location) return;
+    setEventForm((current) => ({ ...current, lieuxSecondaires: [...current.lieuxSecondaires, location] }));
+    setSecondaryLocationDraft('');
+  };
+  const removeSecondaryLocation = (indexToRemove) => {
+    setEventForm((current) => ({
+      ...current,
+      lieuxSecondaires: current.lieuxSecondaires.filter((_, index) => index !== indexToRemove),
+    }));
+  };
+  const handleCreateEvent = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    if (eventForm.dateFin < eventForm.dateDebut) {
+      setFormError('La date de fin doit être égale ou postérieure à la date de début.');
+      return;
+    }
+    setSavingEvent(true);
+    try {
+      await createEvent({
+        ...eventForm,
+        typeEvenementId: Number(eventForm.typeEvenementId),
+        budget: Number(eventForm.budget),
+      });
+      setEventForm({ ...eventFormDefaults, lieuxSecondaires: [] });
+      setSecondaryLocationDraft('');
+      setShowCreateForm(false);
+      setReload((value) => value + 1);
+    } catch (saveError) {
+      setFormError(saveError.message);
+    } finally {
+      setSavingEvent(false);
+    }
   };
 
   return (
@@ -148,7 +252,7 @@ export default function MyEvents({ onBack }) {
                     </time>
                     <span className="sidebar-event-copy">
                       <strong>{event.titre}</strong>
-                      <small>{shortDateFormatter.format(event.parsedDate)}</small>
+                      <small>{formatEventPeriod(event)}</small>
                     </span>
                   </button>
                 ))}
@@ -160,9 +264,14 @@ export default function MyEvents({ onBack }) {
         <div className="my-events-content">
           <div className="my-events-heading">
             <button className="text-link my-events-back" onClick={onBack}>Retour à l’accueil</button>
-            <span className="kicker">Votre espace</span>
-            <h1>Mes événements</h1>
-            <p>{view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.'}</p>
+            <div className="my-events-title-row">
+              <div>
+                <span className="kicker">Votre espace</span>
+                <h1>Mes événements</h1>
+                <p>{view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.'}</p>
+              </div>
+              <button className="button button-primary create-event-button" type="button" onClick={() => { setFormError(''); setShowCreateForm(true); }}>Créer un événement</button>
+            </div>
           </div>
 
           {error && <div className="my-events-error" role="alert">
@@ -212,7 +321,7 @@ export default function MyEvents({ onBack }) {
             </div>
             <div className="calendar-grid calendar-days">
               {calendarDays.map((date) => {
-                const dayEvents = monthEvents.filter((event) => dateKey(event.parsedDate) === dateKey(date));
+                const dayEvents = monthEvents.filter((event) => date >= startOfDay(event.parsedDate) && date <= startOfDay(event.parsedEndDate));
                 const inMonth = date.getMonth() === visibleMonth.getMonth();
                 const isToday = dateKey(date) === dateKey(today);
                 const isSelected = dateKey(date) === selectedDateKey;
@@ -255,6 +364,47 @@ export default function MyEvents({ onBack }) {
           )}
         </div>
       </div>
+      {showCreateForm && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingEvent) setShowCreateForm(false); }}>
+        <section className="event-form-dialog" role="dialog" aria-modal="true" aria-labelledby="create-event-title">
+          <div className="event-form-heading">
+            <div><span className="kicker">Votre projet</span><h2 id="create-event-title">Créer un événement</h2></div>
+            <button className="event-form-close" type="button" aria-label="Fermer" title="Fermer" disabled={savingEvent} onClick={() => setShowCreateForm(false)}>×</button>
+          </div>
+          <form className="event-creation-form" onSubmit={handleCreateEvent}>
+            <label>Titre<input name="titre" value={eventForm.titre} onChange={updateEventForm} required maxLength="120" placeholder="Ex. Mariage de Camille et Alex" /></label>
+            <label>Type d’événement<select name="typeEvenementId" value={eventForm.typeEvenementId} onChange={updateEventForm} required disabled={eventTypesLoading || eventTypes.length === 0}>
+              <option value="">{eventTypesLoading ? 'Chargement des types…' : 'Choisir un type'}</option>
+              {eventTypes.map((type) => <option key={type.id} value={type.id}>{type.libelle}</option>)}
+            </select></label>
+            {eventTypesError && <p className="event-form-error" role="alert">{eventTypesError}</p>}
+            <div className="event-date-fields">
+              <label>Jour de début<input name="dateDebut" type="date" value={eventForm.dateDebut} onChange={updateEventForm} required /></label>
+              <label>Jour de fin<input name="dateFin" type="date" value={eventForm.dateFin} onChange={updateEventForm} min={eventForm.dateDebut || undefined} required /></label>
+            </div>
+            <label>Emplacement principal<input name="lieu" value={eventForm.lieu} onChange={updateEventForm} required maxLength="180" placeholder="Ville ou lieu principal" /></label>
+            <div className="secondary-location-field">
+              <label htmlFor="secondary-location">Emplacements secondaires</label>
+              <div className="secondary-location-add">
+                <input id="secondary-location" value={secondaryLocationDraft} onChange={(event) => setSecondaryLocationDraft(event.target.value)} maxLength="180" placeholder="Ajouter un autre lieu" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSecondaryLocation(); } }} />
+                <button className="button secondary-location-add-button" type="button" disabled={!secondaryLocationDraft.trim()} onClick={addSecondaryLocation}>Ajouter</button>
+              </div>
+              {eventForm.lieuxSecondaires.length > 0 && <ul className="secondary-location-list">
+                {eventForm.lieuxSecondaires.map((location, index) => <li key={`${location}-${index}`}>
+                  <span>{location}</span>
+                  <button type="button" title={`Retirer ${location}`} aria-label={`Retirer ${location}`} onClick={() => removeSecondaryLocation(index)}>×</button>
+                </li>)}
+              </ul>}
+            </div>
+            <label>Description<textarea name="description" value={eventForm.description} onChange={updateEventForm} required rows="4" maxLength="2000" placeholder="Décrivez votre projet et les détails utiles." /></label>
+            <label>Budget prévisionnel (€)<input name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} min="0" step="0.01" required placeholder="Ex. 5000" /></label>
+            {formError && <p className="event-form-error" role="alert">{formError}</p>}
+            <div className="event-form-actions">
+              <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => setShowCreateForm(false)}>Annuler</button>
+              <button className="button button-primary" type="submit" disabled={savingEvent || eventTypes.length === 0}>{savingEvent ? 'Enregistrement…' : 'Enregistrer l’événement'}</button>
+            </div>
+          </form>
+        </section>
+      </div>}
     </main>
   );
 }
