@@ -49,7 +49,20 @@ function createPostgresDatabase(pool) {
 let pool;
 if (isPostgres) {
 	const { Pool } = await import('pg');
-	pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: true } });
+	const connectionUrl = new URL(process.env.DATABASE_URL);
+	for (const option of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) {
+		connectionUrl.searchParams.delete(option);
+	}
+	const ssl = { rejectUnauthorized: true };
+	if (process.env.SUPABASE_DB_SSL_CA_PATH) {
+		const caPath = path.resolve(process.env.SUPABASE_DB_SSL_CA_PATH);
+		try {
+			ssl.ca = fs.readFileSync(caPath, 'utf8');
+		} catch (error) {
+			throw new Error(`Supabase CA certificate not found at ${caPath}. Download it from Database > Settings > SSL Configuration.`, { cause: error });
+		}
+	}
+	pool = new Pool({ connectionString: connectionUrl.toString(), ssl, max: 5 });
 }
 
 const dataDirectory = path.resolve('data');

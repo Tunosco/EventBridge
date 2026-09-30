@@ -26,9 +26,11 @@ La base locale est créée automatiquement dans `data/eventbridge.sqlite` au dé
 
 1. Crée un projet sur [supabase.com](https://supabase.com) et attends que son état soit **Active**. La base PostgreSQL est hébergée et démarrée automatiquement par Supabase.
 2. Dans le tableau de bord, ouvre **Connect** et récupère une URI PostgreSQL. Pour une machine locale en IPv4, choisis l'URI du **Session pooler** si la connexion directe n'est pas disponible.
-3. Crée `.env` à la racine du projet selon le modèle `.env.example`, puis renseigne l'URI complète dans `DATABASE_URL`. Si le mot de passe contient des caractères spéciaux, encode-les pour une URL. Ne mets jamais cette variable dans le frontend (`VITE_`) et ne la commite pas.
-4. Lance `npm run server`. À son démarrage, l'API se connecte à Supabase, crée les tables et les données de référence si elles n'existent pas, puis écoute sur `http://localhost:3001`.
-5. Dans un autre terminal, lance `npm run dev` pour ouvrir l'application sur `http://localhost:5173`.
+3. Crée `.env` à la racine selon `.env.example`, puis remplace les placeholders. Dans **Connect > Shared Pooler > Session**, copie l'URI complète et remplace `[YOUR-PASSWORD]` par le mot de passe PostgreSQL du projet (URL-encodé si nécessaire), pas par la clé secrète.
+4. Récupère `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` et `SUPABASE_SECRET_KEY` dans **Project Settings > API Keys**. La clé secrète reste côté serveur et ne doit jamais être ajoutée au frontend.
+5. Dans **Database > Settings > SSL Configuration**, télécharge le certificat CA du projet et place-le à la racine sous `supabase-ca.crt`. Garde `SUPABASE_DB_SSL_CA_PATH=./supabase-ca.crt`; le serveur vérifie strictement le certificat TLS. Le certificat CA est public, mais le mot de passe et `SUPABASE_SECRET_KEY` ne le sont pas.
+6. Lance `npm run server`. À son démarrage, l'API se connecte à Supabase, crée les tables et les données de référence si elles n'existent pas, puis écoute sur `http://localhost:3001`.
+7. Dans un autre terminal, lance `npm run dev` pour ouvrir l'application sur `http://localhost:5173`.
 
 Supabase héberge ici la base de données, pas cette API Express. L'API doit rester lancée séparément (localement ou chez un hébergeur Node.js). Sans `DATABASE_URL`, `npm run server` utilise SQLite localement. Le serveur se connecte avec l'URI privée; aucune clé Supabase n'est requise dans le navigateur.
 
