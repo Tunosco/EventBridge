@@ -1,6 +1,6 @@
 # EventBridge
 
-Application React/Vite avec une API Express. SQLite est utilise en local par defaut; PostgreSQL via Supabase peut etre active avec `DATABASE_URL`.
+Application React/Vite avec une API Express et une base PostgreSQL hébergée sur Supabase. SQLite reste disponible pour le développement local sans configuration.
 
 ## Lancer le projet
 
@@ -22,28 +22,19 @@ npm run dev
 
 La base locale est créée automatiquement dans `data/eventbridge.sqlite` au démarrage de l'API.
 
-## Connecter Supabase
+## Supabase
 
-1. Crée un projet Supabase, puis ouvre **Connect** dans son tableau de bord et copie la chaîne **URI** PostgreSQL. Pour Render, utilise de préférence l'URL du pooler si l'instance Render ne peut pas joindre le port direct.
-2. Copie `.env.example` vers `.env` et remplace `DATABASE_URL` par cette URI. Garde le mot de passe dans cette variable serveur uniquement: ne le préfixe jamais par `VITE_` et ne le publie pas.
-3. Redémarre l'API avec `npm run server`. Au premier démarrage, les tables EventBridge et les types/catégories de référence sont créés automatiquement dans le projet Supabase.
-4. Pour Render, renseigne `DATABASE_URL` dans **Environment** avec l'URI Supabase. Le champ est déclaré comme secret non synchronisé dans `render.yaml`.
+1. Crée un projet sur [supabase.com](https://supabase.com) et attends que son état soit **Active**. La base PostgreSQL est hébergée et démarrée automatiquement par Supabase.
+2. Dans le tableau de bord, ouvre **Connect** et récupère une URI PostgreSQL. Pour une machine locale en IPv4, choisis l'URI du **Session pooler** si la connexion directe n'est pas disponible.
+3. Crée `.env` à la racine du projet selon le modèle `.env.example`, puis renseigne l'URI complète dans `DATABASE_URL`. Si le mot de passe contient des caractères spéciaux, encode-les pour une URL. Ne mets jamais cette variable dans le frontend (`VITE_`) et ne la commite pas.
+4. Lance `npm run server`. À son démarrage, l'API se connecte à Supabase, crée les tables et les données de référence si elles n'existent pas, puis écoute sur `http://localhost:3001`.
+5. Dans un autre terminal, lance `npm run dev` pour ouvrir l'application sur `http://localhost:5173`.
 
-Quand `DATABASE_URL` est défini, l'API utilise PostgreSQL/Supabase. Sans cette variable, elle garde la base SQLite locale. La connexion serveur utilise le rôle fourni dans l'URI; ne fournis jamais la clé `service_role` au navigateur.
-
-## Déploiement Render
-
-Le fichier `render.yaml` configure un service web Render avec un disque persistant monté dans `/var/data`. La base SQLite est stockée dans `/var/data/eventbridge.sqlite` et l'API sert également le frontend compilé.
-
-1. Pousse le dépôt sur GitHub et connecte-le à Render avec **New > Blueprint**.
-2. Sélectionne le dépôt contenant `render.yaml` et valide la création du service.
-3. Une fois le déploiement terminé, ouvre l'URL Render affichée dans le tableau de bord.
-
-Le service Render avec disque persistant nécessite une offre payante. Sans disque persistant, les données SQLite peuvent être perdues lors d'un redéploiement ou d'un redémarrage.
+Supabase héberge ici la base de données, pas cette API Express. L'API doit rester lancée séparément (localement ou chez un hébergeur Node.js). Sans `DATABASE_URL`, `npm run server` utilise SQLite localement. Le serveur se connecte avec l'URI privée; aucune clé Supabase n'est requise dans le navigateur.
 
 ## Schéma
 
-Les schémas sont définis dans `server/schema.sql` (SQLite) et `server/schema.postgres.sql` (Supabase/PostgreSQL) et couvrent :
+Les schémas sont définis dans `server/schema.sql` (SQLite) et `server/schema.postgres.sql` (Supabase/PostgreSQL). Le schéma Supabase active RLS sans politiques publiques; l'API serveur se connecte directement à PostgreSQL. Les tables couvrent :
 
 - `utilisateur`, `client`, `prestataire`
 - `type_evenement`, `evenement`
