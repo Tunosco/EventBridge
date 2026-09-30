@@ -91,7 +91,7 @@ export const db = isPostgres ? createPostgresDatabase(pool) : {
 
 export async function initializeDatabase() {
 	if (isPostgres) {
-		await pool.query(fs.readFileSync(path.resolve('server/schema.postgres.sql'), 'utf8'));
+		await pool.query('SELECT 1');
 		return;
 	}
 	sqlite.exec(fs.readFileSync(path.resolve('server/schema.sql'), 'utf8'));
