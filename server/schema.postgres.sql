@@ -6,10 +6,13 @@ CREATE TABLE IF NOT EXISTS utilisateur (
   mot_de_passe_hash TEXT NOT NULL,
   telephone TEXT,
   code_postal TEXT,
+  supabase_auth_id TEXT,
   date_creation TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS supabase_auth_id TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_email_lower_unique ON utilisateur (LOWER(email));
+CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_supabase_auth_id_unique ON utilisateur (supabase_auth_id) WHERE supabase_auth_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS client (
   utilisateur_id INTEGER PRIMARY KEY REFERENCES utilisateur(id) ON DELETE CASCADE

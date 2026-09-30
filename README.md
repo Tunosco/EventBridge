@@ -32,6 +32,10 @@ La base locale est créée automatiquement dans `data/eventbridge.sqlite` au dé
 
 Supabase héberge ici la base de données, pas cette API Express. L'API doit rester lancée séparément (localement ou chez un hébergeur Node.js). Sans `DATABASE_URL`, `npm run server` utilise SQLite localement. Le serveur se connecte avec l'URI privée; aucune clé Supabase n'est requise dans le navigateur.
 
+### Confirmation d'adresse email
+
+Dans **Authentication > Sign In / Providers > Email**, active **Confirm email**. Dans **Authentication > URL Configuration**, ajoute `http://localhost:5173/` aux URL de redirection autorisées; si l'application est déployée ailleurs, configure aussi `SUPABASE_EMAIL_REDIRECT_URL` avec son URL publique. Supabase envoie un lien à la création du compte; l'utilisateur doit le suivre avant de pouvoir se connecter. Pour l'envoi en production, configure un SMTP personnalisé dans les paramètres d'authentification Supabase.
+
 ## Schéma
 
 Les schémas sont définis dans `server/schema.sql` (SQLite) et `server/schema.postgres.sql` (Supabase/PostgreSQL). Le schéma Supabase active RLS sans politiques publiques; l'API serveur se connecte directement à PostgreSQL. Les tables couvrent :

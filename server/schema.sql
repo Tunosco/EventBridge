@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS utilisateur (
   mot_de_passe_hash TEXT NOT NULL,
   telephone TEXT,
   code_postal TEXT,
+  supabase_auth_id TEXT,
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

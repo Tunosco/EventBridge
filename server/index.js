@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
+import { createAdminClient, createContextClient } from '@supabase/server/core';
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
@@ -8,6 +9,8 @@ import { db, initializeDatabase } from './db.js';
 const app = express();
 const port = Number(process.env.PORT || 3001);
 const sessions = new Map();
+const supabaseAuthEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
+const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
 
 app.use(cors());
 app.use(express.json());
@@ -102,16 +105,52 @@ app.post('/api/auth/register', async (request, response) => {
   if (!prenom?.trim() || !nom?.trim() || !email || !motDePasse || motDePasse.length < 8) {
     return response.status(400).json({ error: 'Prénom, nom, email et mot de passe de 8 caractères minimum requis.' });
   }
+  if (!supabaseAuth) {
+    return response.status(503).json({ error: 'La confirmation par email Supabase n’est pas configurée.' });
+  }
 
+  let supabaseUserId;
   try {
+    const { data, error } = await supabaseAuth.auth.signUp({
+      email: email.trim(),
+      password: motDePasse,
+      options: {
+        data: { prenom: prenom.trim(), nom: nom.trim() },
+        emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_URL || 'http://localhost:5173/',
+      },
+    });
+    if (error) {
+      if (error.message.toLowerCase().includes('already registered')) {
+        return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+      }
+      return response.status(502).json({ error: 'Impossible d’envoyer l’email de confirmation. Vérifiez la configuration email de Supabase.' });
+    }
+    if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
+      return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    }
+    supabaseUserId = data.user.id;
+    if (data.session) {
+      await createAdminClient().auth.admin.deleteUser(supabaseUserId);
+      return response.status(503).json({ error: 'Activez la confirmation des emails dans Supabase Auth pour imposer la vérification.' });
+    }
+
     const createUser = db.transaction(async () => {
-      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash) VALUES (?, ?, ?, ?) RETURNING id').get(prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse));
+      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id) VALUES (?, ?, ?, ?, ?) RETURNING id').get(
+        prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse), supabaseUserId,
+      );
       await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
       return Number(user.id);
     });
-    const userId = await createUser();
-    response.status(201).json({ token: createSession(userId), user: await getUserProfile(userId) });
+    await createUser();
+    response.status(201).json({ verificationRequired: true });
   } catch (error) {
+    if (supabaseUserId) {
+      try {
+        await createAdminClient().auth.admin.deleteUser(supabaseUserId);
+      } catch {
+        // Preserve the original signup error.
+      }
+    }
     if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     response.status(500).json({ error: 'Impossible de créer le compte.' });
   }
@@ -119,8 +158,20 @@ app.post('/api/auth/register', async (request, response) => {
 
 app.post('/api/auth/login', async (request, response) => {
   const { email, motDePasse } = request.body;
-  const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
-  if (!user || !verifyPassword(motDePasse || '', user.mot_de_passe_hash)) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+  const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
+  if (!user) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+  if (user.supabase_auth_id) {
+    if (!supabaseAuth) return response.status(503).json({ error: 'La connexion Supabase n’est pas configurée.' });
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' });
+    if (error || data.user?.id !== user.supabase_auth_id) {
+      if (error?.code === 'email_not_confirmed' || error?.message.toLowerCase().includes('email not confirmed')) {
+        return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
+      }
+      return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+    }
+  } else if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
+    return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+  }
   response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
 });
 
@@ -192,6 +243,11 @@ app.put('/api/me', authUser, async (request, response) => {
 });
 
 app.delete('/api/me', authUser, async (request, response) => {
+  const linkedUser = await db.prepare('SELECT supabase_auth_id FROM utilisateur WHERE id = ?').get(request.userId);
+  if (linkedUser?.supabase_auth_id && supabaseAuthEnabled) {
+    const { error } = await createAdminClient().auth.admin.deleteUser(linkedUser.supabase_auth_id);
+    if (error) return response.status(502).json({ error: 'Impossible de supprimer le compte Supabase.' });
+  }
   await db.prepare('DELETE FROM utilisateur WHERE id = ?').run(request.userId);
   for (const [token, userId] of sessions) {
     if (userId === request.userId) sessions.delete(token);
