@@ -1,8 +1,9 @@
+import 'dotenv/config';
 import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
-import { db } from './db.js';
+import { db, initializeDatabase } from './db.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
@@ -37,7 +38,7 @@ function authUser(request, response, next) {
   next();
 }
 
-function getUserProfile(userId) {
+async function getUserProfile(userId) {
   return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
 }
 
@@ -47,7 +48,7 @@ function isValidEventDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
-function getProviders(search, userId, favoritesOnly = false) {
+async function getProviders(search, userId, favoritesOnly = false) {
   const searchPattern = `%${search.trim()}%`;
   return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
     TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) AS nomContact, p.description,
@@ -55,7 +56,7 @@ function getProviders(search, userId, favoritesOnly = false) {
     (SELECT GROUP_CONCAT(DISTINCT c.libelle) FROM prestation pr
       JOIN categorie_prestation c ON c.id = pr.categorie_id
       WHERE pr.prestataire_id = p.utilisateur_id) AS categories,
-    CASE WHEN ? IS NULL THEN 0 ELSE EXISTS (
+    CASE WHEN CAST(? AS INTEGER) IS NULL THEN 0 ELSE EXISTS (
       SELECT 1 FROM favori_prestataire f WHERE f.utilisateur_id = ? AND f.prestataire_id = p.utilisateur_id
     ) END AS estFavori
     FROM prestataire p JOIN utilisateur u ON u.id = p.utilisateur_id
@@ -75,7 +76,7 @@ function getProviders(search, userId, favoritesOnly = false) {
   );
 }
 
-function getEventProviders(eventId) {
+async function getEventProviders(eventId) {
   return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
     p.description, p.adresse_postale AS adressePostale, p.photo_url AS photoUrl
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
@@ -84,53 +85,53 @@ function getEventProviders(eventId) {
 
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
 
-app.get('/api/reference/event-types', (_request, response) => {
-  response.json(db.prepare('SELECT id, libelle FROM type_evenement ORDER BY libelle').all());
+app.get('/api/reference/event-types', async (_request, response) => {
+  response.json(await db.prepare('SELECT id, libelle FROM type_evenement ORDER BY libelle').all());
 });
 
-app.get('/api/providers', (request, response) => {
+app.get('/api/providers', async (request, response) => {
   const token = request.headers.authorization?.replace('Bearer ', '');
   const userId = token ? sessions.get(token) || null : null;
   const favoritesOnly = request.query.favoris === 'true';
   if (favoritesOnly && !userId) return response.status(401).json({ error: 'Connectez-vous pour afficher vos favoris.' });
-  response.json(getProviders(String(request.query.q || ''), userId, favoritesOnly));
+  response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly));
 });
 
-app.post('/api/auth/register', (request, response) => {
+app.post('/api/auth/register', async (request, response) => {
   const { prenom, nom, email, motDePasse } = request.body;
   if (!prenom?.trim() || !nom?.trim() || !email || !motDePasse || motDePasse.length < 8) {
     return response.status(400).json({ error: 'Prénom, nom, email et mot de passe de 8 caractères minimum requis.' });
   }
 
   try {
-    const createUser = db.transaction(() => {
-      const user = db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash) VALUES (?, ?, ?, ?)').run(prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse));
-      db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.lastInsertRowid);
-      return Number(user.lastInsertRowid);
+    const createUser = db.transaction(async () => {
+      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash) VALUES (?, ?, ?, ?) RETURNING id').get(prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse));
+      await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
+      return Number(user.id);
     });
-    const userId = createUser();
-    response.status(201).json({ token: createSession(userId), user: getUserProfile(userId) });
+    const userId = await createUser();
+    response.status(201).json({ token: createSession(userId), user: await getUserProfile(userId) });
   } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     response.status(500).json({ error: 'Impossible de créer le compte.' });
   }
 });
 
-app.post('/api/auth/login', (request, response) => {
+app.post('/api/auth/login', async (request, response) => {
   const { email, motDePasse } = request.body;
-  const user = db.prepare('SELECT id, nom, email, mot_de_passe_hash FROM utilisateur WHERE email = ?').get(email?.trim());
+  const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
   if (!user || !verifyPassword(motDePasse || '', user.mot_de_passe_hash)) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-  response.json({ token: createSession(user.id), user: getUserProfile(user.id) });
+  response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
 });
 
-app.get('/api/me', authUser, (request, response) => {
-  const user = getUserProfile(request.userId);
+app.get('/api/me', authUser, async (request, response) => {
+  const user = await getUserProfile(request.userId);
   if (!user) return response.status(401).json({ error: 'Session invalide.' });
   response.json({ user });
 });
 
-app.get('/api/me/provider-profile', authUser, (request, response) => {
-  const profile = db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
+app.get('/api/me/provider-profile', authUser, async (request, response) => {
+  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
     adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile: profile || {
@@ -138,10 +139,10 @@ app.get('/api/me/provider-profile', authUser, (request, response) => {
   } });
 });
 
-app.put('/api/me/provider-profile', authUser, (request, response) => {
+app.put('/api/me/provider-profile', authUser, async (request, response) => {
   const { raisonSociale, siret, siteWeb, adressePostale, description, banniereUrl, photoUrl } = request.body;
   if (!raisonSociale?.trim()) return response.status(400).json({ error: 'La raison sociale est requise pour publier le profil.' });
-  db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, siret, site_web, adresse_postale, description, banniere_url, photo_url)
+  await db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, siret, site_web, adresse_postale, description, banniere_url, photo_url)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(utilisateur_id) DO UPDATE SET nom_entreprise = excluded.nom_entreprise, siret = excluded.siret,
     site_web = excluded.site_web, adresse_postale = excluded.adresse_postale, description = excluded.description,
@@ -149,62 +150,62 @@ app.put('/api/me/provider-profile', authUser, (request, response) => {
     request.userId, raisonSociale.trim(), siret?.trim() || null, siteWeb?.trim() || null,
     adressePostale?.trim() || null, description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null,
   );
-  const profile = db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
+  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
     adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile });
 });
 
-app.get('/api/me/favorite-providers', authUser, (request, response) => {
-  response.json(getProviders('', request.userId, true));
+app.get('/api/me/favorite-providers', authUser, async (request, response) => {
+  response.json(await getProviders('', request.userId, true));
 });
 
-app.post('/api/me/favorite-providers/:providerId', authUser, (request, response) => {
+app.post('/api/me/favorite-providers/:providerId', authUser, async (request, response) => {
   const providerId = Number(request.params.providerId);
   if (providerId === request.userId) return response.status(400).json({ error: 'Vous ne pouvez pas ajouter votre propre profil en favori.' });
-  if (!db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(providerId)) {
+  if (!await db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(providerId)) {
     return response.status(404).json({ error: 'Prestataire introuvable.' });
   }
-  db.prepare('INSERT OR IGNORE INTO favori_prestataire (utilisateur_id, prestataire_id) VALUES (?, ?)').run(request.userId, providerId);
+  await db.prepare('INSERT OR IGNORE INTO favori_prestataire (utilisateur_id, prestataire_id) VALUES (?, ?)').run(request.userId, providerId);
   response.status(204).end();
 });
 
-app.delete('/api/me/favorite-providers/:providerId', authUser, (request, response) => {
-  db.prepare('DELETE FROM favori_prestataire WHERE utilisateur_id = ? AND prestataire_id = ?').run(request.userId, Number(request.params.providerId));
+app.delete('/api/me/favorite-providers/:providerId', authUser, async (request, response) => {
+  await db.prepare('DELETE FROM favori_prestataire WHERE utilisateur_id = ? AND prestataire_id = ?').run(request.userId, Number(request.params.providerId));
   response.status(204).end();
 });
 
-app.put('/api/me', authUser, (request, response) => {
+app.put('/api/me', authUser, async (request, response) => {
   const { prenom, nom, email, telephone, codePostal } = request.body;
   if (!prenom?.trim() || !nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le prénom, le nom et l’adresse email sont requis.' });
 
   try {
-    db.prepare('UPDATE utilisateur SET prenom = ?, nom = ?, email = ?, telephone = ?, code_postal = ? WHERE id = ?').run(
+    await db.prepare('UPDATE utilisateur SET prenom = ?, nom = ?, email = ?, telephone = ?, code_postal = ? WHERE id = ?').run(
       prenom.trim(), nom.trim(), email.trim(), telephone?.trim() || null, codePostal?.trim() || null, request.userId,
     );
-    const user = getUserProfile(request.userId);
+    const user = await getUserProfile(request.userId);
     response.json({ user });
   } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     response.status(500).json({ error: 'Impossible de mettre à jour le profil.' });
   }
 });
 
-app.delete('/api/me', authUser, (request, response) => {
-  db.prepare('DELETE FROM utilisateur WHERE id = ?').run(request.userId);
+app.delete('/api/me', authUser, async (request, response) => {
+  await db.prepare('DELETE FROM utilisateur WHERE id = ?').run(request.userId);
   for (const [token, userId] of sessions) {
     if (userId === request.userId) sessions.delete(token);
   }
   response.status(204).end();
 });
 
-app.get('/api/me/events', authUser, (request, response) => {
-  const events = db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS dateEvenement,
+app.get('/api/me/events', authUser, async (request, response) => {
+  const events = await db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS dateEvenement,
     e.date_fin AS dateFin, e.nombre_invites AS nombreInvites, e.budget, t.libelle AS typeEvenement
     FROM evenement e JOIN type_evenement t ON t.id = e.type_evenement_id
     WHERE e.client_id = ? ORDER BY e.date_evenement`).all(request.userId);
   if (!events.length) return response.json([]);
-  const locations = db.prepare(`SELECT evenement_id AS evenementId, libelle FROM emplacement_evenement
+  const locations = await db.prepare(`SELECT evenement_id AS evenementId, libelle FROM emplacement_evenement
     JOIN evenement ON evenement.id = emplacement_evenement.evenement_id
     WHERE evenement.client_id = ? ORDER BY emplacement_evenement.id`).all(request.userId);
   const locationsByEvent = new Map();
@@ -213,7 +214,7 @@ app.get('/api/me/events', authUser, (request, response) => {
     eventLocations.push(location.libelle);
     locationsByEvent.set(location.evenementId, eventLocations);
   }
-  const eventProviders = db.prepare(`SELECT ep.evenement_id AS evenementId, p.utilisateur_id AS id,
+  const eventProviders = await db.prepare(`SELECT ep.evenement_id AS evenementId, p.utilisateur_id AS id,
     p.nom_entreprise AS raisonSociale, p.photo_url AS photoUrl
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
     JOIN evenement e ON e.id = ep.evenement_id WHERE e.client_id = ?
@@ -231,27 +232,29 @@ app.get('/api/me/events', authUser, (request, response) => {
   })));
 });
 
-app.put('/api/me/events/:eventId/providers', authUser, (request, response) => {
+app.put('/api/me/events/:eventId/providers', authUser, async (request, response) => {
   const eventId = Number(request.params.eventId);
-  const event = db.prepare('SELECT id FROM evenement WHERE id = ? AND client_id = ?').get(eventId, request.userId);
+  const event = await db.prepare('SELECT id FROM evenement WHERE id = ? AND client_id = ?').get(eventId, request.userId);
   if (!event) return response.status(404).json({ error: 'Événement introuvable.' });
   const providerIds = Array.isArray(request.body.prestatairesIds)
     ? [...new Set(request.body.prestatairesIds.map(Number))]
     : [];
   const providerExists = db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?');
-  if (providerIds.some((providerId) => !Number.isInteger(providerId) || !providerExists.get(providerId))) {
-    return response.status(400).json({ error: 'Un prestataire sélectionné est invalide.' });
+  for (const providerId of providerIds) {
+    if (!Number.isInteger(providerId) || !await providerExists.get(providerId)) {
+      return response.status(400).json({ error: 'Un prestataire sélectionné est invalide.' });
+    }
   }
-  const replaceProviders = db.transaction(() => {
-    db.prepare('DELETE FROM evenement_prestataire WHERE evenement_id = ?').run(eventId);
+  const replaceProviders = db.transaction(async () => {
+    await db.prepare('DELETE FROM evenement_prestataire WHERE evenement_id = ?').run(eventId);
     const addProvider = db.prepare('INSERT INTO evenement_prestataire (evenement_id, prestataire_id) VALUES (?, ?)');
-    for (const providerId of providerIds) addProvider.run(eventId, providerId);
+    for (const providerId of providerIds) await addProvider.run(eventId, providerId);
   });
-  replaceProviders();
-  response.json({ prestataires: getEventProviders(eventId) });
+  await replaceProviders();
+  response.json({ prestataires: await getEventProviders(eventId) });
 });
 
-app.post('/api/me/events', authUser, (request, response) => {
+app.post('/api/me/events', authUser, async (request, response) => {
   const { titre, typeEvenementId, description, lieu, dateDebut, dateFin, dateEvenement, budget } = request.body;
   const eventStartDate = dateDebut || dateEvenement;
   const eventEndDate = dateFin || eventStartDate;
@@ -269,27 +272,29 @@ app.post('/api/me/events', authUser, (request, response) => {
   if (!isValidEventDate(eventStartDate) || !isValidEventDate(eventEndDate) || eventEndDate < eventStartDate) {
     return response.status(400).json({ error: 'La date de fin doit être égale ou postérieure à la date de début.' });
   }
-  if (!db.prepare('SELECT utilisateur_id FROM client WHERE utilisateur_id = ?').get(request.userId)) return response.status(403).json({ error: 'Seul un client peut créer un événement.' });
-  if (!db.prepare('SELECT id FROM type_evenement WHERE id = ?').get(Number(typeEvenementId))) {
+  if (!await db.prepare('SELECT utilisateur_id FROM client WHERE utilisateur_id = ?').get(request.userId)) return response.status(403).json({ error: 'Seul un client peut créer un événement.' });
+  if (!await db.prepare('SELECT id FROM type_evenement WHERE id = ?').get(Number(typeEvenementId))) {
     return response.status(400).json({ error: 'Le type d’événement sélectionné est invalide.' });
   }
   const providerExists = db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?');
-  if (providerIds.some((providerId) => !Number.isInteger(providerId) || !providerExists.get(providerId))) {
-    return response.status(400).json({ error: 'Un prestataire sélectionné est invalide.' });
+  for (const providerId of providerIds) {
+    if (!Number.isInteger(providerId) || !await providerExists.get(providerId)) {
+      return response.status(400).json({ error: 'Un prestataire sélectionné est invalide.' });
+    }
   }
-  const createEvent = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, date_fin, budget)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+  const createEvent = db.transaction(async () => {
+    const result = await db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, date_fin, budget)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
       request.userId, Number(typeEvenementId), titre.trim(), description.trim(), lieu.trim(), eventStartDate, eventEndDate, estimatedBudget,
     );
-    const eventId = Number(result.lastInsertRowid);
+    const eventId = Number(result.id);
     const insertLocation = db.prepare('INSERT INTO emplacement_evenement (evenement_id, libelle) VALUES (?, ?)');
-    for (const location of secondaryLocations) insertLocation.run(eventId, location);
+    for (const location of secondaryLocations) await insertLocation.run(eventId, location);
     const addProvider = db.prepare('INSERT INTO evenement_prestataire (evenement_id, prestataire_id) VALUES (?, ?)');
-    for (const providerId of providerIds) addProvider.run(eventId, providerId);
+    for (const providerId of providerIds) await addProvider.run(eventId, providerId);
     return eventId;
   });
-  response.status(201).json({ id: createEvent() });
+  response.status(201).json({ id: await createEvent() });
 });
 
 if (process.env.NODE_ENV === 'production') {
@@ -299,4 +304,5 @@ if (process.env.NODE_ENV === 'production') {
   app.get(/.*/, (_request, response) => response.sendFile(path.join(frontendDirectory, 'index.html')));
 }
 
+await initializeDatabase();
 app.listen(port, () => console.log(`EventBridge API disponible sur http://localhost:${port}`));
