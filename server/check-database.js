@@ -39,17 +39,27 @@ async function fetchStatus(target, headers) {
 
 async function checkSupabaseApi() {
   console.log('\n1. API Supabase (HTTPS)');
-  const url = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const rawUrl = process.env.SUPABASE_URL || '';
   const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
   const secretKey = process.env.SUPABASE_SECRET_KEY;
-  if (!url) {
-    ko('SUPABASE_URL est absent du fichier .env.', 'Project Settings > Data API > Project URL.');
+  let url = '';
+  try {
+    url = new URL(rawUrl).origin;
+  } catch {
+    url = '';
+  }
+  if (!url || url === 'null') {
+    ko('SUPABASE_URL est absent ou invalide.', 'Project Settings > Data API > Project URL (ex. https://<ref>.supabase.co).');
     return;
+  }
+  if (rawUrl.replace(/\/+$/, '') !== url) {
+    ko(`SUPABASE_URL contient un chemin : ${rawUrl}`, `Utilise seulement la Project URL : ${url} (sans /rest/v1, ni /auth/v1, ni slash final).`);
   }
 
   const healthStatus = await fetchStatus(`${url}/auth/v1/health`, publishableKey ? { apikey: publishableKey } : {});
   if (healthStatus === 200) ok(`Projet joignable (${url}) et clé publiable acceptée.`);
   else if (healthStatus === 401) ko('La clé publiable est refusée par ce projet.', 'Project Settings > API Keys : copie la clé « Publishable key » du projet.');
+  else if (healthStatus === 404) ko("L'API Auth de ce projet est introuvable (404).", 'Vérifie SUPABASE_URL : il faut la Project URL seule, sans /rest/v1, et que le projet soit en état Active.');
   else ko(`Réponse inattendue de l'API Auth (${healthStatus}).`, 'Vérifie SUPABASE_URL et que le projet est en état Active.');
 
   if (!secretKey || secretKey.startsWith('sb_secret_REMPLACE')) {
@@ -59,6 +69,7 @@ async function checkSupabaseApi() {
   const adminStatus = await fetchStatus(`${url}/auth/v1/admin/users?per_page=1`, { apikey: secretKey, Authorization: `Bearer ${secretKey}` });
   if (adminStatus === 200) ok('Clé secrète acceptée (accès admin Auth).');
   else if (adminStatus === 401) ko('La clé secrète est refusée par ce projet.', 'Project Settings > API Keys : copie la clé « Secret key » du projet.');
+  else if (adminStatus === 404) ko("L'API Auth admin de ce projet est introuvable (404).", 'Vérifie SUPABASE_URL : il faut la Project URL seule, sans /rest/v1.');
   else ko(`Réponse inattendue de l'API Auth admin (${adminStatus}).`);
 }
 

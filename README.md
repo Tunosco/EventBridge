@@ -30,7 +30,7 @@ Le projet Supabase de référence est **`idodgrqwbrhouzdunqrk`** : sa référenc
 
 | Valeur | Emplacement dans supabase.com | Variable `.env` |
 | --- | --- | --- |
-| Project URL | **Project Settings > Data API** | `SUPABASE_URL` |
+| Project URL | **Project Settings > Data API > *Project URL*** (⚠️ sans `/rest/v1`, sans slash final) | `SUPABASE_URL` |
 | Publishable key | **Project Settings > API Keys** | `SUPABASE_PUBLISHABLE_KEY` |
 | Secret key | **Project Settings > API Keys** (bouton *Reveal*) | `SUPABASE_SECRET_KEY` |
 | URI du pooler | **Connect > Shared Pooler > Session** | `DATABASE_URL` (remplace le mot de passe, URL-encodé si besoin) |

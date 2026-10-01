@@ -135,11 +135,13 @@ export async function initializeDatabase() {
 			return;
 		} catch (error) {
 			console.warn(`[db] Supabase injoignable (${error.code || error.message}).`);
-			console.warn('[db] Repli temporaire sur SQLite : lance `npm run db:check` pour connaître la cause exacte.');
+			console.warn('[db] ATTENTION : les données sont écrites dans la base SQLite locale (data/eventbridge.sqlite).');
+			console.warn('[db] Corrige la cause avec `npm run db:check`, puis RELANCE `npm run server` pour revenir sur Supabase.');
 		}
 	} else if (isPostgres) {
 		console.warn(`[db] DATABASE_URL inutilisable (${poolError?.message}).`);
-		console.warn('[db] Repli temporaire sur SQLite : lance `npm run db:check` pour connaître la cause exacte.');
+		console.warn('[db] ATTENTION : les données sont écrites dans la base SQLite locale (data/eventbridge.sqlite).');
+		console.warn('[db] Corrige la cause avec `npm run db:check`, puis RELANCE `npm run server` pour revenir sur Supabase.');
 	}
 	initializeSqlite();
 	mode = 'sqlite';
