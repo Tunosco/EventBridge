@@ -4,13 +4,27 @@ import { createAdminClient, createContextClient } from '@supabase/server/core';
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
-import { db, initializeDatabase } from './db.js';
+import { db, getDatabaseMode, initializeDatabase } from './db.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
 const sessions = new Map();
-const supabaseAuthEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
-const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
+
+// Une valeur d'exemple restée dans .env ne doit pas activer Supabase.
+function isConfigured(value) {
+  return Boolean(value) && !/REMPLACE|REPLACE_WITH_YOUR|YOUR_|<.*>/.test(value);
+}
+
+const supabaseAuthEnabled = isConfigured(process.env.SUPABASE_URL) && isConfigured(process.env.SUPABASE_PUBLISHABLE_KEY);
+const supabaseAdminEnabled = supabaseAuthEnabled && isConfigured(process.env.SUPABASE_SECRET_KEY);
+let supabaseAuth = null;
+if (supabaseAuthEnabled) {
+  try {
+    supabaseAuth = createContextClient();
+  } catch (error) {
+    console.warn(`[auth] Auth Supabase indisponible : ${error.message}`);
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -86,7 +100,11 @@ async function getEventProviders(eventId) {
     WHERE ep.evenement_id = ? ORDER BY p.nom_entreprise COLLATE NOCASE`).all(eventId);
 }
 
-app.get('/api/health', (_request, response) => response.json({ ok: true }));
+app.get('/api/health', (_request, response) => response.json({
+  ok: true,
+  database: getDatabaseMode(),
+  supabaseAuth: Boolean(supabaseAuth),
+}));
 
 app.get('/api/reference/event-types', async (_request, response) => {
   response.json(await db.prepare('SELECT id, libelle FROM type_evenement ORDER BY libelle').all());
@@ -106,7 +124,20 @@ app.post('/api/auth/register', async (request, response) => {
     return response.status(400).json({ error: 'Prénom, nom, email et mot de passe de 8 caractères minimum requis.' });
   }
   if (!supabaseAuth) {
-    return response.status(503).json({ error: 'La confirmation par email Supabase n’est pas configurée.' });
+    try {
+      const createLocalUser = db.transaction(async () => {
+        const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash) VALUES (?, ?, ?, ?) RETURNING id').get(
+          prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse),
+        );
+        await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
+        return Number(user.id);
+      });
+      const userId = await createLocalUser();
+      return response.status(201).json({ token: createSession(userId), user: await getUserProfile(userId) });
+    } catch (error) {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+      return response.status(500).json({ error: 'Impossible de créer le compte.' });
+    }
   }
 
   let supabaseUserId;
@@ -160,8 +191,7 @@ app.post('/api/auth/login', async (request, response) => {
   const { email, motDePasse } = request.body;
   const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
   if (!user) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-  if (user.supabase_auth_id) {
-    if (!supabaseAuth) return response.status(503).json({ error: 'La connexion Supabase n’est pas configurée.' });
+  if (user.supabase_auth_id && supabaseAuth) {
     const { data, error } = await supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' });
     if (error || data.user?.id !== user.supabase_auth_id) {
       if (error?.code === 'email_not_confirmed' || error?.message.toLowerCase().includes('email not confirmed')) {
@@ -244,7 +274,7 @@ app.put('/api/me', authUser, async (request, response) => {
 
 app.delete('/api/me', authUser, async (request, response) => {
   const linkedUser = await db.prepare('SELECT supabase_auth_id FROM utilisateur WHERE id = ?').get(request.userId);
-  if (linkedUser?.supabase_auth_id && supabaseAuthEnabled) {
+  if (linkedUser?.supabase_auth_id && supabaseAdminEnabled) {
     const { error } = await createAdminClient().auth.admin.deleteUser(linkedUser.supabase_auth_id);
     if (error) return response.status(502).json({ error: 'Impossible de supprimer le compte Supabase.' });
   }
@@ -361,4 +391,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 await initializeDatabase();
-app.listen(port, () => console.log(`EventBridge API disponible sur http://localhost:${port}`));
+app.listen(port, () => {
+  console.log(`EventBridge API disponible sur http://localhost:${port}`);
+  console.log(`[config] Base de données : ${getDatabaseMode() === 'postgres' ? 'Supabase PostgreSQL' : 'SQLite locale (repli)'}`);
+  console.log(`[config] Auth Supabase : ${supabaseAuth ? 'activée' : 'désactivée (clés absentes ou d’exemple dans .env)'}`);
+});

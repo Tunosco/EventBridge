@@ -3,7 +3,14 @@ import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import Database from 'better-sqlite3';
 
-export const isPostgres = Boolean(process.env.DATABASE_URL);
+const connectionString = process.env.DATABASE_URL;
+export const isPostgres = Boolean(connectionString);
+let mode = 'sqlite';
+
+/** Base réellement utilisée par l'API : 'postgres' (Supabase) ou 'sqlite' (repli local). */
+export function getDatabaseMode() {
+	return mode;
+}
 
 function postgresQuery(client, sql, parameters = []) {
 	let index = 0;
@@ -46,64 +53,95 @@ function createPostgresDatabase(pool) {
 	};
 }
 
-let pool;
+let pool = null;
+let poolError = null;
 if (isPostgres) {
-	const { Pool } = await import('pg');
-	const connectionUrl = new URL(process.env.DATABASE_URL);
-	for (const option of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) {
-		connectionUrl.searchParams.delete(option);
-	}
-	const ssl = { rejectUnauthorized: true };
-	if (process.env.SUPABASE_DB_SSL_CA_PATH) {
-		const caPath = path.resolve(process.env.SUPABASE_DB_SSL_CA_PATH);
-		try {
-			ssl.ca = fs.readFileSync(caPath, 'utf8');
-		} catch (error) {
-			throw new Error(`Supabase CA certificate not found at ${caPath}. Download it from Database > Settings > SSL Configuration.`, { cause: error });
+	try {
+		const { Pool } = await import('pg');
+		const connectionUrl = new URL(connectionString);
+		for (const option of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) {
+			connectionUrl.searchParams.delete(option);
 		}
+		const ssl = { rejectUnauthorized: true };
+		if (process.env.SUPABASE_DB_SSL_CA_PATH) {
+			ssl.ca = fs.readFileSync(path.resolve(process.env.SUPABASE_DB_SSL_CA_PATH), 'utf8');
+		}
+		pool = new Pool({ connectionString: connectionUrl.toString(), ssl, max: 5, connectionTimeoutMillis: 8000 });
+		pool.on('error', (error) => console.error(`[db] Erreur de la connexion PostgreSQL : ${error.message}`));
+	} catch (error) {
+		poolError = error;
 	}
-	pool = new Pool({ connectionString: connectionUrl.toString(), ssl, max: 5 });
 }
 
 const dataDirectory = path.resolve('data');
 const databasePath = process.env.DB_PATH || path.join(dataDirectory, 'eventbridge.sqlite');
-let sqlite;
-if (!isPostgres) {
-	fs.mkdirSync(path.dirname(databasePath), { recursive: true });
-	sqlite = new Database(databasePath);
-	sqlite.pragma('foreign_keys = ON');
+let sqlite = null;
+
+function openSqlite() {
+	if (!sqlite) {
+		fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+		sqlite = new Database(databasePath);
+		sqlite.pragma('foreign_keys = ON');
+	}
+	return sqlite;
 }
 
-export const db = isPostgres ? createPostgresDatabase(pool) : {
-	prepare: (sql) => sqlite.prepare(sql),
+const sqliteDatabase = {
+	prepare: (sql) => openSqlite().prepare(sql),
 	transaction: (callback) => async (...args) => {
-		sqlite.exec('BEGIN');
+		const connection = openSqlite();
+		connection.exec('BEGIN');
 		try {
 			const result = await callback(...args);
-			sqlite.exec('COMMIT');
+			connection.exec('COMMIT');
 			return result;
 		} catch (error) {
-			sqlite.exec('ROLLBACK');
+			connection.exec('ROLLBACK');
 			throw error;
 		}
 	},
 };
 
-export async function initializeDatabase() {
-	if (isPostgres) {
-		await pool.query('SELECT 1');
-		return;
-	}
-	sqlite.exec(fs.readFileSync(path.resolve('server/schema.sql'), 'utf8'));
-	const eventColumns = sqlite.prepare('PRAGMA table_info(evenement)').all().map((column) => column.name);
-	if (!eventColumns.includes('date_fin')) sqlite.exec('ALTER TABLE evenement ADD COLUMN date_fin TEXT');
-	const userColumns = sqlite.prepare('PRAGMA table_info(utilisateur)').all().map((column) => column.name);
-	if (!userColumns.includes('prenom')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN prenom TEXT');
-	if (!userColumns.includes('code_postal')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN code_postal TEXT');
-	if (!userColumns.includes('supabase_auth_id')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN supabase_auth_id TEXT');
-	sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_supabase_auth_id_unique ON utilisateur (supabase_auth_id) WHERE supabase_auth_id IS NOT NULL');
-	const providerColumns = sqlite.prepare('PRAGMA table_info(prestataire)').all().map((column) => column.name);
+const postgresDatabase = pool ? createPostgresDatabase(pool) : null;
+const usePostgres = () => mode === 'postgres' && postgresDatabase !== null;
+
+export const db = {
+	prepare: (sql) => (usePostgres() ? postgresDatabase : sqliteDatabase).prepare(sql),
+	transaction: (callback) => (usePostgres() ? postgresDatabase : sqliteDatabase).transaction(callback),
+};
+
+function initializeSqlite() {
+	const connection = openSqlite();
+	connection.exec(fs.readFileSync(path.resolve('server/schema.sql'), 'utf8'));
+	const eventColumns = connection.prepare('PRAGMA table_info(evenement)').all().map((column) => column.name);
+	if (!eventColumns.includes('date_fin')) connection.exec('ALTER TABLE evenement ADD COLUMN date_fin TEXT');
+	const userColumns = connection.prepare('PRAGMA table_info(utilisateur)').all().map((column) => column.name);
+	if (!userColumns.includes('prenom')) connection.exec('ALTER TABLE utilisateur ADD COLUMN prenom TEXT');
+	if (!userColumns.includes('code_postal')) connection.exec('ALTER TABLE utilisateur ADD COLUMN code_postal TEXT');
+	if (!userColumns.includes('supabase_auth_id')) connection.exec('ALTER TABLE utilisateur ADD COLUMN supabase_auth_id TEXT');
+	connection.exec('CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_supabase_auth_id_unique ON utilisateur (supabase_auth_id) WHERE supabase_auth_id IS NOT NULL');
+	const providerColumns = connection.prepare('PRAGMA table_info(prestataire)').all().map((column) => column.name);
 	for (const column of ['siret', 'site_web', 'adresse_postale', 'banniere_url', 'photo_url']) {
-		if (!providerColumns.includes(column)) sqlite.exec(`ALTER TABLE prestataire ADD COLUMN ${column} TEXT`);
+		if (!providerColumns.includes(column)) connection.exec(`ALTER TABLE prestataire ADD COLUMN ${column} TEXT`);
 	}
+}
+
+export async function initializeDatabase() {
+	if (pool) {
+		try {
+			await pool.query('SELECT 1');
+			mode = 'postgres';
+			console.log('[db] Connecté à la base PostgreSQL de Supabase.');
+			return;
+		} catch (error) {
+			console.warn(`[db] Supabase injoignable (${error.code || error.message}).`);
+			console.warn('[db] Repli temporaire sur SQLite : lance `npm run db:check` pour connaître la cause exacte.');
+		}
+	} else if (isPostgres) {
+		console.warn(`[db] DATABASE_URL inutilisable (${poolError?.message}).`);
+		console.warn('[db] Repli temporaire sur SQLite : lance `npm run db:check` pour connaître la cause exacte.');
+	}
+	initializeSqlite();
+	mode = 'sqlite';
+	console.log('[db] Base SQLite locale prête (data/eventbridge.sqlite).');
 }

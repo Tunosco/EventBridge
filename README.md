@@ -64,6 +64,16 @@ Le script contrôle en HTTPS la clé publiable et la clé secrète, puis la conn
 
 Supabase héberge ici la base de données, pas cette API Express. L'API doit rester lancée séparément (localement ou chez un hébergeur Node.js). Sans `DATABASE_URL`, `npm run server` utilise SQLite localement. Le serveur se connecte avec l'URI privée; aucune clé Supabase n'est requise dans le navigateur.
 
+### Mode de repli automatique
+
+Si Supabase n'est pas joignable au démarrage (clés d'exemple, certificat absent, réseau qui filtre le port 5432), l'API ne plante pas : elle affiche un avertissement puis travaille sur la base SQLite locale `data/eventbridge.sqlite`, ce qui permet de continuer à utiliser le site. L'état réel est exposé par l'API :
+
+```json
+{ "ok": true, "database": "sqlite", "supabaseAuth": false }
+```
+
+`database` vaut `postgres` dès que la connexion Supabase est établie, et `supabaseAuth` passe à `true` dès que les clés du projet sont renseignées dans `.env`. Sans ces clés, l'inscription et la connexion utilisent le hachage local `scrypt` (les comptes ainsi créés ne sont pas recopiés automatiquement dans Supabase Auth).
+
 ### Si la connexion PostgreSQL échoue
 
 | Message | Cause probable | Solution |
