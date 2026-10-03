@@ -42,7 +42,7 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
         <a className="brand" href="#accueil" onClick={() => onNavigate?.('home')}>Event<span>Bridge</span></a>
         <nav className={`main-nav${menuOpen ? ' is-open' : ''}`}>
           <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('home'); }}>Accueil</button>
-          <button className="button button-primary nav-cta" onClick={() => { closeMenu(); onProviderSearch?.(''); }}>Trouver un prestataire</button>
+          <button className="nav-link" onClick={() => { closeMenu(); onProviderSearch?.(''); }}>Trouver un prestataire</button>
           <button className="nav-link" onClick={() => { closeMenu(); onEventsClick?.(); }}>Mes événements</button>
           <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('provider'); }}>Espace prestataire</button>
           {isAuthenticated ? (

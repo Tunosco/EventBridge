@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
+import EventExamples from './components/EventExamples';
 import IntroOverlay from './components/IntroOverlay';
-import Mission from './components/Mission';
-import Process from './components/Process';
 import ContactModal from './components/ContactModal';
 import Profile from './components/Profile';
 import Settings from './components/Settings';
@@ -57,7 +56,7 @@ export default function App() {
       {page === 'provider' ? (
         <ProviderSpace isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => setPage('home')} />
       ) : page === 'providers' ? (
-        <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} onBack={() => setPage('home')} />
+        <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
       ) : page === 'events' && user ? (
         <MyEvents onBack={() => setPage('home')} />
       ) : page === 'profile' && user ? (
@@ -67,12 +66,11 @@ export default function App() {
       ) : (
         <main>
           <Hero onProjectClick={handleProjectClick} />
-          <div className="trust"><span>Une plateforme pensée pour les projets qui comptent</span><div className="trust-list"><span>Profils vérifiés</span><span>Échanges directs</span><span>Projets sur mesure</span></div></div>
-          <Mission />
-          <Process />
+          <EventExamples />
         </main>
       )}
       <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); setPage('provider'); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
+      {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
       {contactType && <ContactModal type={contactType} user={user} onAuthenticated={setUser} onLoggedOut={() => setUser(null)} onClose={() => setContactType(null)} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}

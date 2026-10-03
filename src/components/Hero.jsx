@@ -6,8 +6,7 @@ export default function Hero({ onProjectClick }) {
         <h1>Comment allez-vous <em>célébrer ?</em></h1>
         <p>EventBridge connecte les particuliers avec des prestataires de confiance pour créer des moments uniques, sans perdre de temps à chercher.</p>
         <div className="hero-actions">
-          <button className="button button-primary hero-cta" onClick={() => onProjectClick('particulier')}>Parler de mon événement</button>
-          <a className="method-link" href="#fonctionnement"><span>↓</span> Découvrir notre méthode</a>
+          <button className="button button-primary hero-cta" onClick={() => onProjectClick('particulier')}>Créer mon événement</button>
         </div>
       </div>
       <div className="hero-art" aria-label="Une réception élégante organisée avec EventBridge">
