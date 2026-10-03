@@ -1,0 +1,346 @@
+:root {
+  --navy: #000861;
+  --coral: #bba177;
+  --coral-dark: #8d7652;
+  --mint: #e7ddca;
+  --sky: #efe5d6;
+  --sand: #f5f0e7;
+  --ink: #17151a;
+  --muted: #68636a;
+  --line: #dfd3c0;
+  --white: #fffdf9;
+  --shadow: 0 16px 48px rgba(0, 8, 97, .1);
+}
+
+body {
+  background: var(--white);
+  color: var(--ink);
+  font-family: 'Jost', 'Avenir Next', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0;
+}
+
+body.intro-lock {
+  overflow: hidden;
+}
+
+.intro-overlay {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  inset: 0;
+  background-color: #090a14;
+  background-image: linear-gradient(110deg, rgba(8, 8, 20, .74), rgba(8, 8, 20, .34) 58%, rgba(8, 8, 20, .2)), url('https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1600&q=85');
+  background-position: center;
+  background-size: cover;
+  color: var(--white);
+  opacity: 1;
+  transition: opacity .45s ease, visibility .45s ease;
+}
+
+.intro-overlay.is-departing {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 24px;
+}
+
+.intro-word {
+  display: flex;
+  justify-content: center;
+  gap: .22em;
+  margin: 0;
+  font-family: 'Jost', sans-serif;
+  font-size: clamp(30px, 7vw, 92px);
+  font-weight: 300;
+  letter-spacing: .2em;
+  white-space: nowrap;
+}
+
+.intro-word span {
+  opacity: 0;
+  transition: transform .75s cubic-bezier(.2, .7, .2, 1), opacity .55s ease;
+}
+
+.intro-event {
+  transform: translateX(-70vw);
+}
+
+.intro-bridge {
+  transform: translateY(65vh);
+  transition-delay: .1s;
+  color: #d7bc88;
+}
+
+.intro-overlay.is-ready .intro-word span {
+  transform: translate(0);
+  opacity: 1;
+}
+
+.intro-overlay.is-departing .intro-word span {
+  transform: translateY(-12px);
+  opacity: 0;
+  transition-delay: 0s;
+}
+
+h1,
+h2,
+h3,
+.hero h1,
+.section-head h2,
+.bridge-copy h2,
+.my-events-heading h1,
+.provider-directory-heading h1,
+.settings-heading h1,
+.profile-heading h1,
+.calendar-heading h2 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.site-header {
+  height: 88px;
+  padding-right: 4%;
+  padding-left: 4%;
+  background: var(--white);
+  border-bottom-color: var(--line);
+}
+
+.brand {
+  color: var(--navy);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 2px;
+}
+
+.brand span {
+  color: var(--coral-dark);
+}
+
+.main-nav {
+  gap: 20px;
+  font-family: 'Jost', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.main-nav a:hover,
+.main-nav .nav-link:hover,
+.text-link:hover {
+  color: var(--coral-dark);
+}
+
+.button,
+.button-primary,
+.provider-header-search button {
+  border-radius: 0;
+  font-family: 'Jost', sans-serif;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.button-primary,
+.provider-header-search button {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.button-primary:hover,
+.provider-header-search button:hover {
+  background: #171f75;
+}
+
+.hero {
+  min-height: 650px;
+  padding: 76px 6% 84px;
+  background: var(--sky);
+}
+
+.hero h1 {
+  color: var(--navy);
+  font-size: clamp(54px, 6vw, 82px);
+  font-weight: 300;
+  line-height: 1.02;
+}
+
+.hero h1 em {
+  color: var(--coral-dark);
+  font-style: italic;
+}
+
+.hero p {
+  color: #514c52;
+  font-size: 17px;
+}
+
+.hero-image {
+  border-radius: 48% 48% 2px 2px;
+  box-shadow: 0 24px 60px rgba(12, 0, 2, .16);
+}
+
+.hero-seal {
+  width: 100px;
+  height: 100px;
+  border: 1px solid rgba(0, 8, 97, .14);
+  border-radius: 2px;
+  background: var(--coral);
+  color: var(--navy);
+  font-family: 'Jost', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transform: none;
+}
+
+.hero-note {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--white);
+  box-shadow: 0 12px 35px rgba(12, 0, 2, .1);
+}
+
+.hero-note strong {
+  color: var(--navy);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.trust {
+  background: var(--white);
+  color: var(--muted);
+  font-family: 'Jost', sans-serif;
+  font-size: 12px;
+  letter-spacing: .5px;
+}
+
+.trust-list {
+  color: var(--navy);
+  font-weight: 500;
+}
+
+.trust-list span:before {
+  content: '✦';
+  color: var(--coral-dark);
+}
+
+.bridge-image {
+  border-radius: 48% 48% 2px 2px;
+}
+
+.step-number {
+  color: var(--coral-dark);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+footer {
+  background: var(--navy);
+  color: #efe5d6;
+}
+
+footer small {
+  color: #c4bbaf;
+}
+
+@media (max-width: 900px) {
+  .site-header {
+    height: 68px;
+  }
+
+  .main-nav {
+    display: none;
+  }
+
+  .main-nav.is-open {
+    position: absolute;
+    top: 68px;
+    right: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px 5%;
+    border-bottom: 1px solid var(--line);
+    background: var(--white);
+  }
+
+  .main-nav.is-open .provider-header-search {
+    width: 100%;
+  }
+
+  .main-nav.is-open .nav-link {
+    text-align: left;
+  }
+
+  .menu-button {
+    display: block;
+  }
+}
+
+@media (max-width: 600px) {
+  .site-header {
+    height: 68px;
+  }
+
+  .main-nav.is-open {
+    background: var(--white);
+  }
+
+  .hero {
+    padding-top: 48px;
+    padding-bottom: 64px;
+  }
+
+  .hero h1 {
+    font-size: 48px;
+    line-height: 1.04;
+  }
+
+  .hero-seal {
+    width: 76px;
+    height: 76px;
+    font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-copy {
+    animation: editorial-arrive .7s ease-out both;
+  }
+
+  .hero-art {
+    animation: editorial-arrive .9s .12s ease-out both;
+  }
+}
+
+@keyframes editorial-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-overlay,
+  .intro-word span {
+    transition-duration: 0s;
+  }
+}
