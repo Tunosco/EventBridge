@@ -4,13 +4,27 @@ import { createAdminClient, createContextClient } from '@supabase/server/core';
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
-import { db, initializeDatabase } from './db.js';
+import { db, getDatabaseMode, initializeDatabase } from './db.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
 const sessions = new Map();
-const supabaseAuthEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
-const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
+
+// Une valeur d'exemple restée dans .env ne doit pas activer Supabase.
+function isConfigured(value) {
+  return Boolean(value) && !/REMPLACE|REPLACE_WITH_YOUR|YOUR_|<.*>/.test(value);
+}
+
+const supabaseAuthEnabled = isConfigured(process.env.SUPABASE_URL) && isConfigured(process.env.SUPABASE_PUBLISHABLE_KEY);
+const supabaseAdminEnabled = supabaseAuthEnabled && isConfigured(process.env.SUPABASE_SECRET_KEY);
+let supabaseAuth = null;
+if (supabaseAuthEnabled) {
+  try {
+    supabaseAuth = createContextClient();
+  } catch (error) {
+    console.warn(`[auth] Auth Supabase indisponible : ${error.message}`);
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -42,7 +56,7 @@ function authUser(request, response, next) {
 }
 
 async function getUserProfile(userId) {
-  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
+  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS "codePostal" FROM utilisateur WHERE id = ?').get(userId);
 }
 
 function isValidEventDate(value) {
@@ -53,15 +67,15 @@ function isValidEventDate(value) {
 
 async function getProviders(search, userId, favoritesOnly = false) {
   const searchPattern = `%${search.trim()}%`;
-  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
-    TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) AS nomContact, p.description,
-    p.adresse_postale AS adressePostale, p.site_web AS siteWeb, p.photo_url AS photoUrl,
+  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS "raisonSociale",
+    TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) AS "nomContact", p.description,
+    p.adresse_postale AS "adressePostale", p.site_web AS "siteWeb", p.photo_url AS "photoUrl",
     (SELECT GROUP_CONCAT(DISTINCT c.libelle) FROM prestation pr
       JOIN categorie_prestation c ON c.id = pr.categorie_id
       WHERE pr.prestataire_id = p.utilisateur_id) AS categories,
     CASE WHEN CAST(? AS INTEGER) IS NULL THEN 0 ELSE EXISTS (
       SELECT 1 FROM favori_prestataire f WHERE f.utilisateur_id = ? AND f.prestataire_id = p.utilisateur_id
-    ) END AS estFavori
+    ) END AS "estFavori"
     FROM prestataire p JOIN utilisateur u ON u.id = p.utilisateur_id
     WHERE TRIM(COALESCE(p.nom_entreprise, '')) <> ''
       AND (? = '' OR LOWER(p.nom_entreprise) LIKE LOWER(?)
@@ -80,13 +94,17 @@ async function getProviders(search, userId, favoritesOnly = false) {
 }
 
 async function getEventProviders(eventId) {
-  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
-    p.description, p.adresse_postale AS adressePostale, p.photo_url AS photoUrl
+  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS "raisonSociale",
+    p.description, p.adresse_postale AS "adressePostale", p.photo_url AS "photoUrl"
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
     WHERE ep.evenement_id = ? ORDER BY p.nom_entreprise COLLATE NOCASE`).all(eventId);
 }
 
-app.get('/api/health', (_request, response) => response.json({ ok: true }));
+app.get('/api/health', (_request, response) => response.json({
+  ok: true,
+  database: getDatabaseMode(),
+  supabaseAuth: Boolean(supabaseAuth),
+}));
 
 app.get('/api/reference/event-types', async (_request, response) => {
   response.json(await db.prepare('SELECT id, libelle FROM type_evenement ORDER BY libelle').all());
@@ -100,16 +118,46 @@ app.get('/api/providers', async (request, response) => {
   response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly));
 });
 
+// Le service email intégré de Supabase est limité en débit et n'envoie qu'aux adresses de l'équipe projet.
+const MAILER_FAILURE_CODES = ['over_email_send_rate_limit', 'email_address_not_authorized', 'over_request_rate_limit', 'email_provider_disabled'];
+
+function isMailerFailure(error) {
+  return MAILER_FAILURE_CODES.includes(error?.code) || /email|mailer/i.test(error?.message || '');
+}
+
+async function createLocalAccount({ prenom, nom, email, motDePasse, supabaseUserId = null }) {
+  const createUser = db.transaction(async () => {
+    const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id) VALUES (?, ?, ?, ?, ?) RETURNING id').get(
+      prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse), supabaseUserId,
+    );
+    await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
+    return Number(user.id);
+  });
+  return createUser();
+}
+
+function emailAlreadyUsed(response) {
+  return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+}
+
 app.post('/api/auth/register', async (request, response) => {
   const { prenom, nom, email, motDePasse } = request.body;
   if (!prenom?.trim() || !nom?.trim() || !email || !motDePasse || motDePasse.length < 8) {
     return response.status(400).json({ error: 'Prénom, nom, email et mot de passe de 8 caractères minimum requis.' });
   }
+
+  // Sans clés Supabase, le compte est créé localement (hachage scrypt).
   if (!supabaseAuth) {
-    return response.status(503).json({ error: 'La confirmation par email Supabase n’est pas configurée.' });
+    try {
+      const userId = await createLocalAccount({ prenom, nom, email, motDePasse });
+      return response.status(201).json({ token: createSession(userId), user: await getUserProfile(userId) });
+    } catch (error) {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return emailAlreadyUsed(response);
+      return response.status(500).json({ error: 'Impossible de créer le compte.' });
+    }
   }
 
-  let supabaseUserId;
+  let supabaseUserId = null;
   try {
     const { data, error } = await supabaseAuth.auth.signUp({
       email: email.trim(),
@@ -119,30 +167,37 @@ app.post('/api/auth/register', async (request, response) => {
         emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_URL || 'http://localhost:5173/',
       },
     });
+
     if (error) {
-      if (error.message.toLowerCase().includes('already registered')) {
-        return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+      if (/already registered/i.test(error.message)) return emailAlreadyUsed(response);
+      // L'email de confirmation n'a pas pu partir : on crée le compte déjà confirmé via l'API admin.
+      if (supabaseAdminEnabled && isMailerFailure(error)) {
+        const { data: created, error: creationError } = await createAdminClient().auth.admin.createUser({
+          email: email.trim(),
+          password: motDePasse,
+          email_confirm: true,
+          user_metadata: { prenom: prenom.trim(), nom: nom.trim() },
+        });
+        if (creationError) return response.status(502).json({ error: `Impossible de créer le compte Supabase (${creationError.message}).` });
+        supabaseUserId = created.user.id;
+        const userId = await createLocalAccount({ prenom, nom, email, motDePasse, supabaseUserId });
+        return response.status(201).json({ token: createSession(userId), user: await getUserProfile(userId), emailConfirmationSkipped: true });
       }
-      return response.status(502).json({ error: 'Impossible d’envoyer l’email de confirmation. Vérifiez la configuration email de Supabase.' });
-    }
-    if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
-      return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
-    }
-    supabaseUserId = data.user.id;
-    if (data.session) {
-      await createAdminClient().auth.admin.deleteUser(supabaseUserId);
-      return response.status(503).json({ error: 'Activez la confirmation des emails dans Supabase Auth pour imposer la vérification.' });
+      return response.status(502).json({ error: `Impossible d’envoyer l’email de confirmation (${error.code || error.message}). Vérifie la configuration email de Supabase.` });
     }
 
-    const createUser = db.transaction(async () => {
-      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id) VALUES (?, ?, ?, ?, ?) RETURNING id').get(
-        prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse), supabaseUserId,
-      );
-      await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
-      return Number(user.id);
-    });
-    await createUser();
-    response.status(201).json({ verificationRequired: true });
+    if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) return emailAlreadyUsed(response);
+    supabaseUserId = data.user.id;
+
+    // Confirmation par email activée : le compte est créé après le clic sur le lien reçu.
+    if (!data.session) {
+      await createLocalAccount({ prenom, nom, email, motDePasse, supabaseUserId });
+      return response.status(201).json({ verificationRequired: true });
+    }
+
+    // Confirmation désactivée dans Supabase : la session est déjà valide, on connecte l'utilisateur.
+    const userId = await createLocalAccount({ prenom, nom, email, motDePasse, supabaseUserId });
+    response.status(201).json({ token: createSession(userId), user: await getUserProfile(userId), emailConfirmationSkipped: true });
   } catch (error) {
     if (supabaseUserId) {
       try {
@@ -151,7 +206,7 @@ app.post('/api/auth/register', async (request, response) => {
         // Preserve the original signup error.
       }
     }
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return emailAlreadyUsed(response);
     response.status(500).json({ error: 'Impossible de créer le compte.' });
   }
 });
@@ -160,8 +215,7 @@ app.post('/api/auth/login', async (request, response) => {
   const { email, motDePasse } = request.body;
   const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
   if (!user) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-  if (user.supabase_auth_id) {
-    if (!supabaseAuth) return response.status(503).json({ error: 'La connexion Supabase n’est pas configurée.' });
+  if (user.supabase_auth_id && supabaseAuth) {
     const { data, error } = await supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' });
     if (error || data.user?.id !== user.supabase_auth_id) {
       if (error?.code === 'email_not_confirmed' || error?.message.toLowerCase().includes('email not confirmed')) {
@@ -182,8 +236,8 @@ app.get('/api/me', authUser, async (request, response) => {
 });
 
 app.get('/api/me/provider-profile', authUser, async (request, response) => {
-  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
-    adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
+  const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", siret, site_web AS "siteWeb",
+    adresse_postale AS "adressePostale", description, banniere_url AS "banniereUrl", photo_url AS "photoUrl"
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile: profile || {
     raisonSociale: '', siret: '', siteWeb: '', adressePostale: '', description: '', banniereUrl: '', photoUrl: '',
@@ -201,8 +255,8 @@ app.put('/api/me/provider-profile', authUser, async (request, response) => {
     request.userId, raisonSociale.trim(), siret?.trim() || null, siteWeb?.trim() || null,
     adressePostale?.trim() || null, description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null,
   );
-  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
-    adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
+  const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", siret, site_web AS "siteWeb",
+    adresse_postale AS "adressePostale", description, banniere_url AS "banniereUrl", photo_url AS "photoUrl"
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile });
 });
@@ -244,7 +298,7 @@ app.put('/api/me', authUser, async (request, response) => {
 
 app.delete('/api/me', authUser, async (request, response) => {
   const linkedUser = await db.prepare('SELECT supabase_auth_id FROM utilisateur WHERE id = ?').get(request.userId);
-  if (linkedUser?.supabase_auth_id && supabaseAuthEnabled) {
+  if (linkedUser?.supabase_auth_id && supabaseAdminEnabled) {
     const { error } = await createAdminClient().auth.admin.deleteUser(linkedUser.supabase_auth_id);
     if (error) return response.status(502).json({ error: 'Impossible de supprimer le compte Supabase.' });
   }
@@ -256,12 +310,12 @@ app.delete('/api/me', authUser, async (request, response) => {
 });
 
 app.get('/api/me/events', authUser, async (request, response) => {
-  const events = await db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS dateEvenement,
-    e.date_fin AS dateFin, e.nombre_invites AS nombreInvites, e.budget, t.libelle AS typeEvenement
+  const events = await db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS "dateEvenement",
+    e.date_fin AS "dateFin", e.nombre_invites AS "nombreInvites", e.budget, t.libelle AS "typeEvenement"
     FROM evenement e JOIN type_evenement t ON t.id = e.type_evenement_id
     WHERE e.client_id = ? ORDER BY e.date_evenement`).all(request.userId);
   if (!events.length) return response.json([]);
-  const locations = await db.prepare(`SELECT evenement_id AS evenementId, libelle FROM emplacement_evenement
+  const locations = await db.prepare(`SELECT evenement_id AS "evenementId", libelle FROM emplacement_evenement
     JOIN evenement ON evenement.id = emplacement_evenement.evenement_id
     WHERE evenement.client_id = ? ORDER BY emplacement_evenement.id`).all(request.userId);
   const locationsByEvent = new Map();
@@ -270,8 +324,8 @@ app.get('/api/me/events', authUser, async (request, response) => {
     eventLocations.push(location.libelle);
     locationsByEvent.set(location.evenementId, eventLocations);
   }
-  const eventProviders = await db.prepare(`SELECT ep.evenement_id AS evenementId, p.utilisateur_id AS id,
-    p.nom_entreprise AS raisonSociale, p.photo_url AS photoUrl
+  const eventProviders = await db.prepare(`SELECT ep.evenement_id AS "evenementId", p.utilisateur_id AS id,
+    p.nom_entreprise AS "raisonSociale", p.photo_url AS "photoUrl"
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
     JOIN evenement e ON e.id = ep.evenement_id WHERE e.client_id = ?
     ORDER BY p.nom_entreprise COLLATE NOCASE`).all(request.userId);
@@ -361,4 +415,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 await initializeDatabase();
-app.listen(port, () => console.log(`EventBridge API disponible sur http://localhost:${port}`));
+app.listen(port, () => {
+  console.log(`EventBridge API disponible sur http://localhost:${port}`);
+  console.log(`[config] Base de données : ${getDatabaseMode() === 'postgres' ? 'Supabase PostgreSQL' : 'SQLite locale (repli)'}`);
+  console.log(`[config] Auth Supabase : ${supabaseAuth ? 'activée' : 'désactivée (clés absentes ou d’exemple dans .env)'}`);
+});
