@@ -74,6 +74,13 @@ Si Supabase n'est pas joignable au démarrage (clés d'exemple, certificat absen
 
 `database` vaut `postgres` dès que la connexion Supabase est établie, et `supabaseAuth` passe à `true` dès que les clés du projet sont renseignées dans `.env`. Sans ces clés, l'inscription et la connexion utilisent le hachage local `scrypt` (les comptes ainsi créés ne sont pas recopiés automatiquement dans Supabase Auth).
 
+### Création de compte et emails
+
+1. En fonctionnement normal, l'inscription appelle `signUp` : Supabase envoie un email de confirmation et le compte s'active au clic sur le lien (**Authentication > Sign In / Providers > Email > Confirm email** doit rester activé).
+2. Le service email intégré de Supabase est fortement limité en débit et ne délivre qu'aux adresses de l'équipe du projet (`over_email_send_rate_limit`). Dans ce cas l'API crée le compte **déjà confirmé** via l'API admin (clé secrète) et connecte directement l'utilisateur : la réponse contient `emailConfirmationSkipped: true` et l'interface l'indique.
+3. Pour envoyer de vrais emails de confirmation à n'importe quelle adresse, configure un **SMTP personnalisé** dans **Authentication > Emails**.
+4. Les comptes créés lorsque l'API tournait en repli SQLite (`data/eventbridge.sqlite`) n'existent pas dans Supabase : recrée-les depuis le site.
+
 ### Si la connexion PostgreSQL échoue
 
 | Message | Cause probable | Solution |

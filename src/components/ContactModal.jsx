@@ -8,6 +8,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
   const [mode, setMode] = useState(login ? 'connexion' : type);
   const [sent, setSent] = useState(false);
   const [verificationPending, setVerificationPending] = useState(false);
+  const [confirmationSkipped, setConfirmationSkipped] = useState(false);
   const [error, setError] = useState('');
   const isSignup = mode === 'inscription';
   const isAuth = mode === 'connexion' || isSignup;
@@ -44,6 +45,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
         }
         localStorage.setItem('eventbridge_token', result.token);
         onAuthenticated?.(result.user);
+        setConfirmationSkipped(Boolean(result.emailConfirmationSkipped));
       } else if (mode === 'connexion') {
         const result = await loginAccount({ email: formData.get('email'), motDePasse: formData.get('motDePasse') });
         localStorage.setItem('eventbridge_token', result.token);
@@ -59,6 +61,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
     setMode(isSignup ? 'connexion' : 'inscription');
     setSent(false);
     setVerificationPending(false);
+    setConfirmationSkipped(false);
   };
 
   return (
@@ -67,7 +70,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
         <button className="close-button" onClick={onClose} aria-label="Fermer">×</button>
         <div className="kicker">{isAuth || account ? 'Votre espace' : 'Votre événement'}</div>
         <h2 id="contact-title">{sent ? (isSignup ? (verificationPending ? 'Vérifiez votre adresse email.' : 'Votre compte est créé.') : mode === 'connexion' ? 'Connexion réussie.' : 'Merci, votre demande est bien partie.') : account ? 'Mon compte' : isSignup ? 'Bienvenue sur EventBridge.' : mode === 'connexion' ? 'Ravi de vous revoir.' : 'Parlons de votre projet.'}</h2>
-        <p>{sent ? (isSignup ? (verificationPending ? 'Un lien de confirmation vient d’être envoyé. Ouvrez-le pour activer votre compte, puis revenez vous connecter.' : 'Vous pouvez maintenant retrouver vos projets et vos échanges dans votre espace.') : mode === 'connexion' ? 'Votre espace EventBridge est prêt.' : 'Notre équipe reviendra vers vous rapidement pour faire avancer votre projet.') : account ? `Vous êtes connecté avec l’adresse ${user?.email || ''}.` : isSignup ? 'Créez votre compte pour enregistrer vos événements et échanger avec les bons prestataires.' : mode === 'connexion' ? 'Connectez-vous pour retrouver vos projets et vos échanges.' : 'Quelques informations suffisent pour que nous vous orientions vers les bons prestataires.'}</p>
+        <p>{sent ? (isSignup ? (verificationPending ? 'Un lien de confirmation vient d’être envoyé. Ouvrez-le pour activer votre compte, puis revenez vous connecter.' : confirmationSkipped ? 'Votre compte est créé et vous êtes connecté. La vérification par email est ignorée tant qu’aucun SMTP personnalisé n’est configuré dans Supabase.' : 'Vous pouvez maintenant retrouver vos projets et vos échanges dans votre espace.') : mode === 'connexion' ? 'Votre espace EventBridge est prêt.' : 'Notre équipe reviendra vers vous rapidement pour faire avancer votre projet.') : account ? `Vous êtes connecté avec l’adresse ${user?.email || ''}.` : isSignup ? 'Créez votre compte pour enregistrer vos événements et échanger avec les bons prestataires.' : mode === 'connexion' ? 'Connectez-vous pour retrouver vos projets et vos échanges.' : 'Quelques informations suffisent pour que nous vous orientions vers les bons prestataires.'}</p>
         {error && <p className="form-error" role="alert">{error}</p>}
         {!sent && !account && <form onSubmit={handleSubmit}>
           {isSignup && <div className="signup-name-fields">
