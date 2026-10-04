@@ -101,6 +101,7 @@ export async function initializeDatabase() {
 	if (!userColumns.includes('prenom')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN prenom TEXT');
 	if (!userColumns.includes('code_postal')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN code_postal TEXT');
 	if (!userColumns.includes('supabase_auth_id')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN supabase_auth_id TEXT');
+	if (!userColumns.includes('derniere_connexion')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN derniere_connexion TEXT');
 	sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_supabase_auth_id_unique ON utilisateur (supabase_auth_id) WHERE supabase_auth_id IS NOT NULL');
 	const providerColumns = sqlite.prepare('PRAGMA table_info(prestataire)').all().map((column) => column.name);
 	for (const column of ['siret', 'site_web', 'adresse_postale', 'banniere_url', 'photo_url']) {

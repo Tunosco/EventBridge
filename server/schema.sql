@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS utilisateur (
   telephone TEXT,
   code_postal TEXT,
   supabase_auth_id TEXT,
+  derniere_connexion TEXT,
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

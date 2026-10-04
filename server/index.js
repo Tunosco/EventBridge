@@ -45,6 +45,10 @@ async function getUserProfile(userId) {
   return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
 }
 
+async function recordUserLogin(userId) {
+  await db.prepare('UPDATE utilisateur SET derniere_connexion = CURRENT_TIMESTAMP WHERE id = ?').run(userId);
+}
+
 function isValidEventDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -172,6 +176,7 @@ app.post('/api/auth/login', async (request, response) => {
   } else if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
     return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
   }
+  await recordUserLogin(user.id);
   response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
 });
 
@@ -190,6 +195,7 @@ app.post('/api/auth/confirm', async (request, response) => {
     .get(data.user.id, data.user.email);
   if (!user) return response.status(403).json({ error: 'Ce compte n’est pas associé à un compte EventBridge.' });
 
+  await recordUserLogin(user.id);
   response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
 });
 
