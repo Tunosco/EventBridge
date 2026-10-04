@@ -731,6 +731,16 @@
   font-weight: 400;
 }
 
+.event-creation-form .event-budget-input {
+  appearance: textfield;
+}
+
+.event-creation-form .event-budget-input::-webkit-inner-spin-button,
+.event-creation-form .event-budget-input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
 .event-creation-form textarea {
   min-height: 96px;
   resize: vertical;

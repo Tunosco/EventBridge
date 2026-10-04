@@ -80,8 +80,8 @@ async function getProviders(search, userId, favoritesOnly = false) {
 }
 
 async function getEventProviders(eventId) {
-  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
-    p.description, p.adresse_postale AS adressePostale, p.photo_url AS photoUrl
+  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS "raisonSociale",
+    p.description, p.adresse_postale AS "adressePostale", p.photo_url AS "photoUrl"
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
     WHERE ep.evenement_id = ? ORDER BY p.nom_entreprise COLLATE NOCASE`).all(eventId);
 }
@@ -256,12 +256,12 @@ app.delete('/api/me', authUser, async (request, response) => {
 });
 
 app.get('/api/me/events', authUser, async (request, response) => {
-  const events = await db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS dateEvenement,
-    e.date_fin AS dateFin, e.nombre_invites AS nombreInvites, e.budget, t.libelle AS typeEvenement
+  const events = await db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS "dateEvenement",
+    e.date_fin AS "dateFin", e.nombre_invites AS "nombreInvites", e.budget, t.libelle AS "typeEvenement"
     FROM evenement e JOIN type_evenement t ON t.id = e.type_evenement_id
     WHERE e.client_id = ? ORDER BY e.date_evenement`).all(request.userId);
   if (!events.length) return response.json([]);
-  const locations = await db.prepare(`SELECT evenement_id AS evenementId, libelle FROM emplacement_evenement
+  const locations = await db.prepare(`SELECT evenement_id AS "evenementId", libelle FROM emplacement_evenement
     JOIN evenement ON evenement.id = emplacement_evenement.evenement_id
     WHERE evenement.client_id = ? ORDER BY emplacement_evenement.id`).all(request.userId);
   const locationsByEvent = new Map();
@@ -270,8 +270,8 @@ app.get('/api/me/events', authUser, async (request, response) => {
     eventLocations.push(location.libelle);
     locationsByEvent.set(location.evenementId, eventLocations);
   }
-  const eventProviders = await db.prepare(`SELECT ep.evenement_id AS evenementId, p.utilisateur_id AS id,
-    p.nom_entreprise AS raisonSociale, p.photo_url AS photoUrl
+  const eventProviders = await db.prepare(`SELECT ep.evenement_id AS "evenementId", p.utilisateur_id AS id,
+    p.nom_entreprise AS "raisonSociale", p.photo_url AS "photoUrl"
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
     JOIN evenement e ON e.id = ep.evenement_id WHERE e.client_id = ?
     ORDER BY p.nom_entreprise COLLATE NOCASE`).all(request.userId);
@@ -321,9 +321,9 @@ app.post('/api/me/events', authUser, async (request, response) => {
   const providerIds = Array.isArray(request.body.prestatairesIds)
     ? [...new Set(request.body.prestatairesIds.map(Number))]
     : [];
-  if (!titre?.trim() || !description?.trim() || !lieu?.trim() || !typeEvenementId
+  if (!titre?.trim() || !lieu?.trim() || !typeEvenementId
     || budget === '' || budget === null || budget === undefined || !Number.isFinite(estimatedBudget) || estimatedBudget < 0) {
-    return response.status(400).json({ error: 'Titre, type, description, budget et emplacement principal sont requis.' });
+    return response.status(400).json({ error: 'Titre, type, budget et emplacement principal sont requis.' });
   }
   if (!isValidEventDate(eventStartDate) || !isValidEventDate(eventEndDate) || eventEndDate < eventStartDate) {
     return response.status(400).json({ error: 'La date de fin doit être égale ou postérieure à la date de début.' });
@@ -341,7 +341,7 @@ app.post('/api/me/events', authUser, async (request, response) => {
   const createEvent = db.transaction(async () => {
     const result = await db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, date_fin, budget)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
-      request.userId, Number(typeEvenementId), titre.trim(), description.trim(), lieu.trim(), eventStartDate, eventEndDate, estimatedBudget,
+      request.userId, Number(typeEvenementId), titre.trim(), description?.trim() || null, lieu.trim(), eventStartDate, eventEndDate, estimatedBudget,
     );
     const eventId = Number(result.id);
     const insertLocation = db.prepare('INSERT INTO emplacement_evenement (evenement_id, libelle) VALUES (?, ?)');

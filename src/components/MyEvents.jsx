@@ -421,7 +421,7 @@ export default function MyEvents({ onBack }) {
             </div>
             <label>Emplacement principal<input name="lieu" value={eventForm.lieu} onChange={updateEventForm} required maxLength="180" placeholder="Ville ou lieu principal" /></label>
             <div className="secondary-location-field">
-              <label htmlFor="secondary-location">Emplacements secondaires</label>
+              <label htmlFor="secondary-location">Emplacements secondaires (facultatif)</label>
               <div className="secondary-location-add">
                 <input id="secondary-location" value={secondaryLocationDraft} onChange={(event) => setSecondaryLocationDraft(event.target.value)} maxLength="180" placeholder="Ajouter un autre lieu" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSecondaryLocation(); } }} />
                 <button className="button secondary-location-add-button" type="button" disabled={!secondaryLocationDraft.trim()} onClick={addSecondaryLocation}>Ajouter</button>
@@ -433,8 +433,8 @@ export default function MyEvents({ onBack }) {
                 </li>)}
               </ul>}
             </div>
-            <label>Description<textarea name="description" value={eventForm.description} onChange={updateEventForm} required rows="4" maxLength="2000" placeholder="Décrivez votre projet et les détails utiles." /></label>
-            <label>Budget prévisionnel (€)<input name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} min="0" step="0.01" required placeholder="Ex. 5000" /></label>
+            <label>Description (facultatif)<textarea name="description" value={eventForm.description} onChange={updateEventForm} rows="4" maxLength="2000" placeholder="Décrivez votre projet et les détails utiles." /></label>
+            <label>Budget prévisionnel (€)<input className="event-budget-input" name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} onWheel={(event) => event.preventDefault()} min="0" step="0.01" required placeholder="Ex. 5000" /></label>
             <section className="event-provider-picker" aria-labelledby="event-provider-picker-title">
               <div><span className="summary-label">Équipe du projet</span><h3 id="event-provider-picker-title">Prestataires à associer</h3></div>
               <ProviderFinder
