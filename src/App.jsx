@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import EventExamples from './components/EventExamples';
@@ -9,8 +9,9 @@ import Settings from './components/Settings';
 import MyEvents from './components/MyEvents';
 import ProviderDirectory from './components/ProviderDirectory';
 import ProviderSpace from './components/ProviderSpace';
-import { getCurrentUser } from './lib/api';
+import { completeEmailConfirmation, getCurrentUser } from './lib/api';
 import './styles/global.css';
+import './styles/auth-confirmation.css';
 import './styles/responsive-menu.css';
 import './styles/nav-link.css';
 import './styles/provider-space.css';
@@ -26,6 +27,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
+  const [authNotice, setAuthNotice] = useState(null);
+  const confirmationHandled = useRef(false);
   const handleProjectClick = (type) => type === 'prestataire' ? setPage('provider') : setContactType(type);
   const handleEventsClick = () => {
     setPage('events');
@@ -41,6 +44,35 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const confirmationParams = new URLSearchParams(window.location.hash.slice(1));
+    const queryParams = new URLSearchParams(window.location.search);
+    const accessToken = confirmationParams.get('access_token');
+    const authError = confirmationParams.get('error') || queryParams.get('error');
+    if (confirmationHandled.current || (!accessToken && !authError)) return;
+    confirmationHandled.current = true;
+    const search = queryParams.has('error') ? '' : window.location.search;
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${search}`);
+    setShowIntro(false);
+
+    if (!accessToken || confirmationParams.get('type') !== 'signup') {
+      setAuthNotice({ message: 'Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.', type: 'error' });
+      return;
+    }
+
+    setAuthNotice({ message: 'Adresse confirmée, connexion en cours…', type: 'pending' });
+    completeEmailConfirmation(accessToken)
+      .then(({ token, user: confirmedUser }) => {
+        localStorage.setItem('eventbridge_token', token);
+        setUser(confirmedUser);
+        setPage('events');
+        setAuthNotice({ message: 'Votre adresse est confirmée. Vous êtes connecté à votre compte.', type: 'success' });
+      })
+      .catch((confirmationError) => {
+        setAuthNotice({ message: confirmationError.message, type: 'error' });
+      });
+  }, []);
+
+  useEffect(() => {
     const theme = localStorage.getItem('eventbridge_theme') || 'default';
     document.documentElement.dataset.theme = theme;
   }, []);
@@ -52,6 +84,10 @@ export default function App() {
   return (
     <>
       <div className="app-content" inert={showIntro} aria-hidden={showIntro ? 'true' : undefined}>
+      {authNotice && <div className={`auth-confirmation-notice is-${authNotice.type}`} role={authNotice.type === 'error' ? 'alert' : 'status'}>
+        <span>{authNotice.message}</span>
+        <button type="button" aria-label="Fermer le message" onClick={() => setAuthNotice(null)}>×</button>
+      </div>}
       <Header onNavigate={setPage} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
       {page === 'provider' ? (
         <ProviderSpace isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => setPage('home')} />

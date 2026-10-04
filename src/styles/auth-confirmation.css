@@ -1,0 +1,38 @@
+.auth-confirmation-notice {
+  position: fixed;
+  z-index: 60;
+  top: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(560px, calc(100% - 32px));
+  padding: 14px 16px;
+  transform: translateX(-50%);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--white);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.auth-confirmation-notice.is-success {
+  border-color: #287158;
+}
+
+.auth-confirmation-notice.is-error {
+  border-color: var(--coral);
+}
+
+.auth-confirmation-notice button {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+}

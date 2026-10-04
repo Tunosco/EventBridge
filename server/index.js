@@ -175,6 +175,24 @@ app.post('/api/auth/login', async (request, response) => {
   response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
 });
 
+app.post('/api/auth/confirm', async (request, response) => {
+  const { accessToken } = request.body;
+  if (typeof accessToken !== 'string' || !accessToken.trim()) {
+    return response.status(400).json({ error: 'Le lien de confirmation est invalide.' });
+  }
+  if (!supabaseAuth) return response.status(503).json({ error: 'La connexion Supabase n’est pas configurée.' });
+
+  const { data, error } = await supabaseAuth.auth.getUser(accessToken);
+  if (error || !data.user?.id || !data.user.email || !data.user.email_confirmed_at) {
+    return response.status(401).json({ error: 'Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.' });
+  }
+  const user = await db.prepare('SELECT id FROM utilisateur WHERE supabase_auth_id = ? AND LOWER(email) = LOWER(?)')
+    .get(data.user.id, data.user.email);
+  if (!user) return response.status(403).json({ error: 'Ce compte n’est pas associé à un compte EventBridge.' });
+
+  response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
+});
+
 app.get('/api/me', authUser, async (request, response) => {
   const user = await getUserProfile(request.userId);
   if (!user) return response.status(401).json({ error: 'Session invalide.' });

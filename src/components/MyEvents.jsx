@@ -434,7 +434,7 @@ export default function MyEvents({ onBack }) {
               </ul>}
             </div>
             <label>Description (facultatif)<textarea name="description" value={eventForm.description} onChange={updateEventForm} rows="4" maxLength="2000" placeholder="Décrivez votre projet et les détails utiles." /></label>
-            <label>Budget prévisionnel (€)<input className="event-budget-input" name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} onWheel={(event) => event.preventDefault()} min="0" step="0.01" required placeholder="Ex. 5000" /></label>
+            <label>Budget prévisionnel (€)<input className="event-budget-input" name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} onWheel={(event) => event.currentTarget.blur()} min="0" step="0.01" required placeholder="Ex. 5000" /></label>
             <section className="event-provider-picker" aria-labelledby="event-provider-picker-title">
               <div><span className="summary-label">Équipe du projet</span><h3 id="event-provider-picker-title">Prestataires à associer</h3></div>
               <ProviderFinder

@@ -19,6 +19,13 @@ export function loginAccount(payload) {
   return request('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+export function completeEmailConfirmation(accessToken) {
+  return request('/auth/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ accessToken }),
+  });
+}
+
 export function getCurrentUser() {
   const token = localStorage.getItem('eventbridge_token');
   if (!token) return Promise.resolve(null);
