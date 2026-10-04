@@ -274,7 +274,7 @@ app.delete('/api/me', authUser, async (request, response) => {
 });
 
 app.get('/api/me/events', authUser, async (request, response) => {
-  const events = await db.prepare(`SELECT e.id, e.titre, e.description, e.lieu, e.date_evenement AS "dateEvenement",
+  const events = await db.prepare(`SELECT e.id, e.type_evenement_id AS "typeEvenementId", e.titre, e.description, e.lieu, e.date_evenement AS "dateEvenement",
     e.date_fin AS "dateFin", e.nombre_invites AS "nombreInvites", e.budget, t.libelle AS "typeEvenement"
     FROM evenement e JOIN type_evenement t ON t.id = e.type_evenement_id
     WHERE e.client_id = ? ORDER BY e.date_evenement`).all(request.userId);
@@ -369,6 +369,54 @@ app.post('/api/me/events', authUser, async (request, response) => {
     return eventId;
   });
   response.status(201).json({ id: await createEvent() });
+});
+
+app.put('/api/me/events/:eventId', authUser, async (request, response) => {
+  const eventId = Number(request.params.eventId);
+  const { titre, typeEvenementId, description, lieu, dateDebut, dateFin, dateEvenement, budget } = request.body;
+  const eventStartDate = dateDebut || dateEvenement;
+  const eventEndDate = dateFin || eventStartDate;
+  const estimatedBudget = Number(budget);
+  const secondaryLocations = Array.isArray(request.body.lieuxSecondaires)
+    ? request.body.lieuxSecondaires.map((location) => String(location).trim()).filter(Boolean)
+    : [];
+  const providerIds = Array.isArray(request.body.prestatairesIds)
+    ? [...new Set(request.body.prestatairesIds.map(Number))]
+    : [];
+  if (!Number.isInteger(eventId) || !await db.prepare('SELECT id FROM evenement WHERE id = ? AND client_id = ?').get(eventId, request.userId)) {
+    return response.status(404).json({ error: 'Événement introuvable.' });
+  }
+  if (!titre?.trim() || !lieu?.trim() || !typeEvenementId
+    || budget === '' || budget === null || budget === undefined || !Number.isFinite(estimatedBudget) || estimatedBudget < 0) {
+    return response.status(400).json({ error: 'Titre, type, budget et emplacement principal sont requis.' });
+  }
+  if (!isValidEventDate(eventStartDate) || !isValidEventDate(eventEndDate) || eventEndDate < eventStartDate) {
+    return response.status(400).json({ error: 'La date de fin doit être égale ou postérieure à la date de début.' });
+  }
+  if (!await db.prepare('SELECT id FROM type_evenement WHERE id = ?').get(Number(typeEvenementId))) {
+    return response.status(400).json({ error: 'Le type d’événement sélectionné est invalide.' });
+  }
+  const providerExists = db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?');
+  for (const providerId of providerIds) {
+    if (!Number.isInteger(providerId) || !await providerExists.get(providerId)) {
+      return response.status(400).json({ error: 'Un prestataire sélectionné est invalide.' });
+    }
+  }
+  const updateEvent = db.transaction(async () => {
+    await db.prepare(`UPDATE evenement SET type_evenement_id = ?, titre = ?, description = ?, lieu = ?,
+      date_evenement = ?, date_fin = ?, budget = ? WHERE id = ? AND client_id = ?`).run(
+      Number(typeEvenementId), titre.trim(), description?.trim() || null, lieu.trim(),
+      eventStartDate, eventEndDate, estimatedBudget, eventId, request.userId,
+    );
+    await db.prepare('DELETE FROM emplacement_evenement WHERE evenement_id = ?').run(eventId);
+    const insertLocation = db.prepare('INSERT INTO emplacement_evenement (evenement_id, libelle) VALUES (?, ?)');
+    for (const location of secondaryLocations) await insertLocation.run(eventId, location);
+    await db.prepare('DELETE FROM evenement_prestataire WHERE evenement_id = ?').run(eventId);
+    const addProvider = db.prepare('INSERT INTO evenement_prestataire (evenement_id, prestataire_id) VALUES (?, ?)');
+    for (const providerId of providerIds) await addProvider.run(eventId, providerId);
+  });
+  await updateEvent();
+  response.json({ id: eventId });
 });
 
 if (process.env.NODE_ENV === 'production') {

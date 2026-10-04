@@ -59,6 +59,10 @@ export function createEvent(payload) {
   return request('/me/events', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) });
 }
 
+export function updateEvent(eventId, payload) {
+  return request(`/me/events/${eventId}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
 export function searchProviders(search, favoritesOnly = false) {
   const parameters = new URLSearchParams();
   if (search) parameters.set('q', search);

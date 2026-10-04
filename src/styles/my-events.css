@@ -627,6 +627,12 @@
   font-weight: 800;
 }
 
+.event-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
 .event-provider-manage:hover {
   color: var(--navy);
   border-color: var(--navy);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ProviderFinder from './ProviderFinder';
-import { createEvent, getEventTypes, getMyEvents, updateEventProviders } from '../lib/api';
+import { createEvent, getEventTypes, getMyEvents, updateEvent, updateEventProviders } from '../lib/api';
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -46,7 +46,7 @@ function formatEventPeriod(event) {
     : `${startLabel} – ${shortDateFormatter.format(endDate)}`;
 }
 
-function EventSummary({ event, isPast = false, onManageProviders }) {
+function EventSummary({ event, isPast = false, onManageProviders, onEdit }) {
   const endDate = event.parsedEndDate || event.parsedDate;
   const isMultiDay = dateKey(endDate) !== dateKey(event.parsedDate);
   return (
@@ -71,9 +71,12 @@ function EventSummary({ event, isPast = false, onManageProviders }) {
           <span className="event-linked-providers-label">Prestataires</span>
           {event.prestataires.map((provider) => <span className="event-linked-provider" key={provider.id}>{provider.raisonSociale}</span>)}
         </div>}
-        <button className="event-provider-manage" type="button" onClick={onManageProviders}>
-          {event.prestataires?.length ? 'Gérer les prestataires' : 'Ajouter des prestataires'}
-        </button>
+        <div className="event-summary-actions">
+          <button className="event-provider-manage" type="button" onClick={onEdit}>Modifier l’événement</button>
+          <button className="event-provider-manage" type="button" onClick={onManageProviders}>
+            {event.prestataires?.length ? 'Gérer les prestataires' : 'Ajouter des prestataires'}
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -89,6 +92,7 @@ export default function MyEvents({ onBack }) {
   const [eventTypesLoading, setEventTypesLoading] = useState(true);
   const [eventTypesError, setEventTypesError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [eventForm, setEventForm] = useState(eventFormDefaults);
   const [secondaryLocationDraft, setSecondaryLocationDraft] = useState('');
   const [formError, setFormError] = useState('');
@@ -145,7 +149,10 @@ export default function MyEvents({ onBack }) {
     document.body.style.overflow = 'hidden';
     const handleEscape = (event) => {
       if (event.key !== 'Escape') return;
-      if (showCreateForm && !savingEvent) setShowCreateForm(false);
+      if (showCreateForm && !savingEvent) {
+        setShowCreateForm(false);
+        setEditingEvent(null);
+      }
       if (managingEvent && !savingProviders) setManagingEvent(null);
     };
     document.addEventListener('keydown', handleEscape);
@@ -222,6 +229,30 @@ export default function MyEvents({ onBack }) {
     setSelectedProviderIds((event.prestataires || []).map((provider) => provider.id));
     setProviderSaveError('');
   };
+  const openCreateForm = () => {
+    setEditingEvent(null);
+    setEventForm({ ...eventFormDefaults, lieuxSecondaires: [] });
+    setSecondaryLocationDraft('');
+    setFormError('');
+    setShowCreateForm(true);
+  };
+  const openEditForm = (event) => {
+    setEditingEvent(event);
+    setEventForm({
+      titre: event.titre || '',
+      typeEvenementId: String(event.typeEvenementId || ''),
+      dateDebut: event.dateEvenement || '',
+      dateFin: event.dateFin || event.dateEvenement || '',
+      lieu: event.lieu || '',
+      lieuxSecondaires: event.lieuxSecondaires || [],
+      description: event.description || '',
+      budget: event.budget === null || event.budget === undefined ? '' : String(event.budget),
+      prestatairesIds: (event.prestataires || []).map((provider) => provider.id),
+    });
+    setSecondaryLocationDraft('');
+    setFormError('');
+    setShowCreateForm(true);
+  };
   const saveEventProviders = async () => {
     if (!managingEvent) return;
     setSavingProviders(true);
@@ -238,7 +269,7 @@ export default function MyEvents({ onBack }) {
       setSavingProviders(false);
     }
   };
-  const handleCreateEvent = async (event) => {
+  const handleSaveEvent = async (event) => {
     event.preventDefault();
     setFormError('');
     if (eventForm.dateFin < eventForm.dateDebut) {
@@ -247,14 +278,17 @@ export default function MyEvents({ onBack }) {
     }
     setSavingEvent(true);
     try {
-      await createEvent({
+      const payload = {
         ...eventForm,
         typeEvenementId: Number(eventForm.typeEvenementId),
         budget: Number(eventForm.budget),
-      });
+      };
+      if (editingEvent) await updateEvent(editingEvent.id, payload);
+      else await createEvent(payload);
       setEventForm({ ...eventFormDefaults, lieuxSecondaires: [] });
       setSecondaryLocationDraft('');
       setShowCreateForm(false);
+      setEditingEvent(null);
       setReload((value) => value + 1);
     } catch (saveError) {
       setFormError(saveError.message);
@@ -308,7 +342,7 @@ export default function MyEvents({ onBack }) {
                 <h1>Mes événements</h1>
                 <p>{view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.'}</p>
               </div>
-              <button className="button button-primary create-event-button" type="button" onClick={() => { setFormError(''); setShowCreateForm(true); }}>Créer un événement</button>
+              <button className="button button-primary create-event-button" type="button" onClick={openCreateForm}>Créer un événement</button>
             </div>
           </div>
 
@@ -325,7 +359,7 @@ export default function MyEvents({ onBack }) {
                   <span className="event-section-count">{upcomingEvents.length}</span>
                 </div>
                 {loading ? <p className="event-list-empty">Chargement des événements…</p> : upcomingEvents.length ? (
-                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} key={event.id} onManageProviders={() => openProviderManager(event)} />)}</div>
+                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
                 ) : <p className="event-list-empty">Aucun événement futur pour le moment.</p>}
               </section>
 
@@ -335,7 +369,7 @@ export default function MyEvents({ onBack }) {
                   <span className="event-section-count">{pastEvents.length}</span>
                 </div>
                 {loading ? <p className="event-list-empty">Chargement de l’historique…</p> : pastEvents.length ? (
-                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} isPast key={event.id} onManageProviders={() => openProviderManager(event)} />)}</div>
+                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} isPast key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
                 ) : <p className="event-list-empty">Vos événements passés apparaîtront ici.</p>}
               </section>
             </div>
@@ -402,13 +436,13 @@ export default function MyEvents({ onBack }) {
           )}
         </div>
       </div>
-      {showCreateForm && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingEvent) setShowCreateForm(false); }}>
+      {showCreateForm && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingEvent) { setShowCreateForm(false); setEditingEvent(null); } }}>
         <section className="event-form-dialog" role="dialog" aria-modal="true" aria-labelledby="create-event-title">
           <div className="event-form-heading">
-            <div><span className="kicker">Votre projet</span><h2 id="create-event-title">Créer un événement</h2></div>
-            <button className="event-form-close" type="button" aria-label="Fermer" title="Fermer" disabled={savingEvent} onClick={() => setShowCreateForm(false)}>×</button>
+            <div><span className="kicker">Votre projet</span><h2 id="create-event-title">{editingEvent ? 'Modifier l’événement' : 'Créer un événement'}</h2></div>
+            <button className="event-form-close" type="button" aria-label="Fermer" title="Fermer" disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>×</button>
           </div>
-          <form className="event-creation-form" onSubmit={handleCreateEvent}>
+          <form className="event-creation-form" onSubmit={handleSaveEvent}>
             <label>Titre<input name="titre" value={eventForm.titre} onChange={updateEventForm} required maxLength="120" placeholder="Ex. Mariage de Camille et Alex" /></label>
             <label>Type d’événement<select name="typeEvenementId" value={eventForm.typeEvenementId} onChange={updateEventForm} required disabled={eventTypesLoading || eventTypes.length === 0}>
               <option value="">{eventTypesLoading ? 'Chargement des types…' : 'Choisir un type'}</option>
@@ -446,8 +480,8 @@ export default function MyEvents({ onBack }) {
             </section>
             {formError && <p className="event-form-error" role="alert">{formError}</p>}
             <div className="event-form-actions">
-              <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => setShowCreateForm(false)}>Annuler</button>
-              <button className="button button-primary" type="submit" disabled={savingEvent || eventTypes.length === 0}>{savingEvent ? 'Enregistrement…' : 'Enregistrer l’événement'}</button>
+              <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>Annuler</button>
+              <button className="button button-primary" type="submit" disabled={savingEvent || eventTypes.length === 0}>{savingEvent ? 'Enregistrement…' : editingEvent ? 'Enregistrer les modifications' : 'Enregistrer l’événement'}</button>
             </div>
           </form>
         </section>
