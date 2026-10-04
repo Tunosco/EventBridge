@@ -37,7 +37,11 @@ Supabase héberge ici la base de données, pas cette API Express. L'API doit res
 
 ### Confirmation d'adresse email
 
-Dans **Authentication > Sign In / Providers > Email**, active **Confirm email**. Dans **Authentication > URL Configuration**, ajoute `http://localhost:5173/` aux URL de redirection autorisées; si l'application est déployée ailleurs, configure aussi `SUPABASE_EMAIL_REDIRECT_URL` avec son URL publique. Supabase envoie un lien à la création du compte; l'utilisateur doit le suivre avant de pouvoir se connecter. Pour l'envoi en production, configure un SMTP personnalisé dans les paramètres d'authentification Supabase.
+La configuration Supabase locale active **Confirm email** et autorise le retour vers `http://localhost:5173/`. Après `npx supabase start`, les messages locaux sont capturés par Inbucket (interface : http://127.0.0.1:54324); ils ne sont pas envoyés à de vraies adresses.
+
+Pour le projet hébergé, dans **Authentication > Sign In / Providers > Email**, active **Confirm email**. Dans **Authentication > URL Configuration**, règle **Site URL** sur l'URL publique du site et ajoute ses URL de redirection autorisées. Ajoute également `http://localhost:5173/` pour les tests locaux. `SUPABASE_EMAIL_REDIRECT_URL`, défini dans le `.env` du serveur, doit correspondre à l'une de ces URL.
+
+Avant d'envoyer des confirmations à de vrais utilisateurs, configure un SMTP personnalisé dans **Authentication > SMTP Settings** avec les identifiants de ton fournisseur d'emails et une adresse d'expéditeur vérifiée. Le SMTP par défaut de Supabase est limité aux adresses autorisées de l'équipe du projet et à un faible quota; il convient aux essais, pas à la production. Les identifiants SMTP restent dans Supabase et ne doivent pas être ajoutés au frontend ni au dépôt. Après inscription, l'utilisateur doit ouvrir le lien reçu avant de pouvoir se connecter.
 
 ## Schéma
 
