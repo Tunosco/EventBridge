@@ -54,7 +54,6 @@ export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
     <main className="settings-page">
       <div className="settings-heading">
         <button className="text-link settings-back" onClick={onBack}>Retour à l’accueil</button>
-        <span className="kicker">Votre espace</span>
         <h1>Paramètres</h1>
         <p>Gérez vos coordonnées et vos préférences personnelles.</p>
       </div>

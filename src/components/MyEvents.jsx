@@ -338,7 +338,6 @@ export default function MyEvents({ onBack }) {
             <button className="text-link my-events-back" onClick={onBack}>Retour à l’accueil</button>
             <div className="my-events-title-row">
               <div>
-                <span className="kicker">Votre espace</span>
                 <h1>Mes événements</h1>
                 <p>{view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.'}</p>
               </div>

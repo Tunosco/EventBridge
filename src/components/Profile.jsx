@@ -3,7 +3,6 @@ export default function Profile({ user, onBack }) {
     <main className="profile-page">
       <div className="profile-heading">
         <button className="text-link profile-back" onClick={onBack}>Retour à l’accueil</button>
-        <span className="kicker">Votre espace</span>
         <h1>Votre profil</h1>
         <p>Retrouvez vos informations de contact au même endroit.</p>
       </div>

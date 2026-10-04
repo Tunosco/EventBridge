@@ -24,7 +24,7 @@ export default function ProviderSpace({ isAuthenticated, onAuth, onBack }) {
         {!isAuthenticated ? (
           <>
             <span className="kicker">Accès réservé</span>
-            <h2>Rejoignez votre espace prestataire</h2>
+            <h2>Rejoignez EventBridge comme prestataire</h2>
             <p>Connectez-vous ou créez un compte pour accéder à vos informations et à vos évènements.</p>
             <div className="provider-auth-actions">
               <button className="button button-primary" onClick={() => onAuth('connexion')}>Se connecter</button>

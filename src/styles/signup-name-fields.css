@@ -10,8 +10,11 @@
 
 .signup-provider-toggle {
   display: flex;
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
   color: var(--navy);
   font-size: 14px;
   font-weight: 700;
@@ -19,10 +22,17 @@
 }
 
 .signup-provider-toggle input {
+  flex: 0 0 18px;
   width: 18px;
+  min-width: 18px;
   height: 18px;
   margin: 0;
+  padding: 0;
   accent-color: var(--coral);
+}
+
+.signup-provider-toggle span {
+  white-space: nowrap;
 }
 
 @media (max-width: 480px) {
