@@ -42,11 +42,21 @@ function authUser(request, response, next) {
 }
 
 async function getUserProfile(userId) {
-  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal FROM utilisateur WHERE id = ?').get(userId);
+  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal, type_utilisateur AS typeUtilisateur FROM utilisateur WHERE id = ?').get(userId);
 }
 
 async function recordUserLogin(userId) {
   await db.prepare('UPDATE utilisateur SET derniere_connexion = CURRENT_TIMESTAMP WHERE id = ?').run(userId);
+}
+
+async function isClient(userId) {
+  return Boolean(await db.prepare(`SELECT u.id FROM utilisateur u JOIN client c ON c.utilisateur_id = u.id
+    WHERE u.id = ? AND u.type_utilisateur = 'client'`).get(userId));
+}
+
+async function isProvider(userId) {
+  return Boolean(await db.prepare(`SELECT u.id FROM utilisateur u JOIN prestataire p ON p.utilisateur_id = u.id
+    WHERE u.id = ? AND u.type_utilisateur = 'prestataire'`).get(userId));
 }
 
 function isValidEventDate(value) {
@@ -64,7 +74,7 @@ async function getProviders(search, userId, favoritesOnly = false) {
       JOIN categorie_prestation c ON c.id = pr.categorie_id
       WHERE pr.prestataire_id = p.utilisateur_id) AS categories,
     CASE WHEN CAST(? AS INTEGER) IS NULL THEN 0 ELSE EXISTS (
-      SELECT 1 FROM favori_prestataire f WHERE f.utilisateur_id = ? AND f.prestataire_id = p.utilisateur_id
+      SELECT 1 FROM favori_prestataire f WHERE f.client_id = ? AND f.prestataire_id = p.utilisateur_id
     ) END AS estFavori
     FROM prestataire p JOIN utilisateur u ON u.id = p.utilisateur_id
     WHERE TRIM(COALESCE(p.nom_entreprise, '')) <> ''
@@ -75,7 +85,7 @@ async function getProviders(search, userId, favoritesOnly = false) {
           WHERE pr.prestataire_id = p.utilisateur_id
           AND (LOWER(pr.titre) LIKE LOWER(?) OR LOWER(c.libelle) LIKE LOWER(?))))
       AND (? = 0 OR EXISTS (
-        SELECT 1 FROM favori_prestataire f WHERE f.utilisateur_id = ? AND f.prestataire_id = p.utilisateur_id
+        SELECT 1 FROM favori_prestataire f WHERE f.client_id = ? AND f.prestataire_id = p.utilisateur_id
       ))
     ORDER BY p.nom_entreprise COLLATE NOCASE LIMIT 50`).all(
     userId, userId, search.trim(), searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
@@ -101,13 +111,18 @@ app.get('/api/providers', async (request, response) => {
   const userId = token ? sessions.get(token) || null : null;
   const favoritesOnly = request.query.favoris === 'true';
   if (favoritesOnly && !userId) return response.status(401).json({ error: 'Connectez-vous pour afficher vos favoris.' });
+  if (favoritesOnly && !await isClient(userId)) return response.status(403).json({ error: 'Seul un client peut consulter ses prestataires favoris.' });
   response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly));
 });
 
 app.post('/api/auth/register', async (request, response) => {
   const { prenom, nom, email, motDePasse } = request.body;
+  const typeUtilisateur = request.body.typeUtilisateur || 'client';
   if (!prenom?.trim() || !nom?.trim() || !email || !motDePasse || motDePasse.length < 8) {
     return response.status(400).json({ error: 'Prénom, nom, email et mot de passe de 8 caractères minimum requis.' });
+  }
+  if (!['client', 'prestataire'].includes(typeUtilisateur)) {
+    return response.status(400).json({ error: 'Le type de compte sélectionné est invalide.' });
   }
   if (!supabaseAuth) {
     return response.status(503).json({ error: 'La confirmation par email Supabase n’est pas configurée.' });
@@ -139,10 +154,14 @@ app.post('/api/auth/register', async (request, response) => {
     }
 
     const createUser = db.transaction(async () => {
-      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id) VALUES (?, ?, ?, ?, ?) RETURNING id').get(
-        prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse), supabaseUserId,
+      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id, type_utilisateur) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(
+        prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse), supabaseUserId, typeUtilisateur,
       );
-      await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
+      if (typeUtilisateur === 'client') {
+        await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
+      } else {
+        await db.prepare('INSERT INTO prestataire (utilisateur_id) VALUES (?)').run(user.id);
+      }
       return Number(user.id);
     });
     await createUser();
@@ -206,6 +225,7 @@ app.get('/api/me', authUser, async (request, response) => {
 });
 
 app.get('/api/me/provider-profile', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
   const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
     adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
@@ -215,6 +235,7 @@ app.get('/api/me/provider-profile', authUser, async (request, response) => {
 });
 
 app.put('/api/me/provider-profile', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
   const { raisonSociale, siret, siteWeb, adressePostale, description, banniereUrl, photoUrl } = request.body;
   if (!raisonSociale?.trim()) return response.status(400).json({ error: 'La raison sociale est requise pour publier le profil.' });
   await db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, siret, site_web, adresse_postale, description, banniere_url, photo_url)
@@ -232,21 +253,24 @@ app.put('/api/me/provider-profile', authUser, async (request, response) => {
 });
 
 app.get('/api/me/favorite-providers', authUser, async (request, response) => {
+  if (!await isClient(request.userId)) return response.status(403).json({ error: 'Seul un client peut consulter ses prestataires favoris.' });
   response.json(await getProviders('', request.userId, true));
 });
 
 app.post('/api/me/favorite-providers/:providerId', authUser, async (request, response) => {
+  if (!await isClient(request.userId)) return response.status(403).json({ error: 'Seul un client peut ajouter des prestataires en favoris.' });
   const providerId = Number(request.params.providerId);
   if (providerId === request.userId) return response.status(400).json({ error: 'Vous ne pouvez pas ajouter votre propre profil en favori.' });
   if (!await db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(providerId)) {
     return response.status(404).json({ error: 'Prestataire introuvable.' });
   }
-  await db.prepare('INSERT OR IGNORE INTO favori_prestataire (utilisateur_id, prestataire_id) VALUES (?, ?)').run(request.userId, providerId);
+  await db.prepare('INSERT OR IGNORE INTO favori_prestataire (client_id, prestataire_id) VALUES (?, ?)').run(request.userId, providerId);
   response.status(204).end();
 });
 
 app.delete('/api/me/favorite-providers/:providerId', authUser, async (request, response) => {
-  await db.prepare('DELETE FROM favori_prestataire WHERE utilisateur_id = ? AND prestataire_id = ?').run(request.userId, Number(request.params.providerId));
+  if (!await isClient(request.userId)) return response.status(403).json({ error: 'Seul un client peut retirer des prestataires de ses favoris.' });
+  await db.prepare('DELETE FROM favori_prestataire WHERE client_id = ? AND prestataire_id = ?').run(request.userId, Number(request.params.providerId));
   response.status(204).end();
 });
 

@@ -102,7 +102,33 @@ export async function initializeDatabase() {
 	if (!userColumns.includes('code_postal')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN code_postal TEXT');
 	if (!userColumns.includes('supabase_auth_id')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN supabase_auth_id TEXT');
 	if (!userColumns.includes('derniere_connexion')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN derniere_connexion TEXT');
+	if (!userColumns.includes('type_utilisateur')) {
+		sqlite.exec("ALTER TABLE utilisateur ADD COLUMN type_utilisateur TEXT NOT NULL DEFAULT 'client' CHECK (type_utilisateur IN ('client', 'prestataire'))");
+		sqlite.exec(`UPDATE utilisateur SET type_utilisateur = 'prestataire'
+			WHERE EXISTS (SELECT 1 FROM prestataire WHERE prestataire.utilisateur_id = utilisateur.id)
+			AND NOT EXISTS (SELECT 1 FROM client WHERE client.utilisateur_id = utilisateur.id)`);
+	}
 	sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_supabase_auth_id_unique ON utilisateur (supabase_auth_id) WHERE supabase_auth_id IS NOT NULL');
+	const favoriteColumns = sqlite.prepare('PRAGMA table_info(favori_prestataire)').all().map((column) => column.name);
+	if (favoriteColumns.includes('utilisateur_id')) {
+		const migrateFavorites = db.transaction(async () => {
+			await db.prepare('DROP TABLE IF EXISTS favori_prestataire_client').run();
+			await db.prepare(`CREATE TABLE favori_prestataire_client (
+				client_id INTEGER NOT NULL,
+				prestataire_id INTEGER NOT NULL,
+				date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (client_id, prestataire_id),
+				FOREIGN KEY (client_id) REFERENCES client(utilisateur_id) ON DELETE CASCADE,
+				FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
+			)`).run();
+			await db.prepare(`INSERT INTO favori_prestataire_client (client_id, prestataire_id, date_creation)
+				SELECT f.utilisateur_id, f.prestataire_id, f.date_creation
+				FROM favori_prestataire f JOIN client c ON c.utilisateur_id = f.utilisateur_id`).run();
+			await db.prepare('DROP TABLE favori_prestataire').run();
+			await db.prepare('ALTER TABLE favori_prestataire_client RENAME TO favori_prestataire').run();
+		});
+		await migrateFavorites();
+	}
 	const providerColumns = sqlite.prepare('PRAGMA table_info(prestataire)').all().map((column) => column.name);
 	for (const column of ['siret', 'site_web', 'adresse_postale', 'banniere_url', 'photo_url']) {
 		if (!providerColumns.includes(column)) sqlite.exec(`ALTER TABLE prestataire ADD COLUMN ${column} TEXT`);

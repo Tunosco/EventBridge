@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS utilisateur (
   code_postal TEXT,
   supabase_auth_id TEXT,
   derniere_connexion TEXT,
+  type_utilisateur TEXT NOT NULL DEFAULT 'client' CHECK (type_utilisateur IN ('client', 'prestataire')),
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -31,11 +32,11 @@ CREATE TABLE IF NOT EXISTS prestataire (
 );
 
 CREATE TABLE IF NOT EXISTS favori_prestataire (
-  utilisateur_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
   prestataire_id INTEGER NOT NULL,
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (utilisateur_id, prestataire_id),
-  FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id) ON DELETE CASCADE,
+  PRIMARY KEY (client_id, prestataire_id),
+  FOREIGN KEY (client_id) REFERENCES client(utilisateur_id) ON DELETE CASCADE,
   FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
 );
 

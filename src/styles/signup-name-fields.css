@@ -8,6 +8,23 @@
   min-width: 0;
 }
 
+.signup-provider-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.signup-provider-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--coral);
+}
+
 @media (max-width: 480px) {
   .signup-name-fields {
     grid-template-columns: 1fr;

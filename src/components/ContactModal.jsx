@@ -36,6 +36,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
           nom: formData.get('nom'),
           email: formData.get('email'),
           motDePasse: formData.get('motDePasse'),
+          typeUtilisateur: formData.get('jeSuisPrestataire') === 'on' ? 'prestataire' : 'client',
         });
         if (result.verificationRequired) {
           setVerificationPending(true);
@@ -74,6 +75,10 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
             <input name="prenom" aria-label="Prénom" autoComplete="given-name" required placeholder="Votre prénom" />
             <input name="nom" aria-label="Nom" autoComplete="family-name" required placeholder="Votre nom" />
           </div>}
+          {isSignup && <label className="signup-provider-toggle">
+            <input name="jeSuisPrestataire" type="checkbox" />
+            <span>Je suis prestataire</span>
+          </label>}
           {!isAuth && <input name="nom" aria-label="Nom" required placeholder="Votre nom" />}
           <input name="email" aria-label="Email" type="email" required placeholder="Votre adresse email" />
           {isAuth && <input name="motDePasse" aria-label="Mot de passe" type="password" minLength="8" required placeholder="Votre mot de passe" />}
