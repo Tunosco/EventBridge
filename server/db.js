@@ -102,12 +102,29 @@ export async function initializeDatabase() {
 	if (!userColumns.includes('code_postal')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN code_postal TEXT');
 	if (!userColumns.includes('supabase_auth_id')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN supabase_auth_id TEXT');
 	if (!userColumns.includes('derniere_connexion')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN derniere_connexion TEXT');
+	sqlite.exec(`UPDATE utilisateur SET prenom = 'Utilisateur'
+		WHERE prenom IS NULL OR TRIM(prenom) = ''`);
+	sqlite.exec(`CREATE TRIGGER IF NOT EXISTS utilisateur_prenom_required_insert
+		BEFORE INSERT ON utilisateur WHEN NEW.prenom IS NULL OR TRIM(NEW.prenom) = ''
+		BEGIN SELECT RAISE(ABORT, 'Le prénom est obligatoire.'); END`);
+	sqlite.exec(`CREATE TRIGGER IF NOT EXISTS utilisateur_prenom_required_update
+		BEFORE UPDATE OF prenom ON utilisateur WHEN NEW.prenom IS NULL OR TRIM(NEW.prenom) = ''
+		BEGIN SELECT RAISE(ABORT, 'Le prénom est obligatoire.'); END`);
 	if (!userColumns.includes('type_utilisateur')) {
 		sqlite.exec("ALTER TABLE utilisateur ADD COLUMN type_utilisateur TEXT NOT NULL DEFAULT 'client' CHECK (type_utilisateur IN ('client', 'prestataire'))");
 		sqlite.exec(`UPDATE utilisateur SET type_utilisateur = 'prestataire'
 			WHERE EXISTS (SELECT 1 FROM prestataire WHERE prestataire.utilisateur_id = utilisateur.id)
 			AND NOT EXISTS (SELECT 1 FROM client WHERE client.utilisateur_id = utilisateur.id)`);
 	}
+	sqlite.exec(`UPDATE utilisateur SET type_utilisateur = 'prestataire'
+		WHERE type_utilisateur <> 'prestataire'
+		AND EXISTS (SELECT 1 FROM prestataire WHERE prestataire.utilisateur_id = utilisateur.id)`);
+	const duplicateTelephone = sqlite.prepare(`SELECT 1 FROM utilisateur
+		WHERE telephone IS NOT NULL GROUP BY telephone HAVING COUNT(*) > 1 LIMIT 1`).get();
+	if (duplicateTelephone) {
+		throw new Error('Impossible de garantir l’unicité des téléphones : corrigez les numéros en doublon dans la base avant de démarrer le serveur.');
+	}
+	sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_telephone_unique ON utilisateur (telephone)');
 	sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_supabase_auth_id_unique ON utilisateur (supabase_auth_id) WHERE supabase_auth_id IS NOT NULL');
 	const favoriteColumns = sqlite.prepare('PRAGMA table_info(favori_prestataire)').all().map((column) => column.name);
 	if (favoriteColumns.includes('utilisateur_id')) {

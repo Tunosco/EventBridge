@@ -47,12 +47,16 @@ Dans le projet hébergé, **Authentication > SMTP Settings** doit avoir **Enable
 
 ## Schéma
 
-Le schéma SQLite local reste défini dans `server/schema.sql`. Le schéma PostgreSQL en ligne est géré par les migrations du dossier `supabase/migrations/`; il active RLS sans politiques publiques et ajoute les types/catégories de référence. Les tables couvrent :
+Le schéma SQLite local reste défini dans `server/schema.sql`. Le schéma PostgreSQL en ligne est géré par les migrations du dossier `supabase/migrations/`; il active RLS sans politiques publiques et ajoute les types/catégories de référence. Les deux variantes couvrent :
 
 - `utilisateur`, `client`, `prestataire`
 - `type_evenement`, `evenement`
 - `zone_intervention`, `disponibilite`
 - `categorie_prestation`, `prestation`
 - `option_prestation`, `media_prestation`
+- `favori_prestataire`, `emplacement_evenement`, `evenement_prestataire`
+- `prestataire_tache`, `conversation`, `message`
+
+Le prénom et l'email sont obligatoires; l'email et le téléphone, lorsqu'il est renseigné, sont uniques. Les migrations conservent les règles RLS et les suppressions en cascade déjà utilisées par l'application.
 
 L'inscription et la connexion de l'interface utilisent l'API. Les mots de passe sont hachés avec `scrypt` et ne sont jamais stockés en clair.

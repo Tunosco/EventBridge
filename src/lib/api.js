@@ -94,3 +94,63 @@ export function getProviderProfile() {
 export function updateProviderProfile(payload) {
   return request('/me/provider-profile', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
 }
+
+export function getProviderDashboard() {
+  return request('/me/provider-dashboard', { headers: authHeaders() });
+}
+
+export function getAvailability() {
+  return request('/me/availability', { headers: authHeaders() });
+}
+
+export function createAvailability(payload) {
+  return request('/me/availability', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
+export function updateAvailability(id, payload) {
+  return request(`/me/availability/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
+export function deleteAvailability(id) {
+  return request(`/me/availability/${id}`, { method: 'DELETE', headers: authHeaders() });
+}
+
+export function getProviderTasks() {
+  return request('/me/tasks', { headers: authHeaders() });
+}
+
+export function createProviderTask(payload) {
+  return request('/me/tasks', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
+export function updateProviderTask(id, payload) {
+  return request(`/me/tasks/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+}
+
+export function deleteProviderTask(id) {
+  return request(`/me/tasks/${id}`, { method: 'DELETE', headers: authHeaders() });
+}
+
+export function getConversations() {
+  return request('/me/conversations', { headers: authHeaders() });
+}
+
+export function createConversation(prestataireId) {
+  return request('/me/conversations', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ prestataireId }),
+  });
+}
+
+export function getConversationMessages(conversationId) {
+  return request(`/me/conversations/${conversationId}/messages`, { headers: authHeaders() });
+}
+
+export function sendConversationMessage(conversationId, contenu) {
+  return request(`/me/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ contenu }),
+  });
+}

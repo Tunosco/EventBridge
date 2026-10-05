@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export default function Header({ onNavigate, onProjectClick, onEventsClick, onProviderSearch, onLoggedOut, onProfileClick, onSettingsClick, isAuthenticated }) {
+export default function Header({ onNavigate, onProjectClick, onEventsClick, onProviderSearch, onLoggedOut, onProfileClick, onSettingsClick, onAccountSection, onMessagesClick, user, isAuthenticated }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
@@ -35,16 +35,42 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
     }
     onProjectClick(type);
   };
+  const isProvider = user?.typeUtilisateur === 'prestataire';
+  const providerNavigation = [
+    ['home', 'Accueil'],
+    ['events', 'Mes évènements'],
+    ['availability', 'Mes disponibilités'],
+    ['tasks', 'Mes tâches'],
+    ['messages', 'Messagerie'],
+  ];
+  const clientNavigation = [
+    ['home', 'Accueil'],
+    ['events', 'Mes événements'],
+    ['providers', 'Trouver un prestataire'],
+    ['messages', 'Messagerie'],
+  ];
+  const accountNavigation = isAuthenticated
+    ? isProvider ? providerNavigation : clientNavigation
+    : null;
 
   return (
     <>
       <header className="site-header">
         <a className="brand" href="#accueil" onClick={() => onNavigate?.('home')}>Event<span>Bridge</span></a>
-        <nav className={`main-nav${menuOpen ? ' is-open' : ''}`}>
-          <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('home'); }}>Accueil</button>
-          <button className="nav-link" onClick={() => { closeMenu(); onProviderSearch?.(''); }}>Trouver un prestataire</button>
-          <button className="nav-link" onClick={() => { closeMenu(); onEventsClick?.(); }}>Mes événements</button>
-          <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('provider'); }}>Espace prestataire</button>
+        <nav className={`main-nav${menuOpen ? ' is-open' : ''}${accountNavigation ? ' is-account-navigation' : ''}`}>
+          {accountNavigation ? accountNavigation.map(([section, label]) => (
+            <button className="nav-link" key={section} onClick={() => {
+              closeMenu();
+              onAccountSection?.(section);
+            }}>{label}</button>
+          )) : <>
+            <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('home'); }}>Accueil</button>
+            {!isAuthenticated && <>
+              <button className="nav-link" onClick={() => { closeMenu(); onProviderSearch?.(''); }}>Trouver un prestataire</button>
+              <button className="nav-link" onClick={() => { closeMenu(); onEventsClick?.(); }}>Mes événements</button>
+              <button className="nav-link" onClick={() => { closeMenu(); onNavigate?.('provider'); }}>Espace prestataire</button>
+            </>}
+          </>}
           {isAuthenticated ? (
             <div className="account-menu" ref={accountMenuRef}>
               <button

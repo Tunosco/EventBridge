@@ -9,6 +9,7 @@ import Settings from './components/Settings';
 import MyEvents from './components/MyEvents';
 import ProviderDirectory from './components/ProviderDirectory';
 import ProviderSpace from './components/ProviderSpace';
+import Messaging from './components/Messaging';
 import { completeEmailConfirmation, getCurrentUser } from './lib/api';
 import './styles/global.css';
 import './styles/auth-confirmation.css';
@@ -17,6 +18,7 @@ import './styles/nav-link.css';
 import './styles/provider-space.css';
 import './styles/provider-profile-editor.css';
 import './styles/provider-space-controls.css';
+import './styles/provider-portal.css';
 import './styles/my-events.css';
 import './styles/provider-directory.css';
 import './styles/prototype-theme.css';
@@ -26,10 +28,18 @@ export default function App() {
   const [contactType, setContactType] = useState(null);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
+  const [providerSection, setProviderSection] = useState('home');
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
   const confirmationHandled = useRef(false);
-  const handleProjectClick = (type) => type === 'prestataire' ? setPage('provider') : setContactType(type);
+  const handleProjectClick = (type) => {
+    if (type === 'prestataire') {
+      setProviderSection('home');
+      setPage('provider');
+    } else {
+      setContactType(type);
+    }
+  };
   const handleEventsClick = () => {
     setPage('events');
     if (!user) setContactType('connexion');
@@ -38,9 +48,38 @@ export default function App() {
     setProviderSearchQuery(query);
     setPage('providers');
   };
+  const navigateToAccountHome = (accountUser = user) => {
+    if (accountUser?.typeUtilisateur === 'prestataire') {
+      setProviderSection('home');
+      setPage('provider');
+    } else {
+      setPage('home');
+    }
+  };
+  const handleAuthenticated = (authenticatedUser) => {
+    setUser(authenticatedUser);
+    navigateToAccountHome(authenticatedUser);
+  };
+  const handleAccountSection = (section) => {
+    if (user?.typeUtilisateur === 'prestataire') {
+      setProviderSection(section);
+      setPage(section === 'messages' ? 'messages' : 'provider');
+      return;
+    }
+    const clientPages = {
+      home: 'home',
+      events: 'events',
+      providers: 'providers',
+      messages: 'messages',
+    };
+    setPage(clientPages[section] || 'home');
+  };
 
   useEffect(() => {
-    getCurrentUser().then(setUser);
+    getCurrentUser().then((currentUser) => {
+      setUser(currentUser);
+      if (currentUser) navigateToAccountHome(currentUser);
+    });
   }, []);
 
   useEffect(() => {
@@ -64,7 +103,7 @@ export default function App() {
       .then(({ token, user: confirmedUser }) => {
         localStorage.setItem('eventbridge_token', token);
         setUser(confirmedUser);
-        setPage('events');
+        navigateToAccountHome(confirmedUser);
         setAuthNotice({ message: 'Votre adresse est confirmée. Vous êtes connecté à votre compte.', type: 'success' });
       })
       .catch((confirmationError) => {
@@ -88,26 +127,31 @@ export default function App() {
         <span>{authNotice.message}</span>
         <button type="button" aria-label="Fermer le message" onClick={() => setAuthNotice(null)}>×</button>
       </div>}
-      <Header onNavigate={setPage} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={() => setUser(null)} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} isAuthenticated={Boolean(user)} />
+      <Header onNavigate={(nextPage) => {
+        if (nextPage === 'home' && user) navigateToAccountHome();
+        else setPage(nextPage);
+      }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={() => { setUser(null); setPage('home'); }} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
       {page === 'provider' ? (
-        <ProviderSpace isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => setPage('home')} />
+        <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} />
       ) : page === 'providers' ? (
         <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
       ) : page === 'events' && user ? (
-        <MyEvents onBack={() => setPage('home')} />
+        <MyEvents onBack={() => navigateToAccountHome()} />
+      ) : page === 'messages' && user ? (
+        <Messaging user={user} />
       ) : page === 'profile' && user ? (
-        <Profile user={user} onBack={() => setPage('home')} />
+        <Profile user={user} onBack={() => navigateToAccountHome()} />
       ) : page === 'settings' && user ? (
-        <Settings user={user} onUserUpdated={setUser} onDeleted={() => { setUser(null); setPage('home'); }} onBack={() => setPage('home')} />
+        <Settings user={user} onUserUpdated={setUser} onDeleted={() => { setUser(null); setPage('home'); }} onBack={() => navigateToAccountHome()} />
       ) : (
         <main>
           <Hero onProjectClick={handleProjectClick} />
           <EventExamples />
         </main>
       )}
-      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); setPage('provider'); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
+      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); user ? navigateToAccountHome() : setPage('provider'); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
-      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={setUser} onLoggedOut={() => setUser(null)} onClose={() => setContactType(null)} />}
+      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={() => { setUser(null); setPage('home'); }} onClose={() => setContactType(null)} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
     </>

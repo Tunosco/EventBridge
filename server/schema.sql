@@ -2,11 +2,11 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS utilisateur (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  prenom TEXT,
+  prenom TEXT NOT NULL,
   nom TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE COLLATE NOCASE,
   mot_de_passe_hash TEXT NOT NULL,
-  telephone TEXT,
+  telephone TEXT UNIQUE,
   code_postal TEXT,
   supabase_auth_id TEXT,
   derniere_connexion TEXT,
@@ -90,7 +90,40 @@ CREATE TABLE IF NOT EXISTS disponibilite (
   date_debut TEXT NOT NULL,
   date_fin TEXT NOT NULL,
   statut TEXT NOT NULL DEFAULT 'disponible',
+  CHECK (statut IN ('disponible', 'indisponible')),
   FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS prestataire_tache (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  prestataire_id INTEGER NOT NULL,
+  titre TEXT NOT NULL CHECK (LENGTH(TRIM(titre)) BETWEEN 1 AND 160),
+  description TEXT,
+  date_echeance TEXT,
+  statut TEXT NOT NULL DEFAULT 'a_faire' CHECK (statut IN ('a_faire', 'en_cours', 'terminee')),
+  date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS conversation (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id INTEGER NOT NULL,
+  prestataire_id INTEGER NOT NULL,
+  date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (client_id, prestataire_id),
+  FOREIGN KEY (client_id) REFERENCES client(utilisateur_id) ON DELETE CASCADE,
+  FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS message (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL,
+  expediteur_id INTEGER NOT NULL,
+  contenu TEXT NOT NULL CHECK (LENGTH(TRIM(contenu)) BETWEEN 1 AND 4000),
+  date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  lu_le TEXT,
+  FOREIGN KEY (conversation_id) REFERENCES conversation(id) ON DELETE CASCADE,
+  FOREIGN KEY (expediteur_id) REFERENCES utilisateur(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS categorie_prestation (

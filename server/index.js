@@ -42,6 +42,10 @@ function authUser(request, response, next) {
 }
 
 async function getUserProfile(userId) {
+  const providerProfile = await db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(userId);
+  if (providerProfile) {
+    await db.prepare("UPDATE utilisateur SET type_utilisateur = 'prestataire' WHERE id = ? AND type_utilisateur <> 'prestataire'").run(userId);
+  }
   return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal, type_utilisateur AS typeUtilisateur FROM utilisateur WHERE id = ?').get(userId);
 }
 
@@ -55,8 +59,7 @@ async function isClient(userId) {
 }
 
 async function isProvider(userId) {
-  return Boolean(await db.prepare(`SELECT u.id FROM utilisateur u JOIN prestataire p ON p.utilisateur_id = u.id
-    WHERE u.id = ? AND u.type_utilisateur = 'prestataire'`).get(userId));
+  return Boolean(await db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(userId));
 }
 
 function isValidEventDate(value) {
@@ -285,7 +288,15 @@ app.put('/api/me', authUser, async (request, response) => {
     const user = await getUserProfile(request.userId);
     response.json({ user });
   } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') {
+      if (error.message?.includes('telephone') || error.constraint?.includes('telephone')) {
+        return response.status(409).json({ error: 'Ce numéro de téléphone est déjà associé à un compte.' });
+      }
+      if (error.message?.includes('email') || error.constraint?.includes('email')) {
+        return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+      }
+      return response.status(409).json({ error: 'Une information de ce compte est déjà utilisée.' });
+    }
     response.status(500).json({ error: 'Impossible de mettre à jour le profil.' });
   }
 });
@@ -447,6 +458,172 @@ app.put('/api/me/events/:eventId', authUser, async (request, response) => {
   });
   await updateEvent();
   response.json({ id: eventId });
+});
+
+app.get('/api/me/provider-dashboard', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, description, adresse_postale AS adressePostale,
+    site_web AS siteWeb, photo_url AS photoUrl, banniere_url AS banniereUrl
+    FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
+  const prestations = await db.prepare(`SELECT pr.id, pr.titre, pr.description, pr.prix, c.libelle AS categorie
+    FROM prestation pr JOIN categorie_prestation c ON c.id = pr.categorie_id
+    WHERE pr.prestataire_id = ? ORDER BY c.libelle, pr.titre`).all(request.userId);
+  const evenements = await db.prepare(`SELECT e.id, e.titre, e.date_evenement AS dateDebut, e.date_fin AS dateFin,
+    e.lieu, t.libelle AS typeEvenement
+    FROM evenement_prestataire ep JOIN evenement e ON e.id = ep.evenement_id
+    JOIN type_evenement t ON t.id = e.type_evenement_id
+    WHERE ep.prestataire_id = ? AND COALESCE(e.date_fin, e.date_evenement) >= ?
+    ORDER BY e.date_evenement`).all(request.userId, new Date().toISOString().slice(0, 10));
+  response.json({ profile, prestations, evenements });
+});
+
+app.get('/api/me/availability', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  response.json(await db.prepare(`SELECT id, date_debut AS "dateDebut", date_fin AS "dateFin", statut
+    FROM disponibilite WHERE prestataire_id = ? ORDER BY date_debut`).all(request.userId));
+});
+
+app.post('/api/me/availability', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const { dateDebut, dateFin, statut = 'disponible' } = request.body;
+  if (!isValidEventDate(dateDebut) || !isValidEventDate(dateFin) || dateFin < dateDebut) {
+    return response.status(400).json({ error: 'Saisissez une période valide.' });
+  }
+  if (!['disponible', 'indisponible'].includes(statut)) return response.status(400).json({ error: 'Le statut sélectionné est invalide.' });
+  const availability = await db.prepare(`INSERT INTO disponibilite (prestataire_id, date_debut, date_fin, statut)
+    VALUES (?, ?, ?, ?) RETURNING id`).get(request.userId, dateDebut, dateFin, statut);
+  response.status(201).json({ id: Number(availability.id) });
+});
+
+app.put('/api/me/availability/:availabilityId', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const availabilityId = Number(request.params.availabilityId);
+  const { dateDebut, dateFin, statut } = request.body;
+  if (!Number.isInteger(availabilityId) || !isValidEventDate(dateDebut) || !isValidEventDate(dateFin) || dateFin < dateDebut) {
+    return response.status(400).json({ error: 'Saisissez une période valide.' });
+  }
+  if (!['disponible', 'indisponible'].includes(statut)) return response.status(400).json({ error: 'Le statut sélectionné est invalide.' });
+  const result = await db.prepare(`UPDATE disponibilite SET date_debut = ?, date_fin = ?, statut = ?
+    WHERE id = ? AND prestataire_id = ?`).run(dateDebut, dateFin, statut, availabilityId, request.userId);
+  if (!result.changes) return response.status(404).json({ error: 'Disponibilité introuvable.' });
+  response.json({ id: availabilityId });
+});
+
+app.delete('/api/me/availability/:availabilityId', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const result = await db.prepare('DELETE FROM disponibilite WHERE id = ? AND prestataire_id = ?')
+    .run(Number(request.params.availabilityId), request.userId);
+  if (!result.changes) return response.status(404).json({ error: 'Disponibilité introuvable.' });
+  response.status(204).end();
+});
+
+app.get('/api/me/tasks', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const tasks = await db.prepare(`SELECT id, titre, description, date_echeance AS "dateEcheance", statut
+    FROM prestataire_tache WHERE prestataire_id = ?
+    ORDER BY CASE WHEN statut = 'terminee' THEN 1 ELSE 0 END, date_echeance, id`).all(request.userId);
+  response.json(tasks.map((task) => ({
+    ...task,
+    dateEcheance: task.dateEcheance instanceof Date ? task.dateEcheance.toISOString().slice(0, 10) : task.dateEcheance,
+  })));
+});
+
+app.post('/api/me/tasks', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const { titre, description, dateEcheance } = request.body;
+  if (typeof titre !== 'string' || !titre.trim() || titre.trim().length > 160) {
+    return response.status(400).json({ error: 'Le titre de la tâche est requis (160 caractères maximum).' });
+  }
+  if (dateEcheance && !isValidEventDate(dateEcheance)) return response.status(400).json({ error: 'La date d’échéance est invalide.' });
+  const task = await db.prepare(`INSERT INTO prestataire_tache (prestataire_id, titre, description, date_echeance)
+    VALUES (?, ?, ?, ?) RETURNING id`).get(
+    request.userId, titre.trim(), typeof description === 'string' ? description.trim() || null : null, dateEcheance || null,
+  );
+  response.status(201).json({ id: Number(task.id) });
+});
+
+app.put('/api/me/tasks/:taskId', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const taskId = Number(request.params.taskId);
+  const { titre, description, dateEcheance, statut } = request.body;
+  if (!Number.isInteger(taskId) || typeof titre !== 'string' || !titre.trim() || titre.trim().length > 160) {
+    return response.status(400).json({ error: 'Le titre de la tâche est requis (160 caractères maximum).' });
+  }
+  if (dateEcheance && !isValidEventDate(dateEcheance)) return response.status(400).json({ error: 'La date d’échéance est invalide.' });
+  if (!['a_faire', 'en_cours', 'terminee'].includes(statut)) return response.status(400).json({ error: 'Le statut sélectionné est invalide.' });
+  const result = await db.prepare(`UPDATE prestataire_tache SET titre = ?, description = ?, date_echeance = ?, statut = ?
+    WHERE id = ? AND prestataire_id = ?`).run(
+    titre.trim(), typeof description === 'string' ? description.trim() || null : null,
+    dateEcheance || null, statut, taskId, request.userId,
+  );
+  if (!result.changes) return response.status(404).json({ error: 'Tâche introuvable.' });
+  response.json({ id: taskId });
+});
+
+app.delete('/api/me/tasks/:taskId', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const result = await db.prepare('DELETE FROM prestataire_tache WHERE id = ? AND prestataire_id = ?')
+    .run(Number(request.params.taskId), request.userId);
+  if (!result.changes) return response.status(404).json({ error: 'Tâche introuvable.' });
+  response.status(204).end();
+});
+
+app.get('/api/me/conversations', authUser, async (request, response) => {
+  if (!await isClient(request.userId) && !await isProvider(request.userId)) {
+    return response.status(403).json({ error: 'Type de compte non autorisé.' });
+  }
+  response.json(await db.prepare(`SELECT c.id,
+    CASE WHEN c.client_id = ? THEN c.prestataire_id ELSE c.client_id END AS "correspondantId",
+    CASE WHEN c.client_id = ? THEN COALESCE(p.nom_entreprise, TRIM(COALESCE(u.prenom, '') || ' ' || u.nom))
+      ELSE TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) END AS "correspondant",
+    (SELECT m.contenu FROM message m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS "dernierMessage",
+    (SELECT m.date_creation FROM message m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS "dateDernierMessage"
+    FROM conversation c
+    JOIN utilisateur u ON u.id = CASE WHEN c.client_id = ? THEN c.prestataire_id ELSE c.client_id END
+    LEFT JOIN prestataire p ON p.utilisateur_id = u.id
+    WHERE c.client_id = ? OR c.prestataire_id = ?
+    ORDER BY COALESCE((SELECT MAX(m.id) FROM message m WHERE m.conversation_id = c.id), c.id) DESC`)
+    .all(request.userId, request.userId, request.userId, request.userId, request.userId));
+});
+
+app.post('/api/me/conversations', authUser, async (request, response) => {
+  if (!await isClient(request.userId)) return response.status(403).json({ error: 'Seul un client peut démarrer une conversation.' });
+  const prestataireId = Number(request.body.prestataireId);
+  if (!Number.isInteger(prestataireId) || !await isProvider(prestataireId)) {
+    return response.status(404).json({ error: 'Prestataire introuvable.' });
+  }
+  const conversation = db.transaction(async () => {
+    await db.prepare('INSERT OR IGNORE INTO conversation (client_id, prestataire_id) VALUES (?, ?)')
+      .run(request.userId, prestataireId);
+    return db.prepare('SELECT id FROM conversation WHERE client_id = ? AND prestataire_id = ?')
+      .get(request.userId, prestataireId);
+  });
+  response.status(201).json(await conversation());
+});
+
+app.get('/api/me/conversations/:conversationId/messages', authUser, async (request, response) => {
+  const conversationId = Number(request.params.conversationId);
+  const conversation = await db.prepare(`SELECT id FROM conversation WHERE id = ?
+    AND (client_id = ? OR prestataire_id = ?)`).get(conversationId, request.userId, request.userId);
+  if (!conversation) return response.status(404).json({ error: 'Conversation introuvable.' });
+  await db.prepare(`UPDATE message SET lu_le = CURRENT_TIMESTAMP
+    WHERE conversation_id = ? AND expediteur_id <> ? AND lu_le IS NULL`).run(conversationId, request.userId);
+  response.json(await db.prepare(`SELECT id, expediteur_id AS "expediteurId", contenu, date_creation AS "dateCreation"
+    FROM message WHERE conversation_id = ? ORDER BY id`).all(conversationId));
+});
+
+app.post('/api/me/conversations/:conversationId/messages', authUser, async (request, response) => {
+  const conversationId = Number(request.params.conversationId);
+  const contenu = typeof request.body.contenu === 'string' ? request.body.contenu.trim() : '';
+  if (!Number.isInteger(conversationId) || !contenu || contenu.length > 4000) {
+    return response.status(400).json({ error: 'Le message doit contenir entre 1 et 4 000 caractères.' });
+  }
+  const conversation = await db.prepare(`SELECT id FROM conversation WHERE id = ?
+    AND (client_id = ? OR prestataire_id = ?)`).get(conversationId, request.userId, request.userId);
+  if (!conversation) return response.status(404).json({ error: 'Conversation introuvable.' });
+  const message = await db.prepare(`INSERT INTO message (conversation_id, expediteur_id, contenu)
+    VALUES (?, ?, ?) RETURNING id`).get(conversationId, request.userId, contenu);
+  response.status(201).json({ id: Number(message.id) });
 });
 
 if (process.env.NODE_ENV === 'production') {
