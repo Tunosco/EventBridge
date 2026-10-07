@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createProviderTask, deleteProviderTask, getProviderTasks, updateProviderTask } from '../lib/api';
 import { formatDate } from '../lib/dateFormat';
+import DateInput from './DateInput';
 import ProviderCalendar from './ProviderCalendar';
 
 const emptyTask = { titre: '', description: '', dateEcheance: '' };
@@ -68,7 +69,7 @@ export default function ProviderTasks() {
       <p>Planifiez et suivez les actions liées à votre activité.</p>
       <form className="provider-task-form" onSubmit={handleSubmit}>
         <label>Tâche<input value={form.titre} maxLength="160" onChange={(event) => setForm((current) => ({ ...current, titre: event.target.value }))} required placeholder="Ex. Préparer le devis" /></label>
-        <label>Échéance<input type="date" value={form.dateEcheance} onChange={(event) => setForm((current) => ({ ...current, dateEcheance: event.target.value }))} /></label>
+        <label>Échéance<DateInput aria-label="Échéance" value={form.dateEcheance} onChange={(value) => setForm((current) => ({ ...current, dateEcheance: value }))} /></label>
         <label>Détails<textarea rows="2" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></label>
         <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Ajout…' : 'Ajouter une tâche'}</button>
       </form>

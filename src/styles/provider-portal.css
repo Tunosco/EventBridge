@@ -405,6 +405,63 @@
   background: #7a61a8;
 }
 
+.provider-calendar-legend-panel {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfcfc;
+}
+
+.provider-calendar-legend-panel h3 {
+  margin: 0 0 11px;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.provider-calendar-legend.is-availability-view {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0;
+}
+
+.provider-calendar-legend.is-availability-view li {
+  min-height: 38px;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.provider-calendar-legend-swatch {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+.provider-calendar-legend-swatch.is-available {
+  border-color: #b6d9c0;
+  background: #d8f0df;
+}
+
+.provider-calendar-legend-swatch.is-unavailable {
+  border-color: #e8baba;
+  background: #f8dada;
+}
+
+.provider-calendar-legend-swatch.is-empty {
+  border-color: #d9e0e2;
+  background: var(--white);
+}
+
 .provider-calendar-empty,
 .provider-calendar-note {
   margin-top: 14px;
@@ -462,6 +519,114 @@
   color: var(--ink);
   font: inherit;
   font-size: 14px;
+}
+
+.provider-inline-form .provider-availability-cancel {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--navy);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.provider-availability-conflict {
+  margin: -8px 0 22px;
+  padding: 18px;
+  border: 1px solid #e6a7a0;
+  border-left: 4px solid var(--coral-dark);
+  border-radius: 6px;
+  background: #fff5f2;
+}
+
+.provider-availability-notice {
+  margin: -8px 0 22px;
+  padding: 12px 14px;
+  border: 1px solid #b6d9c0;
+  border-radius: 5px;
+  background: #f1faf3;
+  color: #225c40;
+  font-size: 13px;
+}
+
+.provider-availability-conflict h2 {
+  margin: 0;
+  color: var(--coral-dark);
+  font-size: 17px;
+}
+
+.provider-availability-conflict p {
+  margin: 8px 0 14px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.provider-availability-conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.provider-availability-conflict-actions > button:not(.button-primary) {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--navy);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.provider-availability-conflict-actions button {
+  text-transform: none;
+}
+
+.date-input-control {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.date-input-control > input[type="text"] {
+  padding-right: 38px;
+}
+
+.date-input-control .date-input-picker-button {
+  position: absolute;
+  right: 4px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--navy);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.date-input-control .date-input-picker-button:hover,
+.date-input-control .date-input-picker-button:focus-visible {
+  background: var(--sky);
+}
+
+.date-input-control .date-input-native-picker {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .provider-record-list > li {
@@ -534,6 +699,12 @@
 
 .provider-task-form button {
   justify-self: start;
+}
+
+@media (max-width: 620px) {
+  .provider-calendar-legend.is-availability-view {
+    grid-template-columns: 1fr;
+  }
 }
 
 .messaging-page {

@@ -111,7 +111,7 @@ export default function ProviderCalendar({ events = [], availabilities = [], tas
         {days.map((day) => (
           <div className={`provider-calendar-day${day.inMonth ? '' : ' is-outside-month'}${day.isToday ? ' is-today' : ''}${day.availabilityState ? ` is-availability-view is-${day.availabilityState}-day` : ''}`} role="gridcell" key={day.key} aria-label={`${formatDate(day.date)}${day.availabilityState === 'available' ? ' : disponible' : day.availabilityState === 'unavailable' ? ' : indisponible' : ''}`}>
             <time className="provider-calendar-date" dateTime={day.key} title={formatDate(day.date)}>{formatDate(day.date)}</time>
-            <ul>
+            {mode !== 'availability' && <ul>
               {day.dayItems.slice(0, 3).map((item) => (
                 <li className={`provider-calendar-item is-${item.type}`} key={item.id} title={`${item.label} : ${item.title}`}>
                   <span>{item.label}</span>
@@ -119,16 +119,27 @@ export default function ProviderCalendar({ events = [], availabilities = [], tas
                 </li>
               ))}
               {day.dayItems.length > 3 && <li className="provider-calendar-overflow">+{day.dayItems.length - 3} autres</li>}
-            </ul>
+            </ul>}
           </div>
         ))}
       </div>
-      <ul className="provider-calendar-legend" aria-label="Légende du calendrier">
-        {(mode === 'all' || mode === 'events') && <li className="is-event">Évènements</li>}
-        {(mode === 'all' || mode === 'availability') && <li className="is-availability">Disponibilités</li>}
-        {(mode === 'all' || mode === 'availability') && <li className="is-unavailable">Indisponibilités</li>}
-        {(mode === 'all' || mode === 'tasks') && <li className="is-task">Échéances des tâches</li>}
-      </ul>
+      {mode === 'availability' ? (
+        <div className="provider-calendar-legend-panel">
+          <h3>État des disponibilités</h3>
+          <ul className="provider-calendar-legend is-availability-view" aria-label="Légende du calendrier">
+            <li><span className="provider-calendar-legend-swatch is-available" aria-hidden="true" />Disponible</li>
+            <li><span className="provider-calendar-legend-swatch is-unavailable" aria-hidden="true" />Indisponible</li>
+            <li><span className="provider-calendar-legend-swatch is-empty" aria-hidden="true" />Aucune période définie</li>
+          </ul>
+        </div>
+      ) : (
+        <ul className="provider-calendar-legend" aria-label="Légende du calendrier">
+          {(mode === 'all' || mode === 'events') && <li className="is-event">Évènements</li>}
+          {mode === 'all' && <li className="is-availability">Disponibilités</li>}
+          {mode === 'all' && <li className="is-unavailable">Indisponibilités</li>}
+          {(mode === 'all' || mode === 'tasks') && <li className="is-task">Échéances des tâches</li>}
+        </ul>
+      )}
       {items.length === 0 && <p className="provider-dashboard-empty provider-calendar-empty">Aucun élément daté à afficher pour le moment.</p>}
       {hasUndatedItems && (
         <p className="provider-calendar-note">Les éléments sans date restent visibles dans leur liste, mais ne peuvent pas être placés dans le calendrier.</p>

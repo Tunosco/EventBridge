@@ -116,6 +116,14 @@ export function updateAvailability(id, payload) {
   return request(`/me/availability/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
 }
 
+export function resolveAvailabilityOverlap(payload) {
+  return request('/me/availability/resolve-overlap', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
 export function deleteAvailability(id) {
   return request(`/me/availability/${id}`, { method: 'DELETE', headers: authHeaders() });
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import ProviderFinder from './ProviderFinder';
 import { createEvent, getEventTypes, getMyEvents, updateEvent, updateEventProviders } from '../lib/api';
 import { formatDate } from '../lib/dateFormat';
+import DateInput from './DateInput';
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -443,8 +444,8 @@ export default function MyEvents({ onBack }) {
             </select></label>
             {eventTypesError && <p className="event-form-error" role="alert">{eventTypesError}</p>}
             <div className="event-date-fields">
-              <label>Jour de début<input name="dateDebut" type="date" value={eventForm.dateDebut} onChange={updateEventForm} required /></label>
-              <label>Jour de fin<input name="dateFin" type="date" value={eventForm.dateFin} onChange={updateEventForm} min={eventForm.dateDebut || undefined} required /></label>
+              <label>Jour de début<DateInput aria-label="Jour de début" name="dateDebut" value={eventForm.dateDebut} onChange={(value) => updateEventForm({ target: { name: 'dateDebut', value } })} required /></label>
+              <label>Jour de fin<DateInput aria-label="Jour de fin" name="dateFin" value={eventForm.dateFin} min={eventForm.dateDebut || undefined} onChange={(value) => updateEventForm({ target: { name: 'dateFin', value } })} required /></label>
             </div>
             <label>Emplacement principal<input name="lieu" value={eventForm.lieu} onChange={updateEventForm} required maxLength="180" placeholder="Ville ou lieu principal" /></label>
             <div className="secondary-location-field">

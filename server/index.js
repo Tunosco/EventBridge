@@ -68,6 +68,12 @@ function isValidEventDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
+function shiftEventDate(value, days) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 async function getProviders(search, userId, favoritesOnly = false) {
   const searchPattern = `%${search.trim()}%`;
   return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
@@ -76,7 +82,7 @@ async function getProviders(search, userId, favoritesOnly = false) {
     (SELECT GROUP_CONCAT(DISTINCT c.libelle) FROM prestation pr
       JOIN categorie_prestation c ON c.id = pr.categorie_id
       WHERE pr.prestataire_id = p.utilisateur_id) AS categories,
-    CASE WHEN CAST(? AS INTEGER) IS NULL THEN 0 ELSE EXISTS (
+    CASE WHEN CAST(? AS INTEGER) IS NULL THEN FALSE ELSE EXISTS (
       SELECT 1 FROM favori_prestataire f WHERE f.client_id = ? AND f.prestataire_id = p.utilisateur_id
     ) END AS estFavori
     FROM prestataire p JOIN utilisateur u ON u.id = p.utilisateur_id
@@ -515,6 +521,92 @@ app.put('/api/me/availability/:availabilityId', authUser, async (request, respon
     WHERE id = ? AND prestataire_id = ?`).run(dateDebut, dateFin, statut, availabilityId, request.userId);
   if (!result.changes) return response.status(404).json({ error: 'Disponibilité introuvable.' });
   response.json({ id: availabilityId });
+});
+
+app.post('/api/me/availability/resolve-overlap', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const { dateDebut, dateFin, statut, strategy, availabilityId } = request.body;
+  if (!isValidEventDate(dateDebut) || !isValidEventDate(dateFin) || dateFin < dateDebut) {
+    return response.status(400).json({ error: 'Saisissez une période valide.' });
+  }
+  if (!['disponible', 'indisponible'].includes(statut)) return response.status(400).json({ error: 'Le statut sélectionné est invalide.' });
+  if (!['preserve-existing', 'replace-overlap'].includes(strategy)) {
+    return response.status(400).json({ error: 'Le choix de résolution du chevauchement est invalide.' });
+  }
+  const selectedId = availabilityId === null || availabilityId === undefined ? null : Number(availabilityId);
+  if (selectedId !== null && !Number.isInteger(selectedId)) return response.status(400).json({ error: 'La période à modifier est invalide.' });
+
+  const result = await db.transaction(async () => {
+    if (selectedId !== null) {
+      const selected = await db.prepare('SELECT id FROM disponibilite WHERE id = ? AND prestataire_id = ?').get(selectedId, request.userId);
+      if (!selected) return { status: 404, error: 'Disponibilité introuvable.' };
+    }
+
+    const overlapQuery = `SELECT id, date_debut AS "dateDebut", date_fin AS "dateFin", statut
+      FROM disponibilite
+      WHERE prestataire_id = ? AND date_debut <= ? AND date_fin >= ?${selectedId === null ? '' : ' AND id <> ?'}
+      ORDER BY date_debut, date_fin, id`;
+    const overlapParameters = selectedId === null
+      ? [request.userId, dateFin, dateDebut]
+      : [request.userId, dateFin, dateDebut, selectedId];
+    const overlaps = await db.prepare(overlapQuery).all(...overlapParameters);
+    const insertAvailability = (start, end) => db.prepare(`INSERT INTO disponibilite (prestataire_id, date_debut, date_fin, statut)
+      VALUES (?, ?, ?, ?)`).run(request.userId, start, end, statut);
+
+    if (strategy === 'preserve-existing') {
+      const segments = [];
+      let cursor = dateDebut;
+      for (const item of overlaps) {
+        if (cursor < item.dateDebut) segments.push([cursor, shiftEventDate(item.dateDebut, -1)]);
+        if (cursor <= item.dateFin) cursor = shiftEventDate(item.dateFin, 1);
+      }
+      if (cursor <= dateFin) segments.push([cursor, dateFin]);
+
+      if (segments.length === 0 && selectedId === null) return { status: 200, changed: 0 };
+      if (selectedId !== null && segments.length === 0) {
+        await db.prepare('DELETE FROM disponibilite WHERE id = ? AND prestataire_id = ?').run(selectedId, request.userId);
+      } else if (selectedId !== null) {
+        const [first, ...remaining] = segments;
+        await db.prepare(`UPDATE disponibilite SET date_debut = ?, date_fin = ?, statut = ?
+          WHERE id = ? AND prestataire_id = ?`).run(first[0], first[1], statut, selectedId, request.userId);
+        for (const [start, end] of remaining) await insertAvailability(start, end);
+      } else {
+        for (const [start, end] of segments) await insertAvailability(start, end);
+      }
+      return { status: 200, changed: segments.length };
+    }
+
+    for (const item of overlaps) {
+      const keepsLeft = item.dateDebut < dateDebut;
+      const keepsRight = item.dateFin > dateFin;
+      if (keepsLeft && keepsRight) {
+        await db.prepare('UPDATE disponibilite SET date_fin = ? WHERE id = ? AND prestataire_id = ?')
+          .run(shiftEventDate(dateDebut, -1), item.id, request.userId);
+        await db.prepare(`INSERT INTO disponibilite (prestataire_id, date_debut, date_fin, statut)
+          VALUES (?, ?, ?, ?)`).run(request.userId, shiftEventDate(dateFin, 1), item.dateFin, item.statut);
+      } else if (keepsLeft) {
+        await db.prepare('UPDATE disponibilite SET date_fin = ? WHERE id = ? AND prestataire_id = ?')
+          .run(shiftEventDate(dateDebut, -1), item.id, request.userId);
+      } else if (keepsRight) {
+        await db.prepare('UPDATE disponibilite SET date_debut = ? WHERE id = ? AND prestataire_id = ?')
+          .run(shiftEventDate(dateFin, 1), item.id, request.userId);
+      } else {
+        await db.prepare('DELETE FROM disponibilite WHERE id = ? AND prestataire_id = ?')
+          .run(item.id, request.userId);
+      }
+    }
+
+    if (selectedId !== null) {
+      await db.prepare(`UPDATE disponibilite SET date_debut = ?, date_fin = ?, statut = ?
+        WHERE id = ? AND prestataire_id = ?`).run(dateDebut, dateFin, statut, selectedId, request.userId);
+    } else {
+      await insertAvailability(dateDebut, dateFin);
+    }
+    return { status: 200, changed: 1 };
+  })();
+
+  if (result.error) return response.status(result.status).json({ error: result.error });
+  response.status(result.status).json({ changed: result.changed });
 });
 
 app.delete('/api/me/availability/:availabilityId', authUser, async (request, response) => {
