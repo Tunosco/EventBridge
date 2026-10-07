@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loginAccount, registerAccount } from '../lib/api';
+import '../styles/auth-form.css';
 import '../styles/signup-name-fields.css';
 
 export default function ContactModal({ type, user, onAuthenticated, onLoggedOut, onClose }) {
@@ -9,6 +10,8 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
   const [sent, setSent] = useState(false);
   const [verificationPending, setVerificationPending] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const isSignup = mode === 'inscription';
   const isAuth = mode === 'connexion' || isSignup;
 
@@ -60,7 +63,17 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
     setMode(isSignup ? 'connexion' : 'inscription');
     setSent(false);
     setVerificationPending(false);
+    setShowPassword(false);
+    setShowConfirmation(false);
   };
+
+  const renderVisibilityIcon = (isVisible) => (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      {isVisible && <path d="m3 3 18 18" />}
+    </svg>
+  );
 
   return (
     <div className="modal" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -77,8 +90,18 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
           </div>}
           {!isAuth && <input name="nom" aria-label="Nom" required placeholder="Votre nom" />}
           <input name="email" aria-label="Email" type="email" required placeholder="Votre adresse email" />
-          {isAuth && <input name="motDePasse" aria-label="Mot de passe" type="password" minLength="8" required placeholder="Votre mot de passe" />}
-          {isSignup && <input name="confirmation" aria-label="Confirmation du mot de passe" type="password" minLength="8" required placeholder="Confirmez votre mot de passe" />}
+          {isAuth && <div className="password-field">
+            <input name="motDePasse" aria-label="Mot de passe" autoComplete={isSignup ? 'new-password' : 'current-password'} type={showPassword ? 'text' : 'password'} minLength="8" required placeholder="Votre mot de passe" />
+            <button className="password-visibility-toggle" type="button" aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>
+              {renderVisibilityIcon(showPassword)}
+            </button>
+          </div>}
+          {isSignup && <div className="password-field">
+            <input name="confirmation" aria-label="Confirmation du mot de passe" autoComplete="new-password" type={showConfirmation ? 'text' : 'password'} minLength="8" required placeholder="Confirmez votre mot de passe" />
+            <button className="password-visibility-toggle" type="button" aria-label={showConfirmation ? 'Masquer la confirmation du mot de passe' : 'Afficher la confirmation du mot de passe'} aria-pressed={showConfirmation} onClick={() => setShowConfirmation((visible) => !visible)}>
+              {renderVisibilityIcon(showConfirmation)}
+            </button>
+          </div>}
           {isSignup && <label className="signup-provider-toggle">
             <input name="jeSuisPrestataire" type="checkbox" />
             <span>Je suis prestataire</span>
