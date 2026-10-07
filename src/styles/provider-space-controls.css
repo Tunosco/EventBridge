@@ -31,7 +31,7 @@
 }
 
 .provider-public-profile {
-  max-width: 760px;
+  width: 100%;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;

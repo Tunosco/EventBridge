@@ -4,8 +4,8 @@
 
 .provider-portal-content {
   width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   padding: 58px 5%;
 }
 
@@ -330,9 +330,7 @@
 .messaging-heading,
 .messaging-layout,
 .message-start-form {
-  width: min(1120px, 100%);
-  margin-right: auto;
-  margin-left: auto;
+  width: 100%;
 }
 
 .messaging-heading {

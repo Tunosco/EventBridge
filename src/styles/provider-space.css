@@ -1,7 +1,7 @@
 .provider-space {
-  display: grid;
+  display: block;
+  width: 100%;
   min-height: 670px;
-  grid-template-columns: minmax(250px, 320px) 1fr;
   background: var(--sky);
 }
 
@@ -60,8 +60,9 @@
 }
 
 .provider-content {
-  max-width: 680px;
-  padding: 90px 8%;
+  width: 100%;
+  max-width: none;
+  padding: 58px clamp(20px, 5vw, 72px) 80px;
 }
 
 .provider-content h2 {
@@ -88,10 +89,6 @@
 }
 
 @media (max-width: 700px) {
-  .provider-space {
-    grid-template-columns: 1fr;
-  }
-
   .provider-sidebar {
     padding: 38px 6%;
   }
@@ -105,7 +102,7 @@
   }
 
   .provider-content {
-    padding: 58px 6% 80px;
+    padding: 44px 5% 64px;
   }
 }
 
