@@ -202,22 +202,16 @@
 }
 
 .calendar-day.is-today .calendar-day-number {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--navy);
-  color: #fff;
+  color: var(--coral-dark);
 }
 
 .calendar-day-number {
-  display: inline-grid;
-  min-width: 26px;
-  height: 26px;
-  place-items: center;
-  font-size: 13px;
+  display: block;
+  min-height: 26px;
+  font-size: clamp(7px, .8vw, 10px);
   font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .calendar-day-event-list {
@@ -438,18 +432,21 @@
 
 .sidebar-event time {
   display: grid;
-  flex: 0 0 42px;
-  width: 42px;
+  flex: 0 0 74px;
+  width: 74px;
   height: 46px;
   align-content: center;
   justify-items: center;
+  padding: 0 3px;
+  box-sizing: border-box;
+  text-align: center;
   border-radius: 4px;
   background: var(--sky);
   color: var(--navy);
 }
 
 .sidebar-event time strong {
-  font-size: 16px;
+  font-size: 11px;
   line-height: 1;
 }
 
@@ -528,34 +525,27 @@
   align-content: center;
   justify-items: center;
   gap: 3px;
+  padding: 8px 4px;
+  box-sizing: border-box;
   border-radius: 4px;
   background: var(--sky);
   color: var(--navy);
   text-align: center;
-  text-transform: capitalize;
-}
-
-.event-summary-date > span:first-child {
-  color: var(--coral-dark);
-  font-size: 11px;
-  font-weight: 800;
 }
 
 .event-summary-date strong {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 27px;
+  font-size: 17px;
   font-weight: 400;
   line-height: 1;
-}
-
-.event-summary-date > span:last-child {
-  font-size: 11px;
+  white-space: nowrap;
 }
 
 .event-summary-date .event-summary-end-date {
   color: var(--coral-dark);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .event-summary-body {

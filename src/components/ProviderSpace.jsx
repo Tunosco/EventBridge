@@ -1,4 +1,5 @@
 import ProviderAvailability from './ProviderAvailability';
+import ProviderCalendarPage from './ProviderCalendarPage';
 import ProviderDashboard from './ProviderDashboard';
 import ProviderProfile from './ProviderProfile';
 import ProviderPublicProfile from './ProviderPublicProfile';
@@ -26,6 +27,7 @@ export default function ProviderSpace({ user, section, onNavigateSection, isAuth
           {section === 'events' && <ProviderDashboard eventsOnly />}
           {section === 'availability' && <ProviderAvailability />}
           {section === 'tasks' && <ProviderTasks />}
+          {section === 'calendar' && <ProviderCalendarPage />}
           {section === 'profile' && <ProviderProfile />}
           {section === 'preview' && <ProviderPublicProfile />}
         </section>

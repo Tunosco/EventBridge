@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { getProviderDashboard } from '../lib/api';
-
-const dateFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+import { formatDate } from '../lib/dateFormat';
+import ProviderCalendar from './ProviderCalendar';
 
 function eventDateRange(event) {
   if (!event.dateDebut) return 'Date à définir';
-  const start = new Date(`${event.dateDebut}T00:00:00`);
-  if (Number.isNaN(start.getTime())) return 'Date à définir';
-  const end = new Date(`${event.dateFin || event.dateDebut}T00:00:00`);
-  if (Number.isNaN(end.getTime())) return dateFormatter.format(start);
-  const startLabel = dateFormatter.format(start);
-  return start.toDateString() === end.toDateString() ? startLabel : `${startLabel} – ${dateFormatter.format(end)}`;
+  const startLabel = formatDate(event.dateDebut);
+  if (!startLabel) return 'Date à définir';
+  const endLabel = formatDate(event.dateFin || event.dateDebut);
+  return endLabel && event.dateFin && event.dateFin !== event.dateDebut
+    ? `${startLabel} – ${endLabel}`
+    : startLabel;
 }
 
 export default function ProviderDashboard({ onEditProfile, eventsOnly = false }) {
@@ -64,6 +64,7 @@ export default function ProviderDashboard({ onEditProfile, eventsOnly = false })
           </ul> : <p className="provider-dashboard-empty">Les évènements auxquels vous êtes associé apparaîtront ici.</p>}
         </section>
       </div>
+      {eventsOnly && <ProviderCalendar events={evenements} mode="events" />}
     </div>
   );
 }

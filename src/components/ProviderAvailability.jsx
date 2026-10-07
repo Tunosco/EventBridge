@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createAvailability, deleteAvailability, getAvailability, updateAvailability } from '../lib/api';
+import { formatDate } from '../lib/dateFormat';
+import ProviderCalendar from './ProviderCalendar';
 
 const availabilityDefaults = { dateDebut: '', dateFin: '', statut: 'disponible' };
 
@@ -73,13 +75,14 @@ export default function ProviderAvailability() {
       {error && <p className="form-error" role="alert">{error}</p>}
       {loading ? <p>Chargement des disponibilités…</p> : items.length ? (
         <ul className="provider-record-list">{items.map((item) => <li key={item.id}>
-          <div><strong>{item.dateDebut} – {item.dateFin}</strong><span className={`provider-status is-${item.statut}`}>{item.statut === 'disponible' ? 'Disponible' : 'Indisponible'}</span></div>
+          <div><strong>{formatDate(item.dateDebut)} – {formatDate(item.dateFin)}</strong><span className={`provider-status is-${item.statut}`}>{item.statut === 'disponible' ? 'Disponible' : 'Indisponible'}</span></div>
           <div className="provider-record-actions">
             <button type="button" onClick={() => changeStatus(item)}>Marquer {item.statut === 'disponible' ? 'indisponible' : 'disponible'}</button>
             <button type="button" onClick={() => removeItem(item.id)}>Supprimer</button>
           </div>
         </li>)}</ul>
       ) : <p className="provider-dashboard-empty">Aucune période enregistrée.</p>}
+      <ProviderCalendar availabilities={items} mode="availability" />
     </section>
   );
 }

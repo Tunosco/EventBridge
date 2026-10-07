@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ProviderFinder from './ProviderFinder';
 import { createEvent, getEventTypes, getMyEvents, updateEvent, updateEventProviders } from '../lib/api';
+import { formatDate } from '../lib/dateFormat';
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -22,10 +23,6 @@ function startOfDay(date) {
 }
 
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
-const fullDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-const shortDateFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-const weekdayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
-const cardMonthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
 const eventFormDefaults = {
   titre: '',
   typeEvenementId: '',
@@ -40,10 +37,10 @@ const eventFormDefaults = {
 
 function formatEventPeriod(event) {
   const endDate = event.parsedEndDate || event.parsedDate;
-  const startLabel = shortDateFormatter.format(event.parsedDate);
+  const startLabel = formatDate(event.parsedDate);
   return dateKey(event.parsedDate) === dateKey(endDate)
     ? startLabel
-    : `${startLabel} – ${shortDateFormatter.format(endDate)}`;
+    : `${startLabel} – ${formatDate(endDate)}`;
 }
 
 function EventSummary({ event, isPast = false, onManageProviders, onEdit }) {
@@ -51,11 +48,9 @@ function EventSummary({ event, isPast = false, onManageProviders, onEdit }) {
   const isMultiDay = dateKey(endDate) !== dateKey(event.parsedDate);
   return (
     <article className={`event-summary-card${isPast ? ' is-past' : ''}`}>
-      <time className="event-summary-date" dateTime={isMultiDay ? `${dateKey(event.parsedDate)}/${dateKey(endDate)}` : dateKey(event.parsedDate)}>
-        <span>{weekdayFormatter.format(event.parsedDate)}</span>
-        <strong>{event.parsedDate.getDate()}</strong>
-        <span>{cardMonthFormatter.format(event.parsedDate)}</span>
-        {isMultiDay && <span className="event-summary-end-date">au {shortDateFormatter.format(endDate)}</span>}
+      <time className="event-summary-date" dateTime={dateKey(event.parsedDate)}>
+        <strong>{formatDate(event.parsedDate)}</strong>
+        {isMultiDay && <span className="event-summary-end-date">au {formatDate(endDate)}</span>}
       </time>
       <div className="event-summary-body">
         <span className="event-summary-type">{event.typeEvenement || 'Événement'}</span>
@@ -319,8 +314,7 @@ export default function MyEvents({ onBack }) {
                 {upcomingEvents.map((event) => (
                   <button className="sidebar-event" type="button" key={event.id} onClick={() => openEventInCalendar(event)}>
                     <time dateTime={dateKey(event.parsedDate)}>
-                      <strong>{event.parsedDate.getDate()}</strong>
-                      <span>{new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(event.parsedDate)}</span>
+                      <strong>{formatDate(event.parsedDate)}</strong>
                     </time>
                     <span className="sidebar-event-copy">
                       <strong>{event.titre}</strong>
@@ -402,12 +396,12 @@ export default function MyEvents({ onBack }) {
                     type="button"
                     key={dateKey(date)}
                     className={`calendar-day${inMonth ? '' : ' is-outside'}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${dayEvents.length ? ' has-events' : ''}`}
-                    aria-label={`${fullDateFormatter.format(date)}${eventTitles ? ` : ${eventTitles}` : ''}`}
+                    aria-label={`${formatDate(date)}${eventTitles ? ` : ${eventTitles}` : ''}`}
                     aria-pressed={isSelected}
                     disabled={!inMonth || startOfDay(date) < today}
                     onClick={() => changeSelectedDay(date)}
                   >
-                    <span className="calendar-day-number">{date.getDate()}</span>
+                    <time className="calendar-day-number" dateTime={dateKey(date)} title={formatDate(date)}>{formatDate(date)}</time>
                     <span className="calendar-day-event-list" aria-hidden="true">
                       {dayEvents.slice(0, 2).map((event) => <span className="calendar-event-title" key={event.id}>{event.titre}</span>)}
                       {dayEvents.length > 2 && <span className="calendar-event-more">+{dayEvents.length - 2} autres</span>}
@@ -421,7 +415,7 @@ export default function MyEvents({ onBack }) {
         )}
 
         {!loading && <div className="selected-day-events" aria-live="polite">
-          <h3>{fullDateFormatter.format(parseEventDate(selectedDateKey) || new Date(`${selectedDateKey}T00:00:00`))}</h3>
+          <h3>{formatDate(parseEventDate(selectedDateKey) || new Date(`${selectedDateKey}T00:00:00`))}</h3>
           {selectedEvents.length ? (
             <ul>{selectedEvents.map((event) => (
               <li key={event.id}>

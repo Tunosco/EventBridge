@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createProviderTask, deleteProviderTask, getProviderTasks, updateProviderTask } from '../lib/api';
+import { formatDate } from '../lib/dateFormat';
+import ProviderCalendar from './ProviderCalendar';
 
 const emptyTask = { titre: '', description: '', dateEcheance: '' };
 const taskStatuses = [
@@ -73,7 +75,7 @@ export default function ProviderTasks() {
       {error && <p className="form-error" role="alert">{error}</p>}
       {loading ? <p>Chargement des tâches…</p> : tasks.length ? (
         <ul className="provider-record-list">{tasks.map((task) => <li key={task.id}>
-          <div className="provider-task-copy"><strong>{task.titre}</strong>{task.description && <span>{task.description}</span>}{task.dateEcheance && <time dateTime={task.dateEcheance}>Échéance : {task.dateEcheance}</time>}</div>
+          <div className="provider-task-copy"><strong>{task.titre}</strong>{task.description && <span>{task.description}</span>}{task.dateEcheance && <time dateTime={task.dateEcheance}>Échéance : {formatDate(task.dateEcheance)}</time>}</div>
           <div className="provider-record-actions">
             <select aria-label={`Statut de la tâche ${task.titre}`} value={task.statut} onChange={(event) => changeStatus(task, event.target.value)}>
               {taskStatuses.map((status) => <option value={status.value} key={status.value}>{status.label}</option>)}
@@ -82,6 +84,7 @@ export default function ProviderTasks() {
           </div>
         </li>)}</ul>
       ) : <p className="provider-dashboard-empty">Aucune tâche pour le moment.</p>}
+      <ProviderCalendar tasks={tasks} mode="tasks" />
     </section>
   );
 }

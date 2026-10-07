@@ -24,6 +24,10 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
       onProfileClick?.();
       return;
     }
+    if (type === 'calendrier') {
+      onAccountSection?.('calendar');
+      return;
+    }
     if (type === 'parametres') {
       onSettingsClick?.();
       return;
@@ -83,6 +87,7 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
               </button>
               {accountMenuOpen && (
                 <div className="account-dropdown">
+                  {isProvider && <button onClick={() => openAccountAction('calendrier')}>Mon calendrier</button>}
                   <button onClick={() => openAccountAction('profil')}>Profil</button>
                   <button onClick={() => openAccountAction('parametres')}>Paramètres</button>
                   <button onClick={() => openAccountAction('deconnexion')}>Se déconnecter</button>

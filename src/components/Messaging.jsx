@@ -6,6 +6,7 @@ import {
   searchProviders,
   sendConversationMessage,
 } from '../lib/api';
+import { formatDateTime } from '../lib/dateFormat';
 
 export default function Messaging({ user }) {
   const [conversations, setConversations] = useState([]);
@@ -113,7 +114,7 @@ export default function Messaging({ user }) {
             <h2>{activeConversation.correspondant}</h2>
             <div className="conversation-messages" aria-live="polite">
               {messages.map((message) => <p className={message.expediteurId === user.id ? 'is-mine' : ''} key={message.id}>
-                <span>{message.contenu}</span><time>{new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(message.dateCreation))}</time>
+                <span>{message.contenu}</span><time>{formatDateTime(message.dateCreation)}</time>
               </p>)}
             </div>
             <form className="conversation-compose" onSubmit={sendMessage}>
