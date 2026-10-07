@@ -95,8 +95,9 @@ export function updateProviderProfile(payload) {
   return request('/me/provider-profile', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
 }
 
-export function getProviderDashboard() {
-  return request('/me/provider-dashboard', { headers: authHeaders() });
+export function getProviderDashboard(includePastEvents = false) {
+  const query = includePastEvents ? '?includePastEvents=true' : '';
+  return request(`/me/provider-dashboard${query}`, { headers: authHeaders() });
 }
 
 export function getAvailability() {

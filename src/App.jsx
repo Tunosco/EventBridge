@@ -130,7 +130,10 @@ export default function App() {
       <Header onNavigate={(nextPage) => {
         if (nextPage === 'home' && user) navigateToAccountHome();
         else setPage(nextPage);
-      }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={() => { setUser(null); setPage('home'); }} onProfileClick={() => setPage('profile')} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
+      }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={() => { setUser(null); setPage('home'); }} onProfileClick={() => {
+        if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
+        else setPage('profile');
+      }} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
       {page === 'provider' ? (
         <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} />
       ) : page === 'providers' ? (

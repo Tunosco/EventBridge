@@ -468,12 +468,20 @@ app.get('/api/me/provider-dashboard', authUser, async (request, response) => {
   const prestations = await db.prepare(`SELECT pr.id, pr.titre, pr.description, pr.prix, c.libelle AS categorie
     FROM prestation pr JOIN categorie_prestation c ON c.id = pr.categorie_id
     WHERE pr.prestataire_id = ? ORDER BY c.libelle, pr.titre`).all(request.userId);
-  const evenements = await db.prepare(`SELECT e.id, e.titre, e.date_evenement AS dateDebut, e.date_fin AS dateFin,
-    e.lieu, t.libelle AS typeEvenement
-    FROM evenement_prestataire ep JOIN evenement e ON e.id = ep.evenement_id
-    JOIN type_evenement t ON t.id = e.type_evenement_id
-    WHERE ep.prestataire_id = ? AND COALESCE(e.date_fin, e.date_evenement) >= ?
-    ORDER BY e.date_evenement`).all(request.userId, new Date().toISOString().slice(0, 10));
+  const includePastEvents = request.query.includePastEvents === 'true';
+  const evenements = includePastEvents
+    ? await db.prepare(`SELECT e.id, e.titre, e.date_evenement AS dateDebut, e.date_fin AS dateFin,
+      e.lieu, t.libelle AS typeEvenement
+      FROM evenement_prestataire ep JOIN evenement e ON e.id = ep.evenement_id
+      JOIN type_evenement t ON t.id = e.type_evenement_id
+      WHERE ep.prestataire_id = ?
+      ORDER BY e.date_evenement`).all(request.userId)
+    : await db.prepare(`SELECT e.id, e.titre, e.date_evenement AS dateDebut, e.date_fin AS dateFin,
+      e.lieu, t.libelle AS typeEvenement
+      FROM evenement_prestataire ep JOIN evenement e ON e.id = ep.evenement_id
+      JOIN type_evenement t ON t.id = e.type_evenement_id
+      WHERE ep.prestataire_id = ? AND COALESCE(e.date_fin, e.date_evenement) >= ?
+      ORDER BY e.date_evenement`).all(request.userId, new Date().toISOString().slice(0, 10));
   response.json({ profile, prestations, evenements });
 });
 

@@ -4,8 +4,11 @@ import { getProviderDashboard } from '../lib/api';
 const dateFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
 function eventDateRange(event) {
+  if (!event.dateDebut) return 'Date à définir';
   const start = new Date(`${event.dateDebut}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return 'Date à définir';
   const end = new Date(`${event.dateFin || event.dateDebut}T00:00:00`);
+  if (Number.isNaN(end.getTime())) return dateFormatter.format(start);
   const startLabel = dateFormatter.format(start);
   return start.toDateString() === end.toDateString() ? startLabel : `${startLabel} – ${dateFormatter.format(end)}`;
 }
@@ -16,11 +19,11 @@ export default function ProviderDashboard({ onEditProfile, eventsOnly = false })
 
   useEffect(() => {
     let active = true;
-    getProviderDashboard()
+    getProviderDashboard(eventsOnly)
       .then((result) => { if (active) setDashboard(result); })
       .catch((loadError) => { if (active) setError(loadError.message); });
     return () => { active = false; };
-  }, []);
+  }, [eventsOnly]);
 
   if (error) return <p className="form-error" role="alert">{error}</p>;
   if (!dashboard) return <p>Chargement de votre activité…</p>;
@@ -52,7 +55,7 @@ export default function ProviderDashboard({ onEditProfile, eventsOnly = false })
       </section>}
       <div className={`provider-dashboard-columns${eventsOnly ? ' events-only' : ''}`}>
         <section className="provider-dashboard-section">
-          <div className="provider-dashboard-section-heading"><h2>Prochains évènements</h2><span>{evenements.length}</span></div>
+          <div className="provider-dashboard-section-heading"><h2>{eventsOnly ? 'Tous mes évènements' : 'Prochains évènements'}</h2><span>{evenements.length}</span></div>
           {evenements.length ? <ul className="provider-dashboard-list">
             {evenements.map((event) => <li key={event.id}>
               <div><strong>{event.titre}</strong><span>{event.typeEvenement}{event.lieu ? ` · ${event.lieu}` : ''}</span></div>
