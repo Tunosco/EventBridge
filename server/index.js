@@ -46,7 +46,7 @@ async function getUserProfile(userId) {
   if (providerProfile) {
     await db.prepare("UPDATE utilisateur SET type_utilisateur = 'prestataire' WHERE id = ? AND type_utilisateur <> 'prestataire'").run(userId);
   }
-  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS codePostal, type_utilisateur AS typeUtilisateur FROM utilisateur WHERE id = ?').get(userId);
+  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS "codePostal", type_utilisateur AS "typeUtilisateur" FROM utilisateur WHERE id = ?').get(userId);
 }
 
 async function recordUserLogin(userId) {
