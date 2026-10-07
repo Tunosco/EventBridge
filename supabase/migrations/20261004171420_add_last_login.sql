@@ -1,1 +1,0 @@
-ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS derniere_connexion TIMESTAMPTZ;

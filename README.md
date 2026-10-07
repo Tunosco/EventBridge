@@ -29,7 +29,7 @@ La base locale est créée automatiquement dans `data/eventbridge.sqlite` au dé
 3. Crée `.env` à la racine selon `.env.example`, puis remplace les placeholders. Dans **Connect > Shared Pooler > Session**, copie l'URI complète et remplace `[YOUR-PASSWORD]` par le mot de passe PostgreSQL du projet (URL-encodé si nécessaire), pas par la clé secrète.
 4. Récupère `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` et `SUPABASE_SECRET_KEY` dans **Project Settings > API Keys**. La clé secrète reste côté serveur et ne doit jamais être ajoutée au frontend.
 5. Dans **Database > Settings > SSL Configuration**, télécharge le certificat CA du projet et place-le à la racine sous `prod-ca-2021.crt`. Garde `SUPABASE_DB_SSL_CA_PATH=./prod-ca-2021.crt`; le serveur vérifie strictement le certificat TLS. Le certificat CA est public, mais le mot de passe et `SUPABASE_SECRET_KEY` ne le sont pas.
-6. Déploie le schéma avec les migrations : exécute `npx supabase login` une fois, puis `npx supabase link --project-ref idodgrqwbrhouzdunqrk` et `npx supabase db push`. Le CLI peut demander le mot de passe PostgreSQL; ne le passe pas en clair dans la ligne de commande.
+6. Déploie le schéma avec la migration unique : exécute `npx supabase login` une fois, puis `npx supabase link --project-ref idodgrqwbrhouzdunqrk` et `npx supabase db push`. Cette migration consolidée est destinée à une base neuve; pour une base ayant déjà appliqué les migrations précédentes, conserve son historique et ne remplace pas les migrations déjà déployées. Le CLI peut demander le mot de passe PostgreSQL; ne le passe pas en clair dans la ligne de commande.
 7. Lance `npm run server`. L'API vérifie la connexion à Supabase mais ne crée plus de tables au démarrage.
 8. Dans un autre terminal, lance `npm run dev` pour ouvrir l'application sur `http://localhost:5173`.
 
@@ -47,7 +47,7 @@ Dans le projet hébergé, **Authentication > SMTP Settings** doit avoir **Enable
 
 ## Schéma
 
-Le schéma SQLite local reste défini dans `server/schema.sql`. Le schéma PostgreSQL en ligne est géré par les migrations du dossier `supabase/migrations/`; il active RLS sans politiques publiques et ajoute les types/catégories de référence. Les deux variantes couvrent :
+Le schéma SQLite local reste défini dans `server/schema.sql`. Le schéma PostgreSQL en ligne est géré par l'unique migration du dossier `supabase/migrations/`; elle active RLS sans politiques publiques et ajoute les types/catégories de référence. Les deux variantes couvrent :
 
 - `utilisateur`, `client`, `prestataire`
 - `type_evenement`, `evenement`
