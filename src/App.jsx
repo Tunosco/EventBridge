@@ -59,6 +59,7 @@ export default function App() {
   const handleAuthenticated = (authenticatedUser) => {
     setUser(authenticatedUser);
     navigateToAccountHome(authenticatedUser);
+    setContactType(null);
   };
   const handleAccountSection = (section) => {
     if (user?.typeUtilisateur === 'prestataire') {
