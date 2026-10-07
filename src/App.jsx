@@ -32,6 +32,7 @@ export default function App() {
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
   const confirmationHandled = useRef(false);
+  const authRequestVersion = useRef(0);
   const handleProjectClick = (type) => {
     if (type === 'prestataire') {
       setProviderSection('home');
@@ -57,9 +58,15 @@ export default function App() {
     }
   };
   const handleAuthenticated = (authenticatedUser) => {
+    authRequestVersion.current += 1;
     setUser(authenticatedUser);
     navigateToAccountHome(authenticatedUser);
     setContactType(null);
+  };
+  const handleLoggedOut = () => {
+    authRequestVersion.current += 1;
+    setUser(null);
+    setPage('home');
   };
   const handleAccountSection = (section) => {
     if (user?.typeUtilisateur === 'prestataire') {
@@ -77,7 +84,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    const requestVersion = authRequestVersion.current;
     getCurrentUser().then((currentUser) => {
+      if (authRequestVersion.current !== requestVersion) return;
       setUser(currentUser);
       if (currentUser) navigateToAccountHome(currentUser);
     });
@@ -102,6 +111,7 @@ export default function App() {
     setAuthNotice({ message: 'Adresse confirmée, connexion en cours…', type: 'pending' });
     completeEmailConfirmation(accessToken)
       .then(({ token, user: confirmedUser }) => {
+        authRequestVersion.current += 1;
         localStorage.setItem('eventbridge_token', token);
         setUser(confirmedUser);
         navigateToAccountHome(confirmedUser);
@@ -131,7 +141,7 @@ export default function App() {
       <Header onNavigate={(nextPage) => {
         if (nextPage === 'home' && user) navigateToAccountHome();
         else setPage(nextPage);
-      }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={() => { setUser(null); setPage('home'); }} onProfileClick={() => {
+      }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={handleLoggedOut} onProfileClick={() => {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
         else setPage('profile');
       }} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
@@ -146,7 +156,7 @@ export default function App() {
       ) : page === 'profile' && user ? (
         <Profile user={user} onBack={() => navigateToAccountHome()} />
       ) : page === 'settings' && user ? (
-        <Settings user={user} onUserUpdated={setUser} onDeleted={() => { setUser(null); setPage('home'); }} onBack={() => navigateToAccountHome()} />
+        <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
       ) : (
         <main>
           <Hero onProjectClick={handleProjectClick} />
@@ -155,7 +165,7 @@ export default function App() {
       )}
       <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); user ? navigateToAccountHome() : setPage('provider'); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
-      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={() => { setUser(null); setPage('home'); }} onClose={() => setContactType(null)} />}
+      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => setContactType(null)} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
     </>

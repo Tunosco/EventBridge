@@ -29,10 +29,14 @@ export function completeEmailConfirmation(accessToken) {
 export function getCurrentUser() {
   const token = localStorage.getItem('eventbridge_token');
   if (!token) return Promise.resolve(null);
-  return request('/me', { headers: { Authorization: `Bearer ${token}` } }).then((result) => result.user).catch(() => {
-    localStorage.removeItem('eventbridge_token');
-    return null;
-  });
+  return request('/me', { headers: { Authorization: `Bearer ${token}` } })
+    .then((result) => result.user)
+    .catch(() => {
+      if (localStorage.getItem('eventbridge_token') === token) {
+        localStorage.removeItem('eventbridge_token');
+      }
+      return null;
+    });
 }
 
 function authHeaders() {
