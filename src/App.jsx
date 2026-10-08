@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import EventExamples from './components/EventExamples';
@@ -28,11 +28,13 @@ export default function App() {
   const [contactType, setContactType] = useState(null);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
+  const [openCreateEventOnEvents, setOpenCreateEventOnEvents] = useState(false);
   const [providerSection, setProviderSection] = useState('home');
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
   const confirmationHandled = useRef(false);
   const authRequestVersion = useRef(0);
+  const eventCreationPendingAuth = useRef(false);
   const handleProjectClick = (type) => {
     if (type === 'prestataire') {
       setProviderSection('home');
@@ -45,11 +47,22 @@ export default function App() {
     setPage('events');
     if (!user) setContactType('connexion');
   };
+  const handleCreateEventClick = () => {
+    if (!user) {
+      eventCreationPendingAuth.current = true;
+      setContactType('event-auth-required');
+      return;
+    }
+    setOpenCreateEventOnEvents(true);
+    setPage('events');
+  };
+  const acknowledgeInitialEventCreate = useCallback(() => setOpenCreateEventOnEvents(false), []);
   const handleProviderSearch = (query) => {
     setProviderSearchQuery(query);
     setPage('providers');
   };
   const navigateToAccountHome = (accountUser = user) => {
+    setOpenCreateEventOnEvents(false);
     if (accountUser?.typeUtilisateur === 'prestataire') {
       setProviderSection('home');
       setPage('provider');
@@ -57,14 +70,26 @@ export default function App() {
       setPage('home');
     }
   };
+  const navigateAfterAuthentication = (accountUser) => {
+    if (eventCreationPendingAuth.current) {
+      eventCreationPendingAuth.current = false;
+      setContactType(null);
+      setOpenCreateEventOnEvents(true);
+      setPage('events');
+      return;
+    }
+    navigateToAccountHome(accountUser);
+  };
   const handleAuthenticated = (authenticatedUser) => {
     authRequestVersion.current += 1;
     setUser(authenticatedUser);
-    navigateToAccountHome(authenticatedUser);
+    navigateAfterAuthentication(authenticatedUser);
     setContactType(null);
   };
   const handleLoggedOut = () => {
     authRequestVersion.current += 1;
+    eventCreationPendingAuth.current = false;
+    setOpenCreateEventOnEvents(false);
     setUser(null);
     setPage('home');
   };
@@ -114,7 +139,7 @@ export default function App() {
         authRequestVersion.current += 1;
         localStorage.setItem('eventbridge_token', token);
         setUser(confirmedUser);
-        navigateToAccountHome(confirmedUser);
+        navigateAfterAuthentication(confirmedUser);
         setAuthNotice({ message: 'Votre adresse est confirmée. Vous êtes connecté à votre compte.', type: 'success' });
       })
       .catch((confirmationError) => {
@@ -150,7 +175,11 @@ export default function App() {
       ) : page === 'providers' ? (
         <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
       ) : page === 'events' && user ? (
-        <MyEvents onBack={() => navigateToAccountHome()} />
+        <MyEvents
+          onBack={() => navigateToAccountHome()}
+          openCreateInitially={openCreateEventOnEvents}
+          onCreateInitiallyHandled={acknowledgeInitialEventCreate}
+        />
       ) : page === 'messages' && user ? (
         <Messaging user={user} />
       ) : page === 'profile' && user ? (
@@ -159,13 +188,16 @@ export default function App() {
         <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
       ) : (
         <main>
-          <Hero onProjectClick={handleProjectClick} />
+          <Hero onProjectClick={handleProjectClick} onCreateEventClick={handleCreateEventClick} />
           <EventExamples />
         </main>
       )}
       <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); user ? navigateToAccountHome() : setPage('provider'); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
-      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => setContactType(null)} />}
+      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
+        if (contactType === 'event-auth-required') eventCreationPendingAuth.current = false;
+        setContactType(null);
+      }} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
     </>

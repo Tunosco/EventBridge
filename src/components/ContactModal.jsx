@@ -12,6 +12,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const eventAuthPrompt = mode === 'event-auth-required';
   const isSignup = mode === 'inscription';
   const isAuth = mode === 'connexion' || isSignup;
 
@@ -80,10 +81,10 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
       <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="contact-title">
         <button className="close-button" onClick={onClose} aria-label="Fermer">×</button>
         {!isAuth && !account && <div className="kicker">Votre événement</div>}
-        <h2 id="contact-title">{sent ? (isSignup ? (verificationPending ? 'En attente de confirmation de votre email.' : 'Votre compte est créé.') : mode === 'connexion' ? 'Connexion réussie.' : 'Merci, votre demande est bien partie.') : account ? 'Mon compte' : isSignup ? 'Bienvenue sur EventBridge.' : mode === 'connexion' ? 'Ravi de vous revoir.' : 'Parlons de votre projet.'}</h2>
-        <p>{sent ? (isSignup ? (verificationPending ? 'Un lien de confirmation vient d’être envoyé. Dès que vous confirmerez votre adresse, vous serez automatiquement connecté à votre compte.' : 'Vous pouvez maintenant retrouver vos projets et vos échanges.') : mode === 'connexion' ? 'Connexion réussie. Vous pouvez retrouver vos projets et vos échanges.' : 'Notre équipe reviendra vers vous rapidement pour faire avancer votre projet.') : account ? `Vous êtes connecté avec l’adresse ${user?.email || ''}.` : isSignup ? 'Créez votre compte pour enregistrer vos événements et échanger avec les bons prestataires.' : mode === 'connexion' ? 'Connectez-vous pour retrouver vos projets et vos échanges.' : 'Quelques informations suffisent pour que nous vous orientions vers les bons prestataires.'}</p>
+        <h2 id="contact-title">{sent ? (isSignup ? (verificationPending ? 'En attente de confirmation de votre email.' : 'Votre compte est créé.') : mode === 'connexion' ? 'Connexion réussie.' : 'Merci, votre demande est bien partie.') : eventAuthPrompt ? 'Créez votre événement.' : account ? 'Mon compte' : isSignup ? 'Bienvenue sur EventBridge.' : mode === 'connexion' ? 'Ravi de vous revoir.' : 'Parlons de votre projet.'}</h2>
+        <p>{sent ? (isSignup ? (verificationPending ? 'Un lien de confirmation vient d’être envoyé. Dès que vous confirmerez votre adresse, vous serez automatiquement connecté à votre compte.' : 'Vous pouvez maintenant retrouver vos projets et vos échanges.') : mode === 'connexion' ? 'Connexion réussie. Vous pouvez retrouver vos projets et vos échanges.' : 'Notre équipe reviendra vers vous rapidement pour faire avancer votre projet.') : eventAuthPrompt ? <>Pour créer un événement, <button className="modal-inline-link" type="button" onClick={() => setMode('connexion')}>connectez-vous</button> ou <button className="modal-inline-link" type="button" onClick={() => setMode('inscription')}>créez votre compte</button>.</> : account ? `Vous êtes connecté avec l’adresse ${user?.email || ''}.` : isSignup ? 'Créez votre compte pour enregistrer vos événements et échanger avec les bons prestataires.' : mode === 'connexion' ? 'Connectez-vous pour retrouver vos projets et vos échanges.' : 'Quelques informations suffisent pour que nous vous orientions vers les bons prestataires.'}</p>
         {error && <p className="form-error" role="alert">{error}</p>}
-        {!sent && !account && <form onSubmit={handleSubmit}>
+        {!sent && !account && !eventAuthPrompt && <form onSubmit={handleSubmit}>
           {isSignup && <div className="signup-name-fields">
             <input name="prenom" aria-label="Prénom" autoComplete="given-name" required placeholder="Votre prénom" />
             <input name="nom" aria-label="Nom" autoComplete="family-name" required placeholder="Votre nom" />

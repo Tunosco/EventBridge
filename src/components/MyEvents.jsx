@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ProviderFinder from './ProviderFinder';
 import { createEvent, getEventTypes, getMyEvents, updateEvent, updateEventProviders } from '../lib/api';
 import { formatDate } from '../lib/dateFormat';
@@ -78,7 +78,7 @@ function EventSummary({ event, isPast = false, onManageProviders, onEdit }) {
   );
 }
 
-export default function MyEvents({ onBack }) {
+export default function MyEvents({ onBack, openCreateInitially = false, onCreateInitiallyHandled }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -97,6 +97,7 @@ export default function MyEvents({ onBack }) {
   const [selectedProviderIds, setSelectedProviderIds] = useState([]);
   const [providerSaveError, setProviderSaveError] = useState('');
   const [savingProviders, setSavingProviders] = useState(false);
+  const initialCreateHandled = useRef(false);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -225,13 +226,19 @@ export default function MyEvents({ onBack }) {
     setSelectedProviderIds((event.prestataires || []).map((provider) => provider.id));
     setProviderSaveError('');
   };
-  const openCreateForm = () => {
+  const openCreateForm = useCallback(() => {
     setEditingEvent(null);
     setEventForm({ ...eventFormDefaults, lieuxSecondaires: [] });
     setSecondaryLocationDraft('');
     setFormError('');
     setShowCreateForm(true);
-  };
+  }, []);
+  useEffect(() => {
+    if (!openCreateInitially || initialCreateHandled.current) return;
+    initialCreateHandled.current = true;
+    openCreateForm();
+    onCreateInitiallyHandled?.();
+  }, [openCreateInitially, onCreateInitiallyHandled, openCreateForm]);
   const openEditForm = (event) => {
     setEditingEvent(event);
     setEventForm({

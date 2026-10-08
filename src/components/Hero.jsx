@@ -1,18 +1,16 @@
-export default function Hero({ onProjectClick }) {
+export default function Hero({ onProjectClick, onCreateEventClick = () => onProjectClick('particulier') }) {
   return (
     <section className="hero" id="accueil">
       <div className="hero-copy">
-        <div className="kicker">Le lien entre vos idées et les bonnes personnes</div>
-        <h1>Comment allez-vous <em>célébrer ?</em></h1>
-        <p>EventBridge connecte les particuliers avec des prestataires de confiance pour créer des moments uniques, sans perdre de temps à chercher.</p>
-        <div className="hero-actions">
-          <button className="button button-primary hero-cta" onClick={() => onProjectClick('particulier')}>Créer mon événement</button>
+        <h1>Comment allez-vous <em>célébrer</em> ?</h1>
+        <p className="hero-event-types">Mariage · Anniversaire · Réception · Événement professionnel</p>
+        <div className="hero-description">
+          <p>EventBridge connecte les particuliers avec des prestataires de confiance pour créer des moments uniques, sans perdre de temps à chercher.</p>
+          <p>Un lieu, des talents et vos envies : imaginez votre moment, puis donnez-lui vie.</p>
         </div>
-      </div>
-      <div className="hero-art" aria-label="Une réception élégante organisée avec EventBridge">
-        <div className="hero-image" />
-        <div className="hero-seal">DES IDÉES<br />QUI PRENNENT<br />VIE</div>
-        <div className="hero-note"><strong>+ de 250</strong><small>prestataires sélectionnés</small></div>
+        <div className="hero-actions">
+          <button className="button button-primary hero-cta" onClick={onCreateEventClick}>Créer mon événement</button>
+        </div>
       </div>
     </section>
   );
