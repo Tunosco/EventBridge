@@ -43,6 +43,14 @@ export default function App() {
       setContactType(type);
     }
   };
+  const handleProviderSpaceClick = () => {
+    if (!user) {
+      setContactType('provider-auth-required');
+      return;
+    }
+    setProviderSection('home');
+    setPage('provider');
+  };
   const handleEventsClick = () => {
     setPage('events');
     if (!user) setContactType('connexion');
@@ -165,6 +173,7 @@ export default function App() {
       </div>}
       <Header onNavigate={(nextPage) => {
         if (nextPage === 'home' && user) navigateToAccountHome();
+        else if (nextPage === 'provider') handleProviderSpaceClick();
         else setPage(nextPage);
       }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={handleLoggedOut} onProfileClick={() => {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
@@ -192,7 +201,7 @@ export default function App() {
           <EventExamples />
         </main>
       )}
-      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); user ? navigateToAccountHome() : setPage('provider'); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
+      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); handleProviderSpaceClick(); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
       {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
         if (contactType === 'event-auth-required') eventCreationPendingAuth.current = false;

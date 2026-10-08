@@ -127,11 +127,31 @@ app.get('/api/providers', async (request, response) => {
 app.post('/api/auth/register', async (request, response) => {
   const { prenom, nom, email, motDePasse } = request.body;
   const typeUtilisateur = request.body.typeUtilisateur || 'client';
+  const providerFields = {
+    telephone: request.body.telephone,
+    nomEntreprise: request.body.nomEntreprise,
+    siteWeb: request.body.siteWeb,
+    adressePostale: request.body.adressePostale,
+    description: request.body.description,
+    siret: request.body.siret,
+  };
   if (!prenom?.trim() || !nom?.trim() || !email || !motDePasse || motDePasse.length < 8) {
     return response.status(400).json({ error: 'Prénom, nom, email et mot de passe de 8 caractères minimum requis.' });
   }
   if (!['client', 'prestataire'].includes(typeUtilisateur)) {
     return response.status(400).json({ error: 'Le type de compte sélectionné est invalide.' });
+  }
+  if (typeUtilisateur === 'prestataire') {
+    const fieldLimits = { telephone: 40, nomEntreprise: 180, siteWeb: 500, adressePostale: 500, description: 4000, siret: 14 };
+    for (const [field, value] of Object.entries(providerFields)) {
+      if (value !== undefined && (typeof value !== 'string' || value.length > fieldLimits[field])) {
+        return response.status(400).json({ error: 'Un des champs du profil prestataire est invalide ou trop long.' });
+      }
+      if (typeof value === 'string') providerFields[field] = value.trim();
+    }
+    if (providerFields.siret && !/^\d{14}$/.test(providerFields.siret)) {
+      return response.status(400).json({ error: 'Le numéro de SIRET doit contenir 14 chiffres.' });
+    }
   }
   if (!supabaseAuth) {
     return response.status(503).json({ error: 'La confirmation par email Supabase n’est pas configurée.' });
@@ -163,13 +183,19 @@ app.post('/api/auth/register', async (request, response) => {
     }
 
     const createUser = db.transaction(async () => {
-      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id, type_utilisateur) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(
+      const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id, type_utilisateur, telephone) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id').get(
         prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse), supabaseUserId, typeUtilisateur,
+        typeUtilisateur === 'prestataire' ? providerFields.telephone?.trim() || null : null,
       );
       if (typeUtilisateur === 'client') {
         await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
       } else {
-        await db.prepare('INSERT INTO prestataire (utilisateur_id) VALUES (?)').run(user.id);
+        await db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, description, siret, site_web, adresse_postale)
+          VALUES (?, ?, ?, ?, ?, ?)`).run(
+          user.id, providerFields.nomEntreprise?.trim() || null, providerFields.description?.trim() || null,
+          providerFields.siret?.trim() || null, providerFields.siteWeb?.trim() || null,
+          providerFields.adressePostale?.trim() || null,
+        );
       }
       return Number(user.id);
     });
@@ -183,7 +209,12 @@ app.post('/api/auth/register', async (request, response) => {
         // Preserve the original signup error.
       }
     }
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') {
+      if (error.message?.includes('telephone') || error.constraint?.includes('telephone')) {
+        return response.status(409).json({ error: 'Ce numéro de téléphone est déjà associé à un compte.' });
+      }
+      return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    }
     response.status(500).json({ error: 'Impossible de créer le compte.' });
   }
 });
