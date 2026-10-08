@@ -168,8 +168,16 @@ app.post('/api/auth/register', async (request, response) => {
       },
     });
     if (error) {
-      if (error.message.toLowerCase().includes('already registered')) {
+      const errorMessage = error.message.toLowerCase();
+      console.error('Supabase signup rejected', { code: error.code, status: error.status });
+      if (errorMessage.includes('already registered')) {
         return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+      }
+      if (errorMessage.includes('email address not authorized')) {
+        return response.status(502).json({ error: 'Supabase refuse cet envoi : activez un SMTP personnalisé dans Authentication > SMTP Settings, ou utilisez une adresse autorisée par le SMTP de test.' });
+      }
+      if (error.status === 429 || errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
+        return response.status(429).json({ error: 'La limite d’envoi des emails Supabase est atteinte. Réessayez plus tard ou configurez un SMTP personnalisé.' });
       }
       return response.status(502).json({ error: 'Impossible d’envoyer l’email de confirmation. Vérifiez la configuration email de Supabase.' });
     }
