@@ -43,7 +43,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
           nom: formData.get('nom'),
           email: formData.get('email'),
           motDePasse: formData.get('motDePasse'),
-          typeUtilisateur: isProviderSignup || formData.get('jeSuisPrestataire') === 'on' ? 'prestataire' : 'client',
+          typeUtilisateur: isProviderSignup ? 'prestataire' : 'client',
           telephone: formData.get('telephone') || '',
           nomEntreprise: formData.get('nomEntreprise') || '',
           siteWeb: formData.get('siteWeb') || '',
@@ -134,10 +134,6 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
               {renderVisibilityIcon(showConfirmation)}
             </button>
           </div>}
-          {isSignup && <label className="signup-provider-toggle">
-            <input name="jeSuisPrestataire" type="checkbox" />
-            <span>Je suis prestataire</span>
-          </label>}
           </>}
           {!isAuth && <select aria-label="Type de demande" defaultValue="Je prépare un événement">
             <option>Je prépare un événement</option>
