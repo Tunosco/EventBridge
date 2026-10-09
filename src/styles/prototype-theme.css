@@ -172,7 +172,7 @@ h3,
   background-color: var(--white);
   background-image:
     linear-gradient(180deg, rgba(239, 229, 214, .42) 0%, rgba(239, 229, 214, .5) 58%, var(--white) 100%),
-    url('../assets/photo_page_presentation.png');
+    url('/images/eventbridge-hero.jpg');
   background-position: center;
   background-size: cover;
   text-align: center;

@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import EventExamples from './components/EventExamples';
 import IntroOverlay from './components/IntroOverlay';
 import ContactModal from './components/ContactModal';
-import Profile from './components/Profile';
-import Settings from './components/Settings';
-import MyEvents from './components/MyEvents';
-import ProviderDirectory from './components/ProviderDirectory';
-import ProviderSpace from './components/ProviderSpace';
-import Messaging from './components/Messaging';
+const Profile = lazy(() => import('./components/Profile'));
+const Settings = lazy(() => import('./components/Settings'));
+const MyEvents = lazy(() => import('./components/MyEvents'));
+const ProviderDirectory = lazy(() => import('./components/ProviderDirectory'));
+const ProviderSpace = lazy(() => import('./components/ProviderSpace'));
+const Messaging = lazy(() => import('./components/Messaging'));
 import { completeEmailConfirmation, getCurrentUser } from './lib/api';
 import './styles/global.css';
 import './styles/auth-confirmation.css';
@@ -179,28 +179,30 @@ export default function App() {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
         else setPage('profile');
       }} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
-      {page === 'provider' ? (
-        <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} />
-      ) : page === 'providers' ? (
-        <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
-      ) : page === 'events' && user ? (
-        <MyEvents
-          onBack={() => navigateToAccountHome()}
-          openCreateInitially={openCreateEventOnEvents}
-          onCreateInitiallyHandled={acknowledgeInitialEventCreate}
-        />
-      ) : page === 'messages' && user ? (
-        <Messaging user={user} />
-      ) : page === 'profile' && user ? (
-        <Profile user={user} onBack={() => navigateToAccountHome()} />
-      ) : page === 'settings' && user ? (
-        <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
-      ) : (
-        <main>
-          <Hero onProjectClick={handleProjectClick} onCreateEventClick={handleCreateEventClick} />
-          <EventExamples />
-        </main>
-      )}
+      <Suspense fallback={<main aria-busy="true">Chargement…</main>}>
+        {page === 'provider' ? (
+          <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} />
+        ) : page === 'providers' ? (
+          <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
+        ) : page === 'events' && user ? (
+          <MyEvents
+            onBack={() => navigateToAccountHome()}
+            openCreateInitially={openCreateEventOnEvents}
+            onCreateInitiallyHandled={acknowledgeInitialEventCreate}
+          />
+        ) : page === 'messages' && user ? (
+          <Messaging user={user} />
+        ) : page === 'profile' && user ? (
+          <Profile user={user} onBack={() => navigateToAccountHome()} />
+        ) : page === 'settings' && user ? (
+          <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
+        ) : (
+          <main>
+            <Hero onProjectClick={handleProjectClick} onCreateEventClick={handleCreateEventClick} />
+            <EventExamples />
+          </main>
+        )}
+      </Suspense>
       <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); handleProviderSpaceClick(); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
       {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
