@@ -116,9 +116,34 @@ export async function initializeDatabase() {
 			WHERE EXISTS (SELECT 1 FROM prestataire WHERE prestataire.utilisateur_id = utilisateur.id)
 			AND NOT EXISTS (SELECT 1 FROM client WHERE client.utilisateur_id = utilisateur.id)`);
 	}
+	if (!userColumns.includes('public_key')) {
+		sqlite.exec('ALTER TABLE utilisateur ADD COLUMN public_key TEXT');
+	}
 	sqlite.exec(`UPDATE utilisateur SET type_utilisateur = 'prestataire'
 		WHERE type_utilisateur <> 'prestataire'
 		AND EXISTS (SELECT 1 FROM prestataire WHERE prestataire.utilisateur_id = utilisateur.id)`);
+
+	// Migration vers le nouveau système de conversation
+	const convColumns = sqlite.prepare('PRAGMA table_info(conversation)').all().map((column) => column.name);
+	if (convColumns.includes('client_id')) {
+		sqlite.exec(`CREATE TABLE IF NOT EXISTS conversation_participant (
+			conversation_id INTEGER NOT NULL,
+			utilisateur_id INTEGER NOT NULL,
+			date_jointure TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (conversation_id, utilisateur_id),
+			FOREIGN KEY (conversation_id) REFERENCES conversation(id) ON DELETE CASCADE,
+			FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id) ON DELETE CASCADE
+		)`);
+
+		sqlite.exec(`INSERT INTO conversation_participant (conversation_id, utilisateur_id)
+			SELECT id, client_id FROM conversation`);
+		sqlite.exec(`INSERT INTO conversation_participant (conversation_id, utilisateur_id)
+			SELECT id, prestataire_id FROM conversation`);
+
+		// Note: On ne peut pas supprimer les colonnes client_id/prestataire_id facilement en SQLite sans recréer la table,
+		// mais on va ignorer ces colonnes dans le code et utiliser conversation_participant.
+	}
+
 	const duplicateTelephone = sqlite.prepare(`SELECT 1 FROM utilisateur
 		WHERE telephone IS NOT NULL GROUP BY telephone HAVING COUNT(*) > 1 LIMIT 1`).get();
 	if (duplicateTelephone) {

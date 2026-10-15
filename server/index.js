@@ -707,46 +707,104 @@ app.delete('/api/me/tasks/:taskId', authUser, async (request, response) => {
   response.status(204).end();
 });
 
+app.get('/api/me/public-key', authUser, async (request, response) => {
+  const user = await db.prepare('SELECT public_key FROM utilisateur WHERE id = ?').get(request.userId);
+  response.json({ publicKey: user?.public_key || null });
+});
+
+app.put('/api/me/public-key', authUser, async (request, response) => {
+  const { publicKey } = request.body;
+  if (typeof publicKey !== 'string' || !publicKey.trim()) {
+    return response.status(400).json({ error: 'La clé publique est requise.' });
+  }
+  await db.prepare('UPDATE utilisateur SET public_key = ? WHERE id = ?').run(publicKey.trim(), request.userId);
+  response.status(204).end();
+});
+
+app.get('/api/users/:id/public-key', authUser, async (request, response) => {
+  const userId = Number(request.params.id);
+  if (!Number.isInteger(userId)) return response.status(400).json({ error: 'ID utilisateur invalide.' });
+  const user = await db.prepare('SELECT public_key FROM utilisateur WHERE id = ?').get(userId);
+  if (!user) return response.status(404).json({ error: 'Utilisateur introuvable.' });
+  response.json({ publicKey: user.public_key });
+});
+
+app.get('/api/users/search', authUser, async (request, response) => {
+  const search = String(request.query.q || '').trim();
+  if (search.length < 2) return response.status(400).json({ error: 'La recherche doit contenir au moins 2 caractères.' });
+  const searchPattern = `%${search}%`;
+  const users = await db.prepare(`
+    SELECT u.id, u.prenom, u.nom, u.type_utilisateur AS typeUtilisateur,
+           COALESCE(p.nom_entreprise, '') AS raisonSociale
+    FROM utilisateur u
+    LEFT JOIN prestataire p ON p.utilisateur_id = u.id
+    WHERE u.id <> ?
+      AND (LOWER(u.prenom) LIKE LOWER(?) OR LOWER(u.nom) LIKE LOWER(?) OR LOWER(p.nom_entreprise) LIKE LOWER(?))
+    ORDER BY u.nom COLLATE NOCASE LIMIT 20
+  `).all(request.userId, searchPattern, searchPattern, searchPattern);
+  response.json(users);
+});
+
 app.get('/api/me/conversations', authUser, async (request, response) => {
   if (!await isClient(request.userId) && !await isProvider(request.userId)) {
     return response.status(403).json({ error: 'Type de compte non autorisé.' });
   }
-  response.json(await db.prepare(`SELECT c.id,
-    CASE WHEN c.client_id = ? THEN c.prestataire_id ELSE c.client_id END AS "correspondantId",
-    CASE WHEN c.client_id = ? THEN COALESCE(p.nom_entreprise, TRIM(COALESCE(u.prenom, '') || ' ' || u.nom))
-      ELSE TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) END AS "correspondant",
-    (SELECT m.contenu FROM message m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS "dernierMessage",
-    (SELECT m.date_creation FROM message m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS "dateDernierMessage"
-    FROM conversation c
-    JOIN utilisateur u ON u.id = CASE WHEN c.client_id = ? THEN c.prestataire_id ELSE c.client_id END
+  response.json(await db.prepare(`
+    SELECT c.id,
+           u.id AS "correspondantId",
+           CASE WHEN p.nom_entreprise IS NOT NULL THEN p.nom_entreprise ELSE TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) END AS "correspondant",
+           (SELECT m.contenu FROM message m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS "dernierMessage",
+           (SELECT m.date_creation FROM message m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS "dateDernierMessage"
+    FROM conversation_participant cp1
+    JOIN conversation c ON cp1.conversation_id = c.id
+    JOIN conversation_participant cp2 ON cp2.conversation_id = c.id AND cp2.utilisateur_id <> cp1.utilisateur_id
+    JOIN utilisateur u ON cp2.utilisateur_id = u.id
     LEFT JOIN prestataire p ON p.utilisateur_id = u.id
-    WHERE c.client_id = ? OR c.prestataire_id = ?
-    ORDER BY COALESCE((SELECT MAX(m.id) FROM message m WHERE m.conversation_id = c.id), c.id) DESC`)
-    .all(request.userId, request.userId, request.userId, request.userId, request.userId));
+    WHERE cp1.utilisateur_id = ?
+    ORDER BY COALESCE((SELECT MAX(m.id) FROM message m WHERE m.conversation_id = c.id), c.id) DESC
+  `).all(request.userId));
 });
 
 app.post('/api/me/conversations', authUser, async (request, response) => {
-  if (!await isClient(request.userId)) return response.status(403).json({ error: 'Seul un client peut démarrer une conversation.' });
-  const prestataireId = Number(request.body.prestataireId);
-  if (!Number.isInteger(prestataireId) || !await isProvider(prestataireId)) {
-    return response.status(404).json({ error: 'Prestataire introuvable.' });
+  const targetUserId = Number(request.body.targetUserId);
+  if (!Number.isInteger(targetUserId) || targetUserId === request.userId) {
+    return response.status(400).json({ error: 'ID utilisateur cible invalide.' });
   }
-  const conversation = db.transaction(async () => {
-    await db.prepare('INSERT OR IGNORE INTO conversation (client_id, prestataire_id) VALUES (?, ?)')
-      .run(request.userId, prestataireId);
-    return db.prepare('SELECT id FROM conversation WHERE client_id = ? AND prestataire_id = ?')
-      .get(request.userId, prestataireId);
+  if (!await db.prepare('SELECT id FROM utilisateur WHERE id = ?').get(targetUserId)) {
+    return response.status(404).json({ error: 'Utilisateur introuvable.' });
+  }
+
+  const result = await db.transaction(async () => {
+    let conversationId = await db.prepare(`
+      SELECT c.id FROM conversation c
+      JOIN conversation_participant cp1 ON cp1.conversation_id = c.id
+      JOIN conversation_participant cp2 ON cp2.conversation_id = c.id
+      WHERE cp1.utilisateur_id = ? AND cp2.utilisateur_id = ?
+    `).get(request.userId, targetUserId);
+
+    if (!conversationId) {
+      const conv = await db.prepare('INSERT INTO conversation (date_creation) VALUES (CURRENT_TIMESTAMP) RETURNING id').get();
+      conversationId = conv.id;
+      await db.prepare('INSERT INTO conversation_participant (conversation_id, utilisateur_id) VALUES (?, ?)').run(conversationId, request.userId);
+      await db.prepare('INSERT INTO conversation_participant (conversation_id, utilisateur_id) VALUES (?, ?)').run(conversationId, targetUserId);
+    }
+    return conversationId;
   });
-  response.status(201).json(await conversation());
+
+  response.status(201).json({ id: result });
 });
 
 app.get('/api/me/conversations/:conversationId/messages', authUser, async (request, response) => {
   const conversationId = Number(request.params.conversationId);
-  const conversation = await db.prepare(`SELECT id FROM conversation WHERE id = ?
-    AND (client_id = ? OR prestataire_id = ?)`).get(conversationId, request.userId, request.userId);
-  if (!conversation) return response.status(404).json({ error: 'Conversation introuvable.' });
+  const isParticipant = await db.prepare(`
+    SELECT 1 FROM conversation_participant WHERE conversation_id = ? AND utilisateur_id = ?
+  `).get(conversationId, request.userId);
+
+  if (!isParticipant) return response.status(403).json({ error: 'Accès non autorisé à cette conversation.' });
+
   await db.prepare(`UPDATE message SET lu_le = CURRENT_TIMESTAMP
     WHERE conversation_id = ? AND expediteur_id <> ? AND lu_le IS NULL`).run(conversationId, request.userId);
+
   response.json(await db.prepare(`SELECT id, expediteur_id AS "expediteurId", contenu, date_creation AS "dateCreation"
     FROM message WHERE conversation_id = ? ORDER BY id`).all(conversationId));
 });
@@ -757,9 +815,13 @@ app.post('/api/me/conversations/:conversationId/messages', authUser, async (requ
   if (!Number.isInteger(conversationId) || !contenu || contenu.length > 4000) {
     return response.status(400).json({ error: 'Le message doit contenir entre 1 et 4 000 caractères.' });
   }
-  const conversation = await db.prepare(`SELECT id FROM conversation WHERE id = ?
-    AND (client_id = ? OR prestataire_id = ?)`).get(conversationId, request.userId, request.userId);
-  if (!conversation) return response.status(404).json({ error: 'Conversation introuvable.' });
+
+  const isParticipant = await db.prepare(`
+    SELECT 1 FROM conversation_participant WHERE conversation_id = ? AND utilisateur_id = ?
+  `).get(conversationId, request.userId);
+
+  if (!isParticipant) return response.status(403).json({ error: 'Accès non autorisé à cette conversation.' });
+
   const message = await db.prepare(`INSERT INTO message (conversation_id, expediteur_id, contenu)
     VALUES (?, ?, ?) RETURNING id`).get(conversationId, request.userId, contenu);
   response.status(201).json({ id: Number(message.id) });

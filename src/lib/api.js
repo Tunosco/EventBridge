@@ -148,11 +148,11 @@ export function getConversations() {
   return request('/me/conversations', { headers: authHeaders() });
 }
 
-export function createConversation(prestataireId) {
+export function createConversation(targetUserId) {
   return request('/me/conversations', {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ prestataireId }),
+    body: JSON.stringify({ targetUserId }),
   });
 }
 
@@ -167,3 +167,24 @@ export function sendConversationMessage(conversationId, contenu) {
     body: JSON.stringify({ contenu }),
   });
 }
+
+export function searchUsers(query) {
+  return request(`/users/search?q=${encodeURIComponent(query)}`, { headers: authHeaders() });
+}
+
+export function getUserPublicKey(userId) {
+  return request(`/users/${userId}/public-key`, { headers: authHeaders() });
+}
+
+export function updateMyPublicKey(publicKey) {
+  return request('/me/public-key', {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ publicKey }),
+  });
+}
+
+export function getMyPublicKey() {
+  return request('/me/public-key', { headers: authHeaders() });
+}
+

@@ -3,21 +3,25 @@ import {
   createConversation,
   getConversationMessages,
   getConversations,
-  searchProviders,
   sendConversationMessage,
+  searchUsers,
+  getUserPublicKey,
+  updateMyPublicKey,
 } from '../lib/api';
 import { formatDateTime } from '../lib/dateFormat';
+import { initUserSecurity, encryptMessage, decryptMessage } from '../lib/crypto';
 
 export default function Messaging({ user }) {
   const [conversations, setConversations] = useState([]);
-  const [providers, setProviders] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
-  const [providerId, setProviderId] = useState('');
+  const [targetUserId, setTargetUserId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const isClient = user?.typeUtilisateur === 'client';
+  const [privateKey, setPrivateKey] = useState(null);
 
   const loadConversations = async () => {
     const result = await getConversations();
@@ -27,47 +31,85 @@ export default function Messaging({ user }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      getConversations(),
-      isClient ? searchProviders('', false) : Promise.resolve([]),
-    ])
-      .then(([threads, providerList]) => {
-        if (!active) return;
-        setConversations(threads);
-        setActiveId(threads[0]?.id || null);
-        setProviders(providerList);
-      })
-      .catch((loadError) => { if (active) setError(loadError.message); })
-      .finally(() => { if (active) setLoading(false); });
+    async function setup() {
+      try {
+        setLoading(true);
+        // Initialisation de la sécurité (Génération/Récupération des clés RSA)
+        const key = await initUserSecurity(user.id, async (pk) => {
+          await updateMyPublicKey(pk);
+        });
+        if (active) setPrivateKey(key);
+        await loadConversations();
+      } catch (err) {
+        if (active) setError('Erreur d\'initialisation de la sécurité : ' + err.message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    setup();
     return () => { active = false; };
-  }, [isClient]);
+  }, [user.id]);
 
   useEffect(() => {
     if (!activeId) {
       setMessages([]);
-      return undefined;
+      return;
     }
     let active = true;
-    const loadMessages = () => getConversationMessages(activeId)
-      .then((result) => { if (active) setMessages(result); })
-      .catch((loadError) => { if (active) setError(loadError.message); });
+    const loadMessages = async () => {
+      try {
+        const encryptedMessages = await getConversationMessages(activeId);
+        if (!active) return;
+
+        // Déchiffrement des messages avec la clé privée locale
+        const decryptedMessages = await Promise.all(
+          encryptedMessages.map(async (m) => {
+            try {
+              const text = m.expediteurId === user.id
+                ? m.contenu
+                : await decryptMessage(privateKey, m.contenu);
+              return { ...m, contenu: text };
+            } catch (e) {
+              return { ...m, contenu: '[Message chiffré illisible]' };
+            }
+          })
+        );
+        setMessages(decryptedMessages);
+      } catch (err) {
+        if (active) setError(err.message);
+      }
+    };
+
     loadMessages();
     const timer = window.setInterval(loadMessages, 5000);
     return () => {
       active = false;
       window.clearInterval(timer);
     };
-  }, [activeId]);
+  }, [activeId, privateKey, user.id]);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (searchQuery.length < 2) return;
+    try {
+      const results = await searchUsers(searchQuery);
+      setSearchResults(results);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   const startConversation = async (event) => {
     event.preventDefault();
-    if (!providerId) return;
+    if (!targetUserId) return;
     setError('');
     try {
-      const conversation = await createConversation(Number(providerId));
+      const conversation = await createConversation(Number(targetUserId));
       await loadConversations();
       setActiveId(conversation.id);
-      setProviderId('');
+      setTargetUserId('');
+      setSearchQuery('');
+      setSearchResults([]);
     } catch (startError) {
       setError(startError.message);
     }
@@ -78,9 +120,31 @@ export default function Messaging({ user }) {
     if (!activeId || !draft.trim()) return;
     setError('');
     try {
-      await sendConversationMessage(activeId, draft);
+      const activeConv = conversations.find(c => c.id === activeId);
+      const recipientId = activeConv.correspondantId;
+
+      // 1. Récupération de la clé publique du destinataire
+      const { publicKey } = await getUserPublicKey(recipientId);
+      if (!publicKey) throw new Error('Le destinataire n\'a pas de clé publique configurée.');
+
+      // 2. Chiffrement du message
+      const encryptedText = await encryptMessage(publicKey, draft);
+
+      // 3. Envoi du texte chiffré
+      await sendConversationMessage(activeId, encryptedText);
       setDraft('');
-      setMessages(await getConversationMessages(activeId));
+
+      // Rafraîchissement immédiat
+      const messagesData = await getConversationMessages(activeId);
+      const decrypted = await Promise.all(
+        messagesData.map(async (m) => {
+          try {
+            const text = m.expediteurId === user.id ? draft : await decryptMessage(privateKey, m.contenu);
+            return { ...m, contenu: text };
+          } catch { return m; }
+        })
+      );
+      setMessages(decrypted);
       await loadConversations();
     } catch (sendError) {
       setError(sendError.message);
@@ -92,14 +156,48 @@ export default function Messaging({ user }) {
     <main className="messaging-page">
       <div className="messaging-heading"><span className="kicker">Vos échanges</span><h1>Messagerie</h1></div>
       {error && <p className="form-error" role="alert">{error}</p>}
-      {isClient && <form className="message-start-form" onSubmit={startConversation}>
-        <label htmlFor="message-provider">Contacter un prestataire</label>
-        <select id="message-provider" value={providerId} onChange={(event) => setProviderId(event.target.value)}>
-          <option value="">Choisir un prestataire…</option>
-          {providers.map((provider) => <option value={provider.id} key={provider.id}>{provider.raisonSociale}</option>)}
-        </select>
-        <button className="button button-primary" type="submit" disabled={!providerId}>Nouvelle conversation</button>
-      </form>}
+
+      <form className="message-start-form" onSubmit={handleSearch}>
+        <label htmlFor="message-search">Rechercher un utilisateur</label>
+        <div className="search-group">
+          <input
+            id="message-search"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Nom, prénom ou entreprise..."
+            required
+          />
+          <button className="button button-primary" type="submit">Rechercher</button>
+        </div>
+
+        {searchResults.length > 0 && (
+          <ul className="search-results-list">
+            {searchResults.map((u) => (
+              <li key={u.id}>
+                <button
+                  type="button"
+                  className="result-item"
+                  onClick={() => {
+                    setTargetUserId(u.id);
+                    setSearchQuery(`${u.raisonSociale || u.prenom + ' ' + u.nom}`);
+                  }}
+                >
+                  <strong>{u.raisonSociale || u.prenom + ' ' + u.nom}</strong>
+                  <span>{u.typeUtilisateur === 'prestataire' ? 'Prestataire' : 'Client'}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {targetUserId && (
+          <button className="button button-primary" type="submit" onClick={startConversation}>
+            Démarrer la conversation avec {searchResults.find(u => u.id === Number(targetUserId))?.raisonSociale || 'cet utilisateur'}
+          </button>
+        )}
+      </form>
+
       <div className="messaging-layout">
         <aside className="conversation-list" aria-label="Conversations">
           {loading ? <p>Chargement…</p> : conversations.length ? conversations.map((conversation) => (
@@ -123,7 +221,7 @@ export default function Messaging({ user }) {
             </form>
           </> : <p className="provider-dashboard-empty">{loading ? 'Chargement des conversations…' : 'Sélectionnez une conversation pour afficher les messages.'}</p>}
         </section>
-      </div>
+      </div >
     </main>
   );
 }
