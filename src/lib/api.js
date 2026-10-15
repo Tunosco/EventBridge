@@ -27,20 +27,13 @@ export function completeEmailConfirmation(accessToken) {
 }
 
 export function getCurrentUser() {
-  const token = localStorage.getItem('eventbridge_token');
-  if (!token) return Promise.resolve(null);
-  return request('/me', { headers: { Authorization: `Bearer ${token}` } })
+  return request('/me', { credentials: 'include' })
     .then((result) => result.user)
-    .catch(() => {
-      if (localStorage.getItem('eventbridge_token') === token) {
-        localStorage.removeItem('eventbridge_token');
-      }
-      return null;
-    });
+    .catch(() => null);
 }
 
 function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem('eventbridge_token')}` };
+  return {}; // Plus besoin de Bearer token manuel, le cookie est envoyé automatiquement
 }
 
 export function updateCurrentUser(payload) {

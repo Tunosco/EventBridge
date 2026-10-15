@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { createAdminClient, createContextClient } from '@supabase/server/core';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import { db, initializeDatabase } from './db.js';
 
@@ -12,8 +13,34 @@ const sessions = new Map();
 const supabaseAuthEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
 const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
+
+const VALIDATION_LIMITS = {
+  name: 100,
+  email: 255,
+  phone: 40,
+  zip: 20,
+  website: 500,
+  address: 500,
+  description: 4000,
+  businessName: 180,
+  siret: 14,
+  taskTitle: 160,
+};
+
+function validateLength(body, limits) {
+  for (const [field, value] of Object.entries(body)) {
+    if (typeof value === 'string' && limits[field] && value.length > limits[field]) {
+      return { error: `Le champ ${field} est trop long (max ${limits[field]} caractères).` };
+    }
+  }
+  return null;
+}
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -29,17 +56,32 @@ function verifyPassword(password, storedHash) {
 
 function createSession(userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, userId);
+  const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24h
+  sessions.set(token, { userId, expiresAt });
   return token;
 }
 
 function authUser(request, response, next) {
-  const token = request.headers.authorization?.replace('Bearer ', '');
-  const userId = token && sessions.get(token);
-  if (!userId) return response.status(401).json({ error: 'Authentification requise.' });
-  request.userId = userId;
+  const token = request.cookies?.eventbridge_token || request.headers.authorization?.replace('Bearer ', '');
+  const session = token && sessions.get(token);
+
+  if (!session) return response.status(401).json({ error: 'Authentification requise.' });
+  if (Date.now() > session.expiresAt) {
+    sessions.delete(token);
+    return response.status(401).json({ error: 'Session expirée.' });
+  }
+
+  request.userId = session.userId;
   next();
 }
+
+// Nettoyage périodique des sessions expirées
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of sessions.entries()) {
+    if (now > session.expiresAt) sessions.delete(token);
+  }
+}, 60 * 60 * 1000);
 
 async function getUserProfile(userId) {
   const providerProfile = await db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(userId);
@@ -244,7 +286,14 @@ app.post('/api/auth/login', async (request, response) => {
     return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
   }
   await recordUserLogin(user.id);
-  response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
+  const token = createSession(user.id);
+  response.cookie('eventbridge_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Strict',
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+  response.json({ token, user: await getUserProfile(user.id) });
 });
 
 app.post('/api/auth/confirm', async (request, response) => {
@@ -285,6 +334,16 @@ app.get('/api/me/provider-profile', authUser, async (request, response) => {
 app.put('/api/me/provider-profile', authUser, async (request, response) => {
   if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
   const { raisonSociale, siret, siteWeb, adressePostale, description, banniereUrl, photoUrl } = request.body;
+
+  const validation = validateLength({ raisonSociale, siret, siteWeb, adressePostale, description }, {
+    raisonSociale: VALIDATION_LIMITS.businessName,
+    siret: VALIDATION_LIMITS.siret,
+    siteWeb: VALIDATION_LIMITS.website,
+    adressePostale: VALIDATION_LIMITS.address,
+    description: VALIDATION_LIMITS.description,
+  });
+  if (validation) return response.status(400).json(validation);
+
   if (!raisonSociale?.trim()) return response.status(400).json({ error: 'La raison sociale est requise pour publier le profil.' });
   await db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, siret, site_web, adresse_postale, description, banniere_url, photo_url)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -324,6 +383,16 @@ app.delete('/api/me/favorite-providers/:providerId', authUser, async (request, r
 
 app.put('/api/me', authUser, async (request, response) => {
   const { prenom, nom, email, telephone, codePostal } = request.body;
+
+  const validation = validateLength({ prenom, nom, email, telephone, codePostal }, {
+    prenom: VALIDATION_LIMITS.name,
+    nom: VALIDATION_LIMITS.name,
+    email: VALIDATION_LIMITS.email,
+    telephone: VALIDATION_LIMITS.phone,
+    codePostal: VALIDATION_LIMITS.zip
+  });
+  if (validation) return response.status(400).json(validation);
+
   if (!prenom?.trim() || !nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le prénom, le nom et l’adresse email sont requis.' });
 
   try {
@@ -670,6 +739,13 @@ app.get('/api/me/tasks', authUser, async (request, response) => {
 app.post('/api/me/tasks', authUser, async (request, response) => {
   if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
   const { titre, description, dateEcheance } = request.body;
+
+  const validation = validateLength({ titre, description }, {
+    titre: VALIDATION_LIMITS.taskTitle,
+    description: VALIDATION_LIMITS.description,
+  });
+  if (validation) return response.status(400).json(validation);
+
   if (typeof titre !== 'string' || !titre.trim() || titre.trim().length > 160) {
     return response.status(400).json({ error: 'Le titre de la tâche est requis (160 caractères maximum).' });
   }
