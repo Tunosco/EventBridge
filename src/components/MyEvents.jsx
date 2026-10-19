@@ -3,6 +3,7 @@ import ProviderFinder from './ProviderFinder';
 import { createEvent, getEventTypes, getMyEvents, updateEvent, updateEventProviders } from '../lib/api';
 import { formatDate } from '../lib/dateFormat';
 import DateInput from './DateInput';
+import { useTranslation } from '../lib/i18n';
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -23,7 +24,6 @@ function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
 const eventFormDefaults = {
   titre: '',
   typeEvenementId: '',
@@ -36,41 +36,41 @@ const eventFormDefaults = {
   prestatairesIds: [],
 };
 
-function formatEventPeriod(event) {
+function formatEventPeriod(event, locale) {
   const endDate = event.parsedEndDate || event.parsedDate;
-  const startLabel = formatDate(event.parsedDate);
+  const startLabel = formatDate(event.parsedDate, locale);
   return dateKey(event.parsedDate) === dateKey(endDate)
     ? startLabel
-    : `${startLabel} – ${formatDate(endDate)}`;
+    : `${startLabel} – ${formatDate(endDate, locale)}`;
 }
 
-function EventSummary({ event, isPast = false, onManageProviders, onEdit }) {
+function EventSummary({ event, isPast = false, onManageProviders, onEdit, locale, translateText }) {
   const endDate = event.parsedEndDate || event.parsedDate;
   const isMultiDay = dateKey(endDate) !== dateKey(event.parsedDate);
   return (
     <article className={`event-summary-card${isPast ? ' is-past' : ''}`}>
       <time className="event-summary-date" dateTime={dateKey(event.parsedDate)}>
-        <strong>{formatDate(event.parsedDate)}</strong>
-        {isMultiDay && <span className="event-summary-end-date">au {formatDate(endDate)}</span>}
+        <strong>{formatDate(event.parsedDate, locale)}</strong>
+        {isMultiDay && <span className="event-summary-end-date">{translateText('au')} {formatDate(endDate, locale)}</span>}
       </time>
       <div className="event-summary-body">
-        <span className="event-summary-type">{event.typeEvenement || 'Événement'}</span>
+        <span className="event-summary-type">{translateText(event.typeEvenement || 'Événement')}</span>
         <h3>{event.titre}</h3>
         {event.description && <p>{event.description}</p>}
         <div className="event-summary-details">
           {event.lieu && <span>{event.lieu}</span>}
           {event.lieuxSecondaires?.length > 0 && <span>+ {event.lieuxSecondaires.join(', ')}</span>}
-          {event.nombreInvites && <span>{event.nombreInvites} invités</span>}
-          {event.budget !== null && event.budget !== undefined && <span>Budget {Number(event.budget).toLocaleString('fr-FR')} €</span>}
+          {event.nombreInvites && <span>{event.nombreInvites} {translateText('invités')}</span>}
+          {event.budget !== null && event.budget !== undefined && <span>{translateText('Budget')} {Number(event.budget).toLocaleString(locale)} €</span>}
         </div>
         {event.prestataires?.length > 0 && <div className="event-linked-providers">
-          <span className="event-linked-providers-label">Prestataires</span>
+          <span className="event-linked-providers-label">{translateText('Prestataires')}</span>
           {event.prestataires.map((provider) => <span className="event-linked-provider" key={provider.id}>{provider.raisonSociale}</span>)}
         </div>}
         <div className="event-summary-actions">
-          <button className="event-provider-manage" type="button" onClick={onEdit}>Modifier l’événement</button>
+          <button className="event-provider-manage" type="button" onClick={onEdit}>{translateText('Modifier l’événement')}</button>
           <button className="event-provider-manage" type="button" onClick={onManageProviders}>
-            {event.prestataires?.length ? 'Gérer les prestataires' : 'Ajouter des prestataires'}
+            {translateText(event.prestataires?.length ? 'Gérer les prestataires' : 'Ajouter des prestataires')}
           </button>
         </div>
       </div>
@@ -78,7 +78,9 @@ function EventSummary({ event, isPast = false, onManageProviders, onEdit }) {
   );
 }
 
-export default function MyEvents({ onBack, openCreateInitially = false, onCreateInitiallyHandled }) {
+export default function MyEvents({ onBack, openCreateInitially = false, initialDate = '', onCreateInitiallyHandled }) {
+  const { locale, translateText } = useTranslation();
+  const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -226,9 +228,9 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
     setSelectedProviderIds((event.prestataires || []).map((provider) => provider.id));
     setProviderSaveError('');
   };
-  const openCreateForm = useCallback(() => {
+  const openCreateForm = useCallback((eventDate = '') => {
     setEditingEvent(null);
-    setEventForm({ ...eventFormDefaults, lieuxSecondaires: [] });
+    setEventForm({ ...eventFormDefaults, dateDebut: eventDate, dateFin: eventDate, lieuxSecondaires: [] });
     setSecondaryLocationDraft('');
     setFormError('');
     setShowCreateForm(true);
@@ -236,7 +238,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
   useEffect(() => {
     if (!openCreateInitially || initialCreateHandled.current) return;
     initialCreateHandled.current = true;
-    openCreateForm();
+    openCreateForm(initialDate);
     onCreateInitiallyHandled?.();
   }, [openCreateInitially, onCreateInitiallyHandled, openCreateForm]);
   const openEditForm = (event) => {
@@ -303,91 +305,91 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
   return (
     <main className="my-events-page">
       <div className="my-events-layout">
-        <aside className="my-events-sidebar" aria-label="Navigation de vos événements">
+        <aside className="my-events-sidebar" aria-label={translateText('Navigation de vos événements')}>
           <div className="my-events-sidebar-heading">
-            <span className="summary-label">Votre agenda</span>
-            <strong>{loading ? '…' : `${upcomingEvents.length} à venir`}</strong>
+            <span className="summary-label">{translateText('Votre agenda')}</span>
+            <strong>{loading ? '…' : `${upcomingEvents.length} ${translateText('à venir')}`}</strong>
           </div>
-          <nav className="my-events-side-nav" aria-label="Vues des événements">
-            <button type="button" className={view === 'overview' ? 'is-active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => setView('overview')}>Vue d’ensemble</button>
-            <button type="button" className={view === 'calendar' ? 'is-active' : ''} aria-current={view === 'calendar' ? 'page' : undefined} onClick={() => setView('calendar')}>Calendrier</button>
+          <nav className="my-events-side-nav" aria-label={translateText('Vues des événements')}>
+            <button type="button" className={view === 'overview' ? 'is-active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => setView('overview')}>{translateText('Vue d’ensemble')}</button>
+            <button type="button" className={view === 'calendar' ? 'is-active' : ''} aria-current={view === 'calendar' ? 'page' : undefined} onClick={() => setView('calendar')}>{translateText('Calendrier')}</button>
           </nav>
           <section className="my-events-sidebar-list" aria-labelledby="sidebar-upcoming-title">
             <div className="my-events-sidebar-list-heading">
-              <h2 id="sidebar-upcoming-title">Prochains événements</h2>
+              <h2 id="sidebar-upcoming-title">{translateText('Prochains événements')}</h2>
               <span>{upcomingEvents.length}</span>
             </div>
-            {loading ? <p className="sidebar-empty">Chargement…</p> : upcomingEvents.length ? (
+            {loading ? <p className="sidebar-empty">{translateText('Chargement…')}</p> : upcomingEvents.length ? (
               <div className="sidebar-event-list">
                 {upcomingEvents.map((event) => (
                   <button className="sidebar-event" type="button" key={event.id} onClick={() => openEventInCalendar(event)}>
                     <time dateTime={dateKey(event.parsedDate)}>
-                      <strong>{formatDate(event.parsedDate)}</strong>
+                      <strong>{formatDate(event.parsedDate, locale)}</strong>
                     </time>
                     <span className="sidebar-event-copy">
                       <strong>{event.titre}</strong>
-                      <small>{formatEventPeriod(event)}</small>
+                      <small>{formatEventPeriod(event, locale)}</small>
                     </span>
                   </button>
                 ))}
               </div>
-            ) : <p className="sidebar-empty">Aucun événement à venir.</p>}
+            ) : <p className="sidebar-empty">{translateText('Aucun événement à venir.')}</p>}
           </section>
         </aside>
 
         <div className="my-events-content">
           <div className="my-events-heading">
-            <button className="text-link my-events-back" onClick={onBack}>Retour à l’accueil</button>
+            <button className="text-link my-events-back" onClick={onBack}>{translateText('Retour à l’accueil')}</button>
             <div className="my-events-title-row">
               <div>
-                <h1>Mes événements</h1>
-                <p>{view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.'}</p>
+                <h1>{translateText('Mes événements')}</h1>
+                <p>{translateText(view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.')}</p>
               </div>
-              <button className="button button-primary create-event-button" type="button" onClick={openCreateForm}>Créer un événement</button>
+              <button className="button button-primary create-event-button" type="button" onClick={() => openCreateForm(initialDate)}>{translateText('Créer un événement')}</button>
             </div>
           </div>
 
           {error && <div className="my-events-error" role="alert">
-            <p>{error}</p>
-            <button className="text-link" onClick={() => setReload((value) => value + 1)}>Réessayer</button>
+            <p>{translateText(error)}</p>
+            <button className="text-link" onClick={() => setReload((value) => value + 1)}>{translateText('Réessayer')}</button>
           </div>}
 
           {view === 'overview' ? (
             <div className="event-overview">
               <section className="event-summary-section" aria-labelledby="future-events-title">
                 <div className="event-summary-section-heading">
-                  <div><span className="summary-label">À venir</span><h2 id="future-events-title">Futurs événements</h2></div>
+                  <div><span className="summary-label">{translateText('À venir')}</span><h2 id="future-events-title">{translateText('Futurs événements')}</h2></div>
                   <span className="event-section-count">{upcomingEvents.length}</span>
                 </div>
-                {loading ? <p className="event-list-empty">Chargement des événements…</p> : upcomingEvents.length ? (
-                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
-                ) : <p className="event-list-empty">Aucun événement futur pour le moment.</p>}
+                {loading ? <p className="event-list-empty">{translateText('Chargement des événements…')}</p> : upcomingEvents.length ? (
+                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} locale={locale} translateText={translateText} key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
+                ) : <p className="event-list-empty">{translateText('Aucun événement futur pour le moment.')}</p>}
               </section>
 
               <section className="event-summary-section past-events-section" aria-labelledby="past-events-title">
                 <div className="event-summary-section-heading">
-                  <div><span className="summary-label">Historique</span><h2 id="past-events-title">Événements passés</h2></div>
+                  <div><span className="summary-label">{translateText('Historique')}</span><h2 id="past-events-title">{translateText('Événements passés')}</h2></div>
                   <span className="event-section-count">{pastEvents.length}</span>
                 </div>
-                {loading ? <p className="event-list-empty">Chargement de l’historique…</p> : pastEvents.length ? (
-                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} isPast key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
-                ) : <p className="event-list-empty">Vos événements passés apparaîtront ici.</p>}
+                {loading ? <p className="event-list-empty">{translateText('Chargement de l’historique…')}</p> : pastEvents.length ? (
+                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} locale={locale} translateText={translateText} isPast key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
+                ) : <p className="event-list-empty">{translateText('Vos événements passés apparaîtront ici.')}</p>}
               </section>
             </div>
           ) : (
-          <section className="events-calendar" aria-label="Calendrier des événements à venir">
+          <section className="events-calendar" aria-label={translateText('Calendrier des événements à venir')}>
         <div className="calendar-heading">
           <div>
-            <span className="summary-label">Calendrier</span>
+            <span className="summary-label">{translateText('Calendrier')}</span>
             <h2>{monthFormatter.format(visibleMonth)}</h2>
           </div>
           <div className="calendar-navigation">
-            <button type="button" aria-label="Mois précédent" title="Mois précédent" disabled={isCurrentMonth} onClick={() => changeMonth(-1)}>‹</button>
-            <button type="button" aria-label="Mois suivant" title="Mois suivant" onClick={() => changeMonth(1)}>›</button>
+            <button type="button" aria-label={translateText('Mois précédent')} title={translateText('Mois précédent')} disabled={isCurrentMonth} onClick={() => changeMonth(-1)}>‹</button>
+            <button type="button" aria-label={translateText('Mois suivant')} title={translateText('Mois suivant')} onClick={() => changeMonth(1)}>›</button>
           </div>
         </div>
 
-        {loading ? <p className="calendar-status">Chargement du calendrier…</p> : (
+        {loading ? <p className="calendar-status">{translateText('Chargement du calendrier…')}</p> : (
           <>
             <div className="calendar-grid calendar-weekdays" aria-hidden="true">
               {weekDays.map((day) => <span key={day}>{day}</span>)}
@@ -404,15 +406,15 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
                     type="button"
                     key={dateKey(date)}
                     className={`calendar-day${inMonth ? '' : ' is-outside'}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${dayEvents.length ? ' has-events' : ''}`}
-                    aria-label={`${formatDate(date)}${eventTitles ? ` : ${eventTitles}` : ''}`}
+                    aria-label={`${formatDate(date, locale)}${eventTitles ? ` : ${eventTitles}` : ''}`}
                     aria-pressed={isSelected}
                     disabled={!inMonth || startOfDay(date) < today}
                     onClick={() => changeSelectedDay(date)}
                   >
-                    <time className="calendar-day-number" dateTime={dateKey(date)} title={formatDate(date)}>{formatDate(date)}</time>
+                    <time className="calendar-day-number" dateTime={dateKey(date)} title={formatDate(date, locale)}>{formatDate(date, locale)}</time>
                     <span className="calendar-day-event-list" aria-hidden="true">
                       {dayEvents.slice(0, 2).map((event) => <span className="calendar-event-title" key={event.id}>{event.titre}</span>)}
-                      {dayEvents.length > 2 && <span className="calendar-event-more">+{dayEvents.length - 2} autres</span>}
+                      {dayEvents.length > 2 && <span className="calendar-event-more">+{dayEvents.length - 2} {translateText('autres')}</span>}
                       {dayEvents.length > 0 && <span className="calendar-event-dots">{dayEvents.slice(0, 3).map((event) => <i key={event.id} />)}</span>}
                     </span>
                   </button>
@@ -423,7 +425,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
         )}
 
         {!loading && <div className="selected-day-events" aria-live="polite">
-          <h3>{formatDate(parseEventDate(selectedDateKey) || new Date(`${selectedDateKey}T00:00:00`))}</h3>
+          <h3>{formatDate(parseEventDate(selectedDateKey) || new Date(`${selectedDateKey}T00:00:00`), locale)}</h3>
           {selectedEvents.length ? (
             <ul>{selectedEvents.map((event) => (
               <li key={event.id}>
@@ -431,7 +433,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
                 <div><strong>{event.titre}</strong><span>{[event.typeEvenement, event.lieu].filter(Boolean).join(' · ')}</span></div>
               </li>
             ))}</ul>
-          ) : <p>Aucun événement prévu à cette date.</p>}
+          ) : <p>{translateText('Aucun événement prévu à cette date.')}</p>}
         </div>}
           </section>
           )}
@@ -440,38 +442,38 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
       {showCreateForm && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingEvent) { setShowCreateForm(false); setEditingEvent(null); } }}>
         <section className="event-form-dialog" role="dialog" aria-modal="true" aria-labelledby="create-event-title">
           <div className="event-form-heading">
-            <div><span className="kicker">Votre projet</span><h2 id="create-event-title">{editingEvent ? 'Modifier l’événement' : 'Créer un événement'}</h2></div>
-            <button className="event-form-close" type="button" aria-label="Fermer" title="Fermer" disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>×</button>
+            <div><span className="kicker">{translateText('Votre projet')}</span><h2 id="create-event-title">{translateText(editingEvent ? 'Modifier l’événement' : 'Créer un événement')}</h2></div>
+            <button className="event-form-close" type="button" aria-label={translateText('Fermer')} title={translateText('Fermer')} disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>×</button>
           </div>
           <form className="event-creation-form" onSubmit={handleSaveEvent}>
-            <label>Titre<input name="titre" value={eventForm.titre} onChange={updateEventForm} required maxLength="120" placeholder="Ex. Mariage de Camille et Alex" /></label>
-            <label>Type d’événement<select name="typeEvenementId" value={eventForm.typeEvenementId} onChange={updateEventForm} required disabled={eventTypesLoading || eventTypes.length === 0}>
-              <option value="">{eventTypesLoading ? 'Chargement des types…' : 'Choisir un type'}</option>
-              {eventTypes.map((type) => <option key={type.id} value={type.id}>{type.libelle}</option>)}
+            <label>{translateText('Titre')}<input name="titre" value={eventForm.titre} onChange={updateEventForm} required maxLength="120" placeholder={translateText('Ex. Mariage de Camille et Alex')} /></label>
+            <label>{translateText('Type d’événement')}<select name="typeEvenementId" value={eventForm.typeEvenementId} onChange={updateEventForm} required disabled={eventTypesLoading || eventTypes.length === 0}>
+              <option value="">{translateText(eventTypesLoading ? 'Chargement des types…' : 'Choisir un type')}</option>
+              {eventTypes.map((type) => <option key={type.id} value={type.id}>{translateText(type.libelle)}</option>)}
             </select></label>
-            {eventTypesError && <p className="event-form-error" role="alert">{eventTypesError}</p>}
+            {eventTypesError && <p className="event-form-error" role="alert">{translateText(eventTypesError)}</p>}
             <div className="event-date-fields">
-              <label>Jour de début<DateInput aria-label="Jour de début" name="dateDebut" value={eventForm.dateDebut} onChange={(value) => updateEventForm({ target: { name: 'dateDebut', value } })} required /></label>
-              <label>Jour de fin<DateInput aria-label="Jour de fin" name="dateFin" value={eventForm.dateFin} min={eventForm.dateDebut || undefined} onChange={(value) => updateEventForm({ target: { name: 'dateFin', value } })} required /></label>
+              <label>{translateText('Jour de début')}<DateInput aria-label={translateText('Jour de début')} name="dateDebut" value={eventForm.dateDebut} onChange={(value) => updateEventForm({ target: { name: 'dateDebut', value } })} required /></label>
+              <label>{translateText('Jour de fin')}<DateInput aria-label={translateText('Jour de fin')} name="dateFin" value={eventForm.dateFin} min={eventForm.dateDebut || undefined} onChange={(value) => updateEventForm({ target: { name: 'dateFin', value } })} required /></label>
             </div>
-            <label>Emplacement principal<input name="lieu" value={eventForm.lieu} onChange={updateEventForm} required maxLength="180" placeholder="Ville ou lieu principal" /></label>
+            <label>{translateText('Emplacement principal')}<input name="lieu" value={eventForm.lieu} onChange={updateEventForm} required maxLength="180" placeholder={translateText('Ville ou lieu principal')} /></label>
             <div className="secondary-location-field">
-              <label htmlFor="secondary-location">Emplacements secondaires (facultatif)</label>
+              <label htmlFor="secondary-location">{translateText('Emplacements secondaires (facultatif)')}</label>
               <div className="secondary-location-add">
-                <input id="secondary-location" value={secondaryLocationDraft} onChange={(event) => setSecondaryLocationDraft(event.target.value)} maxLength="180" placeholder="Ajouter un autre lieu" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSecondaryLocation(); } }} />
-                <button className="button secondary-location-add-button" type="button" disabled={!secondaryLocationDraft.trim()} onClick={addSecondaryLocation}>Ajouter</button>
+                <input id="secondary-location" value={secondaryLocationDraft} onChange={(event) => setSecondaryLocationDraft(event.target.value)} maxLength="180" placeholder={translateText('Ajouter un autre lieu')} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSecondaryLocation(); } }} />
+                <button className="button secondary-location-add-button" type="button" disabled={!secondaryLocationDraft.trim()} onClick={addSecondaryLocation}>{translateText('Ajouter')}</button>
               </div>
               {eventForm.lieuxSecondaires.length > 0 && <ul className="secondary-location-list">
                 {eventForm.lieuxSecondaires.map((location, index) => <li key={`${location}-${index}`}>
                   <span>{location}</span>
-                  <button type="button" title={`Retirer ${location}`} aria-label={`Retirer ${location}`} onClick={() => removeSecondaryLocation(index)}>×</button>
+                  <button type="button" title={`${translateText('Retirer')} ${location}`} aria-label={`${translateText('Retirer')} ${location}`} onClick={() => removeSecondaryLocation(index)}>×</button>
                 </li>)}
               </ul>}
             </div>
-            <label>Description (facultatif)<textarea name="description" value={eventForm.description} onChange={updateEventForm} rows="4" maxLength="2000" placeholder="Décrivez votre projet et les détails utiles." /></label>
-            <label>Budget prévisionnel (€)<input className="event-budget-input" name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} onWheel={(event) => event.currentTarget.blur()} min="0" step="0.01" required placeholder="Ex. 5000" /></label>
+            <label>{translateText('Description (facultatif)')}<textarea name="description" value={eventForm.description} onChange={updateEventForm} rows="4" maxLength="2000" placeholder={translateText('Décrivez votre projet et les détails utiles.')} /></label>
+            <label>{translateText('Budget prévisionnel (€)')}<input className="event-budget-input" name="budget" type="number" value={eventForm.budget} onChange={updateEventForm} onWheel={(event) => event.currentTarget.blur()} min="0" step="0.01" required placeholder={translateText('Ex. 5000')} /></label>
             <section className="event-provider-picker" aria-labelledby="event-provider-picker-title">
-              <div><span className="summary-label">Équipe du projet</span><h3 id="event-provider-picker-title">Prestataires à associer</h3></div>
+              <div><span className="summary-label">{translateText('Équipe du projet')}</span><h3 id="event-provider-picker-title">{translateText('Prestataires à associer')}</h3></div>
               <ProviderFinder
                 selectionMode
                 selectedIds={eventForm.prestatairesIds}
@@ -479,10 +481,10 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
                 isAuthenticated
               />
             </section>
-            {formError && <p className="event-form-error" role="alert">{formError}</p>}
+            {formError && <p className="event-form-error" role="alert">{translateText(formError)}</p>}
             <div className="event-form-actions">
-              <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>Annuler</button>
-              <button className="button button-primary" type="submit" disabled={savingEvent || eventTypes.length === 0}>{savingEvent ? 'Enregistrement…' : editingEvent ? 'Enregistrer les modifications' : 'Enregistrer l’événement'}</button>
+              <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>{translateText('Annuler')}</button>
+              <button className="button button-primary" type="submit" disabled={savingEvent || eventTypes.length === 0}>{translateText(savingEvent ? 'Enregistrement…' : editingEvent ? 'Enregistrer les modifications' : 'Enregistrer l’événement')}</button>
             </div>
           </form>
         </section>
@@ -490,8 +492,8 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
       {managingEvent && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingProviders) setManagingEvent(null); }}>
         <section className="event-form-dialog provider-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="manage-event-providers-title">
           <div className="event-form-heading">
-            <div><span className="kicker">Prestataires associés</span><h2 id="manage-event-providers-title">{managingEvent.titre}</h2></div>
-            <button className="event-form-close" type="button" aria-label="Fermer" title="Fermer" disabled={savingProviders} onClick={() => setManagingEvent(null)}>×</button>
+            <div><span className="kicker">{translateText('Prestataires associés')}</span><h2 id="manage-event-providers-title">{managingEvent.titre}</h2></div>
+            <button className="event-form-close" type="button" aria-label={translateText('Fermer')} title={translateText('Fermer')} disabled={savingProviders} onClick={() => setManagingEvent(null)}>×</button>
           </div>
           <ProviderFinder
             selectionMode
@@ -499,10 +501,10 @@ export default function MyEvents({ onBack, openCreateInitially = false, onCreate
             onSelectionChange={setSelectedProviderIds}
             isAuthenticated
           />
-          {providerSaveError && <p className="event-form-error" role="alert">{providerSaveError}</p>}
+          {providerSaveError && <p className="event-form-error" role="alert">{translateText(providerSaveError)}</p>}
           <div className="event-form-actions">
-            <button className="event-form-cancel" type="button" disabled={savingProviders} onClick={() => setManagingEvent(null)}>Annuler</button>
-            <button className="button button-primary" type="button" disabled={savingProviders} onClick={saveEventProviders}>{savingProviders ? 'Enregistrement…' : 'Enregistrer les prestataires'}</button>
+            <button className="event-form-cancel" type="button" disabled={savingProviders} onClick={() => setManagingEvent(null)}>{translateText('Annuler')}</button>
+            <button className="button button-primary" type="button" disabled={savingProviders} onClick={saveEventProviders}>{translateText(savingProviders ? 'Enregistrement…' : 'Enregistrer les prestataires')}</button>
           </div>
         </section>
       </div>}

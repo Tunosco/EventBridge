@@ -3,6 +3,7 @@ import { createAvailability, deleteAvailability, getAvailability, resolveAvailab
 import { formatDate } from '../lib/dateFormat';
 import DateInput from './DateInput';
 import ProviderCalendar from './ProviderCalendar';
+import { useTranslation } from '../lib/i18n';
 
 const availabilityDefaults = { dateDebut: '', dateFin: '', statut: 'disponible' };
 
@@ -15,6 +16,7 @@ function findOverlappingAvailability(items, period, excludedId) {
 }
 
 export default function ProviderAvailability() {
+  const { locale, translateText } = useTranslation();
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(availabilityDefaults);
   const [editingId, setEditingId] = useState(null);
@@ -136,41 +138,40 @@ export default function ProviderAvailability() {
 
   return (
     <section className="provider-management-page">
-      <span className="kicker">Votre planning</span>
-      <h1>Mes disponibilités</h1>
-      <p>Indiquez les périodes pendant lesquelles vous pouvez accepter des prestations.</p>
+      <span className="kicker">{translateText('Votre planning')}</span>
+      <h1>{translateText('Mes disponibilités')}</h1>
+      <p>{translateText('Indiquez les périodes pendant lesquelles vous pouvez accepter des prestations.')}</p>
       <form className="provider-inline-form" onSubmit={handleSubmit}>
-        <label>Du<DateInput aria-label="Date de début" value={form.dateDebut} onChange={(value) => setForm((current) => ({ ...current, dateDebut: value, dateFin: current.dateFin && current.dateFin < value ? value : current.dateFin }))} required /></label>
-        <label>Au<DateInput aria-label="Date de fin" value={form.dateFin} min={form.dateDebut || undefined} onChange={(value) => setForm((current) => ({ ...current, dateFin: value }))} required /></label>
-        <label>Statut<select value={form.statut} onChange={(event) => setForm((current) => ({ ...current, statut: event.target.value }))}><option value="disponible">Disponible</option><option value="indisponible">Indisponible</option></select></label>
-        <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Enregistrement…' : editingId ? 'Enregistrer les modifications' : 'Ajouter la période'}</button>
-        {editingId && <button className="provider-availability-cancel" type="button" onClick={cancelEditing}>Annuler la modification</button>}
+        <label>{translateText('Du')}<DateInput aria-label={translateText('Date de début')} value={form.dateDebut} onChange={(value) => setForm((current) => ({ ...current, dateDebut: value, dateFin: current.dateFin && current.dateFin < value ? value : current.dateFin }))} required /></label>
+        <label>{translateText('Au')}<DateInput aria-label={translateText('Date de fin')} value={form.dateFin} min={form.dateDebut || undefined} onChange={(value) => setForm((current) => ({ ...current, dateFin: value }))} required /></label>
+        <label>{translateText('Statut')}<select value={form.statut} onChange={(event) => setForm((current) => ({ ...current, statut: event.target.value }))}><option value="disponible">{translateText('Disponible')}</option><option value="indisponible">{translateText('Indisponible')}</option></select></label>
+        <button className="button button-primary" type="submit" disabled={saving}>{saving ? translateText('Enregistrement…') : editingId ? translateText('Enregistrer les modifications') : translateText('Ajouter la période')}</button>
+        {editingId && <button className="provider-availability-cancel" type="button" onClick={cancelEditing}>{translateText('Annuler la modification')}</button>}
       </form>
-      {error && !conflict && <p className="form-error" role="alert">{error}</p>}
-      {notice && !conflict && <p className="provider-availability-notice" role="status">{notice}</p>}
+      {error && !conflict && <p className="form-error" role="alert">{translateText(error)}</p>}
+      {notice && !conflict && <p className="provider-availability-notice" role="status">{translateText(notice)}</p>}
       {conflict && (
         <section className="provider-availability-conflict" role="alert" aria-labelledby="availability-conflict-title">
-          <h2 id="availability-conflict-title">Période déjà marquée</h2>
+          <h2 id="availability-conflict-title">{translateText('Période déjà marquée')}</h2>
           <p>
-            La période du <strong>{formatDate(conflict.item.dateDebut)}</strong> au <strong>{formatDate(conflict.item.dateFin)}</strong> chevauche votre saisie du <strong>{formatDate(conflict.period.dateDebut)}</strong> au <strong>{formatDate(conflict.period.dateFin)}</strong>.
-            Choisissez comment appliquer la modification.
+            {translateText('La période du')} <strong>{formatDate(conflict.item.dateDebut, locale)}</strong> {translateText('au')} <strong>{formatDate(conflict.item.dateFin, locale)}</strong> {translateText('chevauche votre saisie du')} <strong>{formatDate(conflict.period.dateDebut, locale)}</strong> {translateText('au')} <strong>{formatDate(conflict.period.dateFin, locale)}</strong>. {translateText('Choisissez comment appliquer la modification.')}
           </p>
           <div className="provider-availability-conflict-actions">
-            <button type="button" className="button button-primary" onClick={() => resolveConflict('preserve-existing')} disabled={saving}>Garder le calendrier actuel pour la période en commun</button>
-            <button type="button" onClick={() => resolveConflict('replace-overlap')} disabled={saving}>Appliquer les modifications sur toutes les périodes</button>
+            <button type="button" className="button button-primary" onClick={() => resolveConflict('preserve-existing')} disabled={saving}>{translateText('Garder le calendrier actuel pour la période en commun')}</button>
+            <button type="button" onClick={() => resolveConflict('replace-overlap')} disabled={saving}>{translateText('Appliquer les modifications sur toutes les périodes')}</button>
           </div>
         </section>
       )}
-      {loading ? <p>Chargement des disponibilités…</p> : items.length ? (
+      {loading ? <p>{translateText('Chargement des disponibilités…')}</p> : items.length ? (
         <ul className="provider-record-list">{items.map((item) => <li key={item.id}>
-          <div><strong>{formatDate(item.dateDebut)} – {formatDate(item.dateFin)}</strong><span className={`provider-status is-${item.statut}`}>{item.statut === 'disponible' ? 'Disponible' : 'Indisponible'}</span></div>
+          <div><strong>{formatDate(item.dateDebut, locale)} – {formatDate(item.dateFin, locale)}</strong><span className={`provider-status is-${item.statut}`}>{item.statut === 'disponible' ? translateText('Disponible') : translateText('Indisponible')}</span></div>
           <div className="provider-record-actions">
-            <button type="button" onClick={() => editAvailability(item)}>Modifier</button>
-            <button type="button" onClick={() => changeStatus(item)}>Marquer {item.statut === 'disponible' ? 'indisponible' : 'disponible'}</button>
-            <button type="button" onClick={() => removeItem(item.id)}>Supprimer</button>
+            <button type="button" onClick={() => editAvailability(item)}>{translateText('Modifier')}</button>
+            <button type="button" onClick={() => changeStatus(item)}>{translateText('Marquer')} {item.statut === 'disponible' ? translateText('Indisponible') : translateText('Disponible')}</button>
+            <button type="button" onClick={() => removeItem(item.id)}>{translateText('Supprimer')}</button>
           </div>
         </li>)}</ul>
-      ) : <p className="provider-dashboard-empty">Aucune période enregistrée.</p>}
+      ) : <p className="provider-dashboard-empty">{translateText('Aucune période enregistrée.')}</p>}
       <ProviderCalendar availabilities={items} mode="availability" />
     </section>
   );
