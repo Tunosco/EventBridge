@@ -1,0 +1,253 @@
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import Header from './components/Header';
+import Hero from './components/Hero';
+import EventExamples from './components/EventExamples';
+import IntroOverlay from './components/IntroOverlay';
+import ContactModal from './components/ContactModal';
+import { getProviderDashboard } from './lib/api';
+const Profile = lazy(() => import('./components/Profile'));
+const Settings = lazy(() => import('./components/Settings'));
+const MyEvents = lazy(() => import('./components/MyEvents'));
+const ProviderDirectory = lazy(() => import('./components/ProviderDirectory'));
+const ProviderSpace = lazy(() => import('./components/ProviderSpace'));
+const Messaging = lazy(() => import('./components/Messaging'));
+import { completeEmailConfirmation, getCurrentUser } from './lib/api';
+import './styles/global.css';
+import './styles/auth-confirmation.css';
+import './styles/responsive-menu.css';
+import './styles/nav-link.css';
+import './styles/provider-space.css';
+import './styles/provider-profile-editor.css';
+import './styles/provider-space-controls.css';
+import './styles/provider-portal.css';
+import './styles/my-events.css';
+import './styles/provider-directory.css';
+import './styles/prototype-theme.css';
+
+export default function App() {
+  const [showIntro, setShowIntro] = useState(true);
+  const [contactType, setContactType] = useState(null);
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState('home');
+  const [openCreateEventOnEvents, setOpenCreateEventOnEvents] = useState(false);
+  const [providerSection, setProviderSection] = useState('home');
+  const [providerSearchQuery, setProviderSearchQuery] = useState('');
+  const [authNotice, setAuthNotice] = useState(null);
+  const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
+  const confirmationHandled = useRef(false);
+  const authRequestVersion = useRef(0);
+  const eventCreationPendingAuth = useRef(false);
+
+  const checkProfileCompleteness = async (userData) => {
+    if (!userData || userData.typeUtilisateur !== 'prestataire') {
+      setIsProfileIncomplete(false);
+      return;
+    }
+    try {
+      const dashboard = await getProviderDashboard();
+      const { profile } = dashboard;
+      const incomplete = !profile?.raisonSociale ||
+                         !profile?.siret ||
+                         !profile?.siteWeb ||
+                         !profile?.adressePostale ||
+                         !profile?.photoUrl ||
+                         !profile?.description;
+      setIsProfileIncomplete(incomplete);
+    } catch (err) {
+      console.error('Erreur vérification profil:', err);
+    }
+  };
+
+  const handleProjectClick = (type) => {
+    if (type === 'prestataire') {
+      setProviderSection('home');
+      setPage('provider');
+    } else {
+      setContactType(type);
+    }
+  };
+  const handleProviderSpaceClick = () => {
+    if (!user) {
+      setContactType('provider-auth-required');
+      return;
+    }
+    setProviderSection('home');
+    setPage('provider');
+  };
+  const handleEventsClick = () => {
+    setPage('events');
+    if (!user) setContactType('connexion');
+  };
+  const handleCreateEventClick = () => {
+    if (!user) {
+      eventCreationPendingAuth.current = true;
+      setContactType('event-auth-required');
+      return;
+    }
+    setOpenCreateEventOnEvents(true);
+    setPage('events');
+  };
+  const acknowledgeInitialEventCreate = useCallback(() => setOpenCreateEventOnEvents(false), []);
+  const handleProviderSearch = (query) => {
+    setProviderSearchQuery(query);
+    setPage('providers');
+  };
+  const navigateToAccountHome = (accountUser = user) => {
+    setOpenCreateEventOnEvents(false);
+    if (accountUser?.typeUtilisateur === 'prestataire') {
+      setProviderSection('home');
+      setPage('provider');
+    } else {
+      setPage('home');
+    }
+  };
+  const navigateAfterAuthentication = (accountUser) => {
+    if (eventCreationPendingAuth.current) {
+      eventCreationPendingAuth.current = false;
+      setContactType(null);
+      setOpenCreateEventOnEvents(true);
+      setPage('events');
+      return;
+    }
+    navigateToAccountHome(accountUser);
+  };
+  const handleAuthenticated = (authenticatedUser) => {
+    authRequestVersion.current += 1;
+    setUser(authenticatedUser);
+    checkProfileCompleteness(authenticatedUser);
+    navigateAfterAuthentication(authenticatedUser);
+    setContactType(null);
+  };
+  const handleLoggedOut = () => {
+    authRequestVersion.current += 1;
+    eventCreationPendingAuth.current = false;
+    setOpenCreateEventOnEvents(false);
+    setUser(null);
+    setPage('home');
+    setIsProfileIncomplete(false);
+  };
+  const handleAccountSection = (section) => {
+    if (user?.typeUtilisateur === 'prestataire') {
+      setProviderSection(section);
+      setPage(section === 'messages' ? 'messages' : 'provider');
+      return;
+    }
+    const clientPages = {
+      home: 'home',
+      events: 'events',
+      providers: 'providers',
+      messages: 'messages',
+    };
+    setPage(clientPages[section] || 'home');
+  };
+
+  useEffect(() => {
+    const requestVersion = authRequestVersion.current;
+    getCurrentUser().then((currentUser) => {
+      if (authRequestVersion.current !== requestVersion) return;
+      setUser(currentUser);
+      if (currentUser) {
+        navigateToAccountHome(currentUser);
+        checkProfileCompleteness(currentUser);
+      }
+    });
+  }, []);
+  useEffect(() => {
+    const confirmationParams = new URLSearchParams(window.location.hash.slice(1));
+    const queryParams = new URLSearchParams(window.location.search);
+    const accessToken = confirmationParams.get('access_token');
+    const authError = confirmationParams.get('error') || queryParams.get('error');
+    if (confirmationHandled.current || (!accessToken && !authError)) return;
+    confirmationHandled.current = true;
+    const search = queryParams.has('error') ? '' : window.location.search;
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${search}`);
+    setShowIntro(false);
+
+    if (!accessToken || confirmationParams.get('type') !== 'signup') {
+      setAuthNotice({ message: 'Le lien de confirmation est invalide ou a expiré. Demandez un nouveau lien.', type: 'error' });
+      return;
+    }
+
+    setAuthNotice({ message: 'Adresse confirmée, connexion en cours…', type: 'pending' });
+    completeEmailConfirmation(accessToken)
+      .then(({ token, user: confirmedUser }) => {
+        authRequestVersion.current += 1;
+        localStorage.setItem('eventbridge_token', token);
+        setUser(confirmedUser);
+        checkProfileCompleteness(confirmedUser);
+        navigateAfterAuthentication(confirmedUser);
+        setAuthNotice({ message: 'Votre adresse est confirmée. Vous êtes connecté à votre compte.', type: 'success' });
+      })
+      .catch((confirmationError) => {
+        setAuthNotice({ message: confirmationError.message, type: 'error' });
+      });
+  }, []);
+
+  useEffect(() => {
+    const theme = localStorage.getItem('eventbridge_theme') || 'default';
+    document.documentElement.dataset.theme = theme;
+  }, []);
+
+  useEffect(() => {
+    if (!showIntro) document.querySelector('.site-header .brand')?.focus();
+  }, [showIntro]);
+
+  return (
+    <>
+      <div className="app-content" inert={showIntro} aria-hidden={showIntro ? 'true' : undefined}>
+      {authNotice && <div className={`auth-confirmation-notice is-${authNotice.type}`} role={authNotice.type === 'error' ? 'alert' : 'status'}>
+        <span>{authNotice.message}</span>
+        <button type="button" aria-label="Fermer le message" onClick={() => setAuthNotice(null)}>×</button>
+      </div>}
+      {user?.typeUtilisateur === 'prestataire' && isProfileIncomplete && (
+        <div className="profile-incomplete-banner">
+          <p>⚠️ Votre profil est incomplet. Veuillez le compléter pour pouvoir proposer vos prestations.</p>
+          <button className="button button-primary button-small" type="button" onClick={() => {
+            setPage('provider');
+            setProviderSection('profile');
+          }}>Compléter mon profil</button>
+        </div>
+      )}
+      <Header onNavigate={(nextPage) => {
+        if (nextPage === 'home' && user) navigateToAccountHome();
+        else if (nextPage === 'provider') handleProviderSpaceClick();
+        else setPage(nextPage);
+      }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={handleLoggedOut} onProfileClick={() => {
+        if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
+        else setPage('profile');
+      }} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
+      <Suspense fallback={<main aria-busy="true">Chargement…</main>}>
+        {page === 'provider' ? (
+          <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} />
+        ) : page === 'providers' ? (
+          <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
+        ) : page === 'events' && user ? (
+          <MyEvents
+            onBack={() => navigateToAccountHome()}
+            openCreateInitiallyHandled={openCreateEventOnEvents}
+            onCreateInitiallyHandled={acknowledgeInitialEventCreate}
+          />
+        ) : page === 'messages' && user ? (
+          <Messaging user={user} />
+        ) : page === 'profile' && user ? (
+          <Profile user={user} onBack={() => navigateToAccountHome()} />
+        ) : page === 'settings' && user ? (
+          <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
+        ) : (
+          <main>
+            <Hero onProjectClick={handleProjectClick} onCreateEventClick={handleCreateEventClick} />
+            <EventExamples />
+          </main>
+        )}
+      </Suspense>
+      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); handleProviderSpaceClick(); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
+      {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
+      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
+        if (contactType === 'event-auth-required') eventCreationPendingAuth.current = false;
+        setContactType(null);
+      }} />}
+      </div>
+      {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
+    </>
+  );
+}
