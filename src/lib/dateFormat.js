@@ -1,14 +1,3 @@
-const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-});
-const timeFormatter = new Intl.DateTimeFormat('fr-FR', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
-
 function parseDate(value) {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
   if (typeof value !== 'string' || !value) return null;
@@ -28,12 +17,23 @@ function parseDate(value) {
     : null;
 }
 
-export function formatDate(value) {
+export function formatDate(value, locale = 'fr-FR') {
   const date = parseDate(value);
-  return date ? dateFormatter.format(date) : '';
+  return date ? new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date) : '';
 }
 
-export function formatDateTime(value) {
+export function formatDateTime(value, locale = 'fr-FR') {
   const date = parseDate(value);
-  return date ? `${dateFormatter.format(date)} ${timeFormatter.format(date)}` : '';
+  if (!date) return '';
+  const dateLabel = formatDate(date, locale);
+  const timeLabel = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+  return `${dateLabel} ${timeLabel}`;
 }

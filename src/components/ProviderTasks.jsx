@@ -3,6 +3,7 @@ import { createProviderTask, deleteProviderTask, getProviderTasks, updateProvide
 import { formatDate } from '../lib/dateFormat';
 import DateInput from './DateInput';
 import ProviderCalendar from './ProviderCalendar';
+import { useTranslation } from '../lib/i18n';
 
 const emptyTask = { titre: '', description: '', dateEcheance: '' };
 const taskStatuses = [
@@ -12,6 +13,7 @@ const taskStatuses = [
 ];
 
 export default function ProviderTasks() {
+  const { locale, translateText } = useTranslation();
   const [tasks, setTasks] = useState([]);
   const [form, setForm] = useState(emptyTask);
   const [loading, setLoading] = useState(true);
@@ -64,27 +66,27 @@ export default function ProviderTasks() {
 
   return (
     <section className="provider-management-page">
-      <span className="kicker">Votre organisation</span>
-      <h1>Mes tâches</h1>
-      <p>Planifiez et suivez les actions liées à votre activité.</p>
+      <span className="kicker">{translateText('Votre organisation')}</span>
+      <h1>{translateText('Mes tâches')}</h1>
+      <p>{translateText('Planifiez et suivez les actions liées à votre activité.')}</p>
       <form className="provider-task-form" onSubmit={handleSubmit}>
-        <label>Tâche<input value={form.titre} maxLength="160" onChange={(event) => setForm((current) => ({ ...current, titre: event.target.value }))} required placeholder="Ex. Préparer le devis" /></label>
-        <label>Échéance<DateInput aria-label="Échéance" value={form.dateEcheance} onChange={(value) => setForm((current) => ({ ...current, dateEcheance: value }))} /></label>
-        <label>Détails<textarea rows="2" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></label>
-        <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Ajout…' : 'Ajouter une tâche'}</button>
+        <label>{translateText('Tâche')}<input value={form.titre} maxLength="160" onChange={(event) => setForm((current) => ({ ...current, titre: event.target.value }))} required placeholder={translateText('Ex. Préparer le devis')} /></label>
+        <label>{translateText('Échéance')}<DateInput aria-label={translateText('Échéance')} value={form.dateEcheance} onChange={(value) => setForm((current) => ({ ...current, dateEcheance: value }))} /></label>
+        <label>{translateText('Détails')}<textarea rows="2" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></label>
+        <button className="button button-primary" type="submit" disabled={saving}>{saving ? translateText('Ajout…') : translateText('Ajouter une tâche')}</button>
       </form>
-      {error && <p className="form-error" role="alert">{error}</p>}
-      {loading ? <p>Chargement des tâches…</p> : tasks.length ? (
+      {error && <p className="form-error" role="alert">{translateText(error)}</p>}
+      {loading ? <p>{translateText('Chargement des tâches…')}</p> : tasks.length ? (
         <ul className="provider-record-list">{tasks.map((task) => <li key={task.id}>
-          <div className="provider-task-copy"><strong>{task.titre}</strong>{task.description && <span>{task.description}</span>}{task.dateEcheance && <time dateTime={task.dateEcheance}>Échéance : {formatDate(task.dateEcheance)}</time>}</div>
+          <div className="provider-task-copy"><strong>{task.titre}</strong>{task.description && <span>{task.description}</span>}{task.dateEcheance && <time dateTime={task.dateEcheance}>{translateText('Échéance :')} {formatDate(task.dateEcheance, locale)}</time>}</div>
           <div className="provider-record-actions">
-            <select aria-label={`Statut de la tâche ${task.titre}`} value={task.statut} onChange={(event) => changeStatus(task, event.target.value)}>
-              {taskStatuses.map((status) => <option value={status.value} key={status.value}>{status.label}</option>)}
+            <select aria-label={`${translateText('Statut de la tâche')} ${task.titre}`} value={task.statut} onChange={(event) => changeStatus(task, event.target.value)}>
+              {taskStatuses.map((status) => <option value={status.value} key={status.value}>{translateText(status.label)}</option>)}
             </select>
-            <button type="button" onClick={() => removeTask(task.id)}>Supprimer</button>
+            <button type="button" onClick={() => removeTask(task.id)}>{translateText('Supprimer')}</button>
           </div>
         </li>)}</ul>
-      ) : <p className="provider-dashboard-empty">Aucune tâche pour le moment.</p>}
+      ) : <p className="provider-dashboard-empty">{translateText('Aucune tâche pour le moment.')}</p>}
       <ProviderCalendar tasks={tasks} mode="tasks" />
     </section>
   );

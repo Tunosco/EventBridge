@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { deleteCurrentUser, updateCurrentUser } from '../lib/api';
+import { useTranslation } from '../lib/i18n';
 
 export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
+  const { translateText } = useTranslation();
   const [form, setForm] = useState({
     prenom: user.prenom || '',
     nom: user.nom || '',
@@ -40,7 +42,7 @@ export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Voulez-vous vraiment supprimer votre compte ? Cette action est définitive.')) return;
+    if (!window.confirm(translateText('Voulez-vous vraiment supprimer votre compte ? Cette action est définitive.'))) return;
     try {
       await deleteCurrentUser();
       localStorage.removeItem('eventbridge_token');
@@ -53,29 +55,29 @@ export default function Settings({ user, onUserUpdated, onDeleted, onBack }) {
   return (
     <main className="settings-page">
       <div className="settings-heading">
-        <button className="text-link settings-back" onClick={onBack}>Retour à l’accueil</button>
-        <h1>Paramètres</h1>
-        <p>Gérez vos coordonnées et vos préférences personnelles.</p>
+        <button className="text-link settings-back" onClick={onBack}>{translateText('Retour à l’accueil')}</button>
+        <h1>{translateText('Paramètres')}</h1>
+        <p>{translateText('Gérez vos coordonnées et vos préférences personnelles.')}</p>
       </div>
       <form className="settings-card" onSubmit={handleSubmit}>
         <div className="settings-section">
-          <h2>Informations personnelles</h2>
-            <label>Prénom<input name="prenom" value={form.prenom} onChange={updateField} required /></label>
-          <label>Nom<input name="nom" value={form.nom} onChange={updateField} required /></label>
-          <label>Code postal<input name="codePostal" value={form.codePostal} onChange={updateField} inputMode="numeric" /></label>
-          <label>Email<input name="email" type="email" value={form.email} onChange={updateField} required /></label>
-          <label>Téléphone<input name="telephone" type="tel" value={form.telephone} onChange={updateField} /></label>
+          <h2>{translateText('Informations personnelles')}</h2>
+          <label>{translateText('Prénom')}<input name="prenom" value={form.prenom} onChange={updateField} required /></label>
+          <label>{translateText('Nom')}<input name="nom" value={form.nom} onChange={updateField} required /></label>
+          <label>{translateText('Code postal')}<input name="codePostal" value={form.codePostal} onChange={updateField} inputMode="numeric" /></label>
+          <label>{translateText('Email')}<input name="email" type="email" value={form.email} onChange={updateField} required /></label>
+          <label>{translateText('Téléphone')}<input name="telephone" type="tel" value={form.telephone} onChange={updateField} /></label>
         </div>
         <div className="settings-section">
-          <h2>Thème de la page</h2>
-          <label>Apparence<select value={theme} onChange={handleThemeChange}><option value="default">Par défaut</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
+          <h2>{translateText('Thème de la page')}</h2>
+          <label>{translateText('Apparence')}<select value={theme} onChange={handleThemeChange}><option value="default">{translateText('Par défaut')}</option><option value="light">{translateText('Clair')}</option><option value="dark">{translateText('Sombre')}</option></select></label>
         </div>
         {message && <p className="settings-message" role="status">{message}</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="button button-primary settings-save" type="submit" disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer les modifications'}</button>
+        <button className="button button-primary settings-save" type="submit" disabled={saving}>{saving ? translateText('Enregistrement...') : translateText('Enregistrer les modifications')}</button>
         <div className="delete-account">
-          <div><h2>Supprimer le compte</h2><p>Cette action supprimera définitivement vos informations.</p></div>
-          <button className="delete-button" type="button" onClick={handleDelete}>Supprimer mon compte</button>
+          <div><h2>{translateText('Supprimer le compte')}</h2><p>{translateText('Cette action supprimera définitivement vos informations.')}</p></div>
+          <button className="delete-button" type="button" onClick={handleDelete}>{translateText('Supprimer mon compte')}</button>
         </div>
       </form>
     </main>

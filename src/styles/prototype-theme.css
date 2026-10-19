@@ -231,6 +231,85 @@ h3,
   justify-content: center;
 }
 
+.hero-search {
+  max-width: 940px;
+  margin: 34px auto 0;
+  padding: 18px 22px;
+  border: 1px solid rgba(187, 161, 119, .7);
+  background: rgba(255, 253, 249, .94);
+  text-align: left;
+}
+
+.hero-search-intro {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--navy);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 24px;
+}
+
+.hero-search-fields {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(140px, 1fr) minmax(145px, .8fr) minmax(130px, .7fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.hero-search-category,
+.hero-search-city,
+.hero-search-detail {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hero-search-city {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 9px;
+}
+
+.hero-search-detail span {
+  display: block;
+}
+
+.hero-search input,
+.hero-search select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.hero-search input:focus,
+.hero-search select:focus,
+.provider-finder-search-controls input:focus,
+.provider-finder-search-controls select:focus,
+.provider-quote-form input:focus,
+.provider-quote-form textarea:focus {
+  outline: 2px solid var(--coral);
+  outline-offset: 1px;
+}
+
+.hero-search .button {
+  min-height: 44px;
+}
+
+.hero-search-note {
+  margin: 10px auto 0;
+  color: #554f53;
+  font-size: 12px !important;
+}
+
 .hero-cta {
   margin-left: auto;
   margin-right: auto;
@@ -411,6 +490,30 @@ footer small {
   .hero h1 {
     font-size: 48px;
     line-height: 1.04;
+  }
+
+  .hero-search {
+    margin-top: 26px;
+    padding: 16px;
+  }
+
+  .hero-search-fields {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+  }
+
+  .hero-search-category,
+  .hero-search-city,
+  .hero-search .button {
+    grid-column: 1 / -1;
+  }
+
+  .hero-search .button {
+    width: 100%;
+  }
+
+  .hero-actions {
+    margin-top: 24px;
   }
 
   .event-examples {

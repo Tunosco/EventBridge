@@ -2,8 +2,14 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import Header from './components/Header';
 import Hero from './components/Hero';
 import EventExamples from './components/EventExamples';
+import FeaturedProviders from './components/FeaturedProviders';
+import DatePlanning from './components/DatePlanning';
 import IntroOverlay from './components/IntroOverlay';
 import ContactModal from './components/ContactModal';
+import ContactPage from './components/ContactPage';
+import DemoSpace from './components/DemoSpace';
+import Process from './components/Process';
+import StoryPage from './components/StoryPage';
 const Profile = lazy(() => import('./components/Profile'));
 const Settings = lazy(() => import('./components/Settings'));
 const MyEvents = lazy(() => import('./components/MyEvents'));
@@ -11,6 +17,7 @@ const ProviderDirectory = lazy(() => import('./components/ProviderDirectory'));
 const ProviderSpace = lazy(() => import('./components/ProviderSpace'));
 const Messaging = lazy(() => import('./components/Messaging'));
 import { completeEmailConfirmation, getCurrentUser } from './lib/api';
+import { LanguageProvider, translate } from './lib/i18n';
 import './styles/global.css';
 import './styles/auth-confirmation.css';
 import './styles/responsive-menu.css';
@@ -22,6 +29,8 @@ import './styles/provider-portal.css';
 import './styles/my-events.css';
 import './styles/provider-directory.css';
 import './styles/prototype-theme.css';
+import './styles/prototype-polish.css';
+import './styles/demo-space.css';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true);
@@ -29,6 +38,15 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
   const [openCreateEventOnEvents, setOpenCreateEventOnEvents] = useState(false);
+  const [eventDraftDate, setEventDraftDate] = useState('');
+  const [eventGalleryType, setEventGalleryType] = useState('');
+  const [demoRole, setDemoRole] = useState(null);
+  const [demoInitialSection, setDemoInitialSection] = useState('overview');
+  const [language, setLanguage] = useState(() => {
+    const storedLanguage = localStorage.getItem('eventbridge_language');
+    return ['fr', 'en', 'it'].includes(storedLanguage) ? storedLanguage : 'fr';
+  });
+  const [providerSearchFilters, setProviderSearchFilters] = useState({ query: '', category: '', city: '', maxBudget: '', date: '' });
   const [providerSection, setProviderSection] = useState('home');
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
@@ -51,11 +69,23 @@ export default function App() {
     setProviderSection('home');
     setPage('provider');
   };
-  const handleEventsClick = () => {
-    setPage('events');
-    if (!user) setContactType('connexion');
+  const handleEventsClick = (eventType = '') => {
+    setEventGalleryType(eventType);
+    setPage('event-gallery');
   };
-  const handleCreateEventClick = () => {
+  const handleLanguageChange = (nextLanguage) => {
+    setLanguage(nextLanguage);
+    localStorage.setItem('eventbridge_language', nextLanguage);
+    document.documentElement.lang = nextLanguage;
+  };
+  const handleDemoSelect = (role, initialSection = 'overview') => {
+    setDemoRole(role);
+    setDemoInitialSection(initialSection);
+    setContactType(null);
+    setPage('demo');
+  };
+  const handleCreateEventClick = (date = '') => {
+    setEventDraftDate(date);
     if (!user) {
       eventCreationPendingAuth.current = true;
       setContactType('event-auth-required');
@@ -64,9 +94,16 @@ export default function App() {
     setOpenCreateEventOnEvents(true);
     setPage('events');
   };
-  const acknowledgeInitialEventCreate = useCallback(() => setOpenCreateEventOnEvents(false), []);
-  const handleProviderSearch = (query) => {
-    setProviderSearchQuery(query);
+  const acknowledgeInitialEventCreate = useCallback(() => {
+    setOpenCreateEventOnEvents(false);
+    setEventDraftDate('');
+  }, []);
+  const handleProviderSearch = (search) => {
+    const filters = typeof search === 'string'
+      ? { query: search, category: '', city: '', maxBudget: '', date: '' }
+      : { query: '', category: '', city: '', maxBudget: '', date: '', ...search };
+    setProviderSearchQuery(filters.query || '');
+    setProviderSearchFilters(filters);
     setPage('providers');
   };
   const navigateToAccountHome = (accountUser = user) => {
@@ -161,17 +198,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
     if (!showIntro) document.querySelector('.site-header .brand')?.focus();
   }, [showIntro]);
 
   return (
+    <LanguageProvider language={language}>
     <>
       <div className="app-content" inert={showIntro} aria-hidden={showIntro ? 'true' : undefined}>
       {authNotice && <div className={`auth-confirmation-notice is-${authNotice.type}`} role={authNotice.type === 'error' ? 'alert' : 'status'}>
-        <span>{authNotice.message}</span>
-        <button type="button" aria-label="Fermer le message" onClick={() => setAuthNotice(null)}>×</button>
+        <span>{translate(authNotice.message, language)}</span>
+        <button type="button" aria-label={translate('Fermer', language)} onClick={() => setAuthNotice(null)}>×</button>
       </div>}
-      <Header onNavigate={(nextPage) => {
+      <Header language={language} onLanguageChange={handleLanguageChange} onDemoSelect={handleDemoSelect} demoRole={page === 'demo' ? demoRole : null} onDemoExit={() => { setPage('home'); setDemoRole(null); }} onNavigate={(nextPage) => {
         if (nextPage === 'home' && user) navigateToAccountHome();
         else if (nextPage === 'provider') handleProviderSpaceClick();
         else setPage(nextPage);
@@ -179,15 +221,24 @@ export default function App() {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
         else setPage('profile');
       }} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
-      <Suspense fallback={<main aria-busy="true">Chargement…</main>}>
-        {page === 'provider' ? (
+      <Suspense fallback={<main aria-busy="true">{translate('Chargement…', language)}</main>}>
+        {page === 'history' ? (
+          <StoryPage language={language} onFindProviders={() => handleProviderSearch('')} />
+        ) : page === 'contact' ? (
+          <ContactPage language={language} />
+        ) : page === 'demo' ? (
+          <DemoSpace role={demoRole} initialSection={demoInitialSection} onRealAccount={() => { setDemoRole(null); setPage('home'); setContactType('connexion'); }} onExit={() => { setDemoRole(null); setPage('home'); }} />
+        ) : page === 'event-gallery' ? (
+          <main><EventExamples selectedType={eventGalleryType} onEventTypeSelect={handleEventsClick} onCreateEventClick={handleCreateEventClick} language={language} /></main>
+        ) : page === 'provider' ? (
           <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} />
         ) : page === 'providers' ? (
-          <ProviderDirectory searchQuery={providerSearchQuery} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
+          <ProviderDirectory searchQuery={providerSearchQuery} initialFilters={providerSearchFilters} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
         ) : page === 'events' && user ? (
           <MyEvents
             onBack={() => navigateToAccountHome()}
             openCreateInitially={openCreateEventOnEvents}
+            initialDate={eventDraftDate}
             onCreateInitiallyHandled={acknowledgeInitialEventCreate}
           />
         ) : page === 'messages' && user ? (
@@ -198,19 +249,23 @@ export default function App() {
           <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
         ) : (
           <main>
-            <Hero onProjectClick={handleProjectClick} onCreateEventClick={handleCreateEventClick} />
-            <EventExamples />
+            <Hero onProjectClick={handleProjectClick} onCreateEventClick={handleCreateEventClick} onProviderSearch={handleProviderSearch} language={language} />
+            <FeaturedProviders isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} onProviderSearch={handleProviderSearch} onDemoSelect={handleDemoSelect} language={language} />
+            <EventExamples language={language} onCreateEventClick={handleCreateEventClick} />
+            <DatePlanning onCreateEventClick={handleCreateEventClick} language={language} />
+            <Process />
           </main>
         )}
       </Suspense>
-      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); handleProviderSpaceClick(); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
+      <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}><span>EVENT</span><small>BRIDGE</small></a><small>{translate('La rencontre entre les idées et les talents.', language)}</small></div><nav><button onClick={() => setPage('history')}>{translate('Notre histoire', language)}</button><button onClick={() => setPage('contact')}>{translate('Contact', language)}</button><button onClick={handleProviderSpaceClick}>{translate('Espace prestataire', language)}</button><button onClick={() => setContactType('connexion')}>{translate('Connexion', language)}</button></nav><small>© 2026 EventBridge</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
-      {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
+      {contactType && <ContactModal type={contactType} user={user} onDemo={handleDemoSelect} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
         if (contactType === 'event-auth-required') eventCreationPendingAuth.current = false;
         setContactType(null);
       }} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
     </>
+    </LanguageProvider>
   );
 }

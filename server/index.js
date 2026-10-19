@@ -74,11 +74,14 @@ function shiftEventDate(value, days) {
   return date.toISOString().slice(0, 10);
 }
 
-async function getProviders(search, userId, favoritesOnly = false) {
+async function getProviders(search, userId, favoritesOnly = false, filters = {}) {
   const searchPattern = `%${search.trim()}%`;
+  const categoryPattern = `%${filters.category}%`;
+  const cityPattern = `%${filters.city}%`;
   return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
     TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) AS nomContact, p.description,
     p.adresse_postale AS adressePostale, p.site_web AS siteWeb, p.photo_url AS photoUrl,
+    (SELECT MIN(pr.prix) FROM prestation pr WHERE pr.prestataire_id = p.utilisateur_id) AS prixMinimum,
     (SELECT GROUP_CONCAT(DISTINCT c.libelle) FROM prestation pr
       JOIN categorie_prestation c ON c.id = pr.categorie_id
       WHERE pr.prestataire_id = p.utilisateur_id) AS categories,
@@ -93,11 +96,20 @@ async function getProviders(search, userId, favoritesOnly = false) {
         OR EXISTS (SELECT 1 FROM prestation pr JOIN categorie_prestation c ON c.id = pr.categorie_id
           WHERE pr.prestataire_id = p.utilisateur_id
           AND (LOWER(pr.titre) LIKE LOWER(?) OR LOWER(c.libelle) LIKE LOWER(?))))
+      AND (? = '' OR EXISTS (SELECT 1 FROM prestation pr JOIN categorie_prestation c ON c.id = pr.categorie_id
+        WHERE pr.prestataire_id = p.utilisateur_id AND LOWER(c.libelle) LIKE LOWER(?)))
+      AND (? = '' OR LOWER(COALESCE(p.adresse_postale, '')) LIKE LOWER(?))
+      AND (? = '' OR EXISTS (SELECT 1 FROM prestation pr WHERE pr.prestataire_id = p.utilisateur_id
+        AND pr.prix IS NOT NULL AND pr.prix <= CAST(? AS REAL)))
+      AND (? = '' OR NOT EXISTS (SELECT 1 FROM disponibilite d WHERE d.prestataire_id = p.utilisateur_id
+        AND d.statut = 'indisponible' AND d.date_debut <= ? AND d.date_fin >= ?))
       AND (? = 0 OR EXISTS (
         SELECT 1 FROM favori_prestataire f WHERE f.client_id = ? AND f.prestataire_id = p.utilisateur_id
       ))
     ORDER BY p.nom_entreprise COLLATE NOCASE LIMIT 50`).all(
     userId, userId, search.trim(), searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
+    filters.category, categoryPattern, filters.city, cityPattern,
+    filters.maxBudget, filters.maxBudget, filters.date, filters.date, filters.date,
     favoritesOnly ? 1 : 0, userId,
   );
 }
@@ -119,9 +131,21 @@ app.get('/api/providers', async (request, response) => {
   const token = request.headers.authorization?.replace('Bearer ', '');
   const userId = token ? sessions.get(token) || null : null;
   const favoritesOnly = request.query.favoris === 'true';
+  const filters = {
+    category: String(request.query.categorie || '').trim(),
+    city: String(request.query.ville || '').trim(),
+    maxBudget: String(request.query.budget || '').trim(),
+    date: String(request.query.date || '').trim(),
+  };
+  if (filters.maxBudget && (!Number.isFinite(Number(filters.maxBudget)) || Number(filters.maxBudget) < 0)) {
+    return response.status(400).json({ error: 'Le budget maximum doit être un montant positif.' });
+  }
+  if (filters.date && !isValidEventDate(filters.date)) {
+    return response.status(400).json({ error: 'La date de l’événement est invalide.' });
+  }
   if (favoritesOnly && !userId) return response.status(401).json({ error: 'Connectez-vous pour afficher vos favoris.' });
   if (favoritesOnly && !await isClient(userId)) return response.status(403).json({ error: 'Seul un client peut consulter ses prestataires favoris.' });
-  response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly));
+  response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly, filters));
 });
 
 app.post('/api/auth/register', async (request, response) => {

@@ -25,7 +25,7 @@ export default function IntroOverlay({ onFinish }) {
     overlayRef.current?.focus();
     const animationFrame = window.requestAnimationFrame(() => setReady(true));
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    timersRef.current.enter = window.setTimeout(() => closeIntroRef.current?.(), reducedMotion ? 100 : 1100);
+    timersRef.current.enter = window.setTimeout(() => closeIntroRef.current?.(), reducedMotion ? 300 : 3400);
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') closeIntroRef.current?.();

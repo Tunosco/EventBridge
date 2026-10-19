@@ -7,8 +7,10 @@ import {
   sendConversationMessage,
 } from '../lib/api';
 import { formatDateTime } from '../lib/dateFormat';
+import { useTranslation } from '../lib/i18n';
 
 export default function Messaging({ user }) {
+  const { locale, translateText } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [providers, setProviders] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -90,38 +92,38 @@ export default function Messaging({ user }) {
   const activeConversation = conversations.find((conversation) => conversation.id === activeId);
   return (
     <main className="messaging-page">
-      <div className="messaging-heading"><span className="kicker">Vos échanges</span><h1>Messagerie</h1></div>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="messaging-heading"><span className="kicker">{translateText('Vos échanges')}</span><h1>{translateText('Messagerie')}</h1></div>
+      {error && <p className="form-error" role="alert">{translateText(error)}</p>}
       {isClient && <form className="message-start-form" onSubmit={startConversation}>
-        <label htmlFor="message-provider">Contacter un prestataire</label>
+        <label htmlFor="message-provider">{translateText('Contacter un prestataire')}</label>
         <select id="message-provider" value={providerId} onChange={(event) => setProviderId(event.target.value)}>
-          <option value="">Choisir un prestataire…</option>
+          <option value="">{translateText('Choisir un prestataire…')}</option>
           {providers.map((provider) => <option value={provider.id} key={provider.id}>{provider.raisonSociale}</option>)}
         </select>
-        <button className="button button-primary" type="submit" disabled={!providerId}>Nouvelle conversation</button>
+        <button className="button button-primary" type="submit" disabled={!providerId}>{translateText('Nouvelle conversation')}</button>
       </form>}
       <div className="messaging-layout">
-        <aside className="conversation-list" aria-label="Conversations">
-          {loading ? <p>Chargement…</p> : conversations.length ? conversations.map((conversation) => (
+        <aside className="conversation-list" aria-label={translateText('Conversations')}>
+          {loading ? <p>{translateText('Chargement…')}</p> : conversations.length ? conversations.map((conversation) => (
             <button className={activeId === conversation.id ? 'is-active' : ''} type="button" key={conversation.id} onClick={() => setActiveId(conversation.id)}>
               <strong>{conversation.correspondant}</strong>
-              <span>{conversation.dernierMessage || 'Aucun message'}</span>
+              <span>{conversation.dernierMessage || translateText('Aucun message')}</span>
             </button>
-          )) : <p>Aucune conversation pour le moment.</p>}
+          )) : <p>{translateText('Aucune conversation pour le moment.')}</p>}
         </aside>
-        <section className="conversation-panel" aria-label={activeConversation ? `Conversation avec ${activeConversation.correspondant}` : 'Conversation'}>
+        <section className="conversation-panel" aria-label={activeConversation ? `${translateText('Conversation avec')} ${activeConversation.correspondant}` : translateText('Conversation')}>
           {activeConversation ? <>
             <h2>{activeConversation.correspondant}</h2>
             <div className="conversation-messages" aria-live="polite">
               {messages.map((message) => <p className={message.expediteurId === user.id ? 'is-mine' : ''} key={message.id}>
-                <span>{message.contenu}</span><time>{formatDateTime(message.dateCreation)}</time>
+                <span>{message.contenu}</span><time>{formatDateTime(message.dateCreation, locale)}</time>
               </p>)}
             </div>
             <form className="conversation-compose" onSubmit={sendMessage}>
-              <textarea aria-label="Votre message" rows="2" maxLength="4000" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Écrire un message…" required />
-              <button className="button button-primary" type="submit" disabled={!draft.trim()}>Envoyer</button>
+              <textarea aria-label={translateText('Votre message')} rows="2" maxLength="4000" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={translateText('Écrire un message…')} required />
+              <button className="button button-primary" type="submit" disabled={!draft.trim()}>{translateText('Envoyer')}</button>
             </form>
-          </> : <p className="provider-dashboard-empty">{loading ? 'Chargement des conversations…' : 'Sélectionnez une conversation pour afficher les messages.'}</p>}
+          </> : <p className="provider-dashboard-empty">{loading ? translateText('Chargement des conversations…') : translateText('Sélectionnez une conversation pour afficher les messages.')}</p>}
         </section>
       </div>
     </main>

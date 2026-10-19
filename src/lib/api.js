@@ -67,10 +67,14 @@ export function updateEvent(eventId, payload) {
   return request(`/me/events/${eventId}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
 }
 
-export function searchProviders(search, favoritesOnly = false) {
+export function searchProviders(search, favoritesOnly = false, filters = {}) {
   const parameters = new URLSearchParams();
   if (search) parameters.set('q', search);
   if (favoritesOnly) parameters.set('favoris', 'true');
+  if (filters.category) parameters.set('categorie', filters.category);
+  if (filters.city) parameters.set('ville', filters.city);
+  if (filters.maxBudget) parameters.set('budget', filters.maxBudget);
+  if (filters.date) parameters.set('date', filters.date);
   const token = localStorage.getItem('eventbridge_token');
   return request(`/providers?${parameters.toString()}`, { headers: token ? authHeaders() : {} });
 }

@@ -22,6 +22,12 @@ npm run dev
 
 La base locale est créée automatiquement dans `data/eventbridge.sqlite` au démarrage de l'API.
 
+## Démonstration du prototype
+
+Les espaces client et prestataire de démonstration sont accessibles depuis le menu de connexion. Leurs profils, prestations, favoris, demandes de devis, tâches, dépenses et dates bloquées sont fictifs et enregistrés uniquement dans le `localStorage` du navigateur. Les formulaires Contact et les demandes de devis de démonstration n’envoient aucun message.
+
+Les comptes réels continuent d’utiliser l’API Express et la base configurée. Événements, favoris, disponibilités, profils prestataires et conversations restent persistés selon les routes existantes. Une demande de devis réelle est envoyée comme message de conversation, avec la date sélectionnée; il n’existe pas encore de devis structuré ni de système de dépenses/tâches client en base. La recherche par date exclut uniquement les indisponibilités déclarées et ne garantit pas une disponibilité.
+
 ## Supabase
 
 1. Crée un projet sur [supabase.com](https://supabase.com) et attends que son état soit **Active**. La base PostgreSQL est hébergée et démarrée automatiquement par Supabase.
