@@ -1,0 +1,156 @@
+/* ==========================================================================
+   Réconciliation React ↔ Visuel_EventBridge.html
+   Cette feuille est importée en dernier : elle aligne les composants React
+   (header, footer, intro, boutons, sections) sur le visuel de référence.
+   ========================================================================== */
+
+/* Intro d'accueil : même fondu que le prototype. */
+#opening.intro-overlay {
+  transition: opacity .45s ease, visibility .45s ease;
+}
+
+/* Boutons principaux bordeaux (référence : #640017 / survol #790b29). */
+.button-primary,
+.primary {
+  background: #640017;
+  border-color: #640017;
+  color: #fff;
+}
+
+.button-primary:hover,
+.primary:hover {
+  background: #790b29;
+  border-color: #790b29;
+  color: #fff;
+}
+
+/* En-tête : position identique à la référence (statique, sauf sur l'accueil). */
+.site-header {
+  position: relative;
+  top: auto;
+}
+
+body.homeheader .site-header {
+  position: absolute;
+}
+
+body.homeheader .site-header .brand,
+body.homeheader .site-header .brand span,
+body.homeheader .site-header .brand small {
+  color: #fff;
+}
+
+body.homeheader .site-header .nav-link,
+body.homeheader .site-header .nav-dropdown > summary,
+body.homeheader .site-header .language-trigger {
+  color: #fff;
+}
+
+body.homeheader .site-header .nav-link:hover,
+body.homeheader .site-header .nav-dropdown > summary:hover {
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, .9);
+}
+
+/* Compte dans la navigation : bouton bordeaux comme la référence. */
+.site-header #account.button-primary,
+.site-header #account.profile-button {
+  background: #640017;
+  border: 1px solid rgba(255, 255, 255, .18);
+  color: #fff;
+}
+
+.site-header #account.button-primary:hover,
+.site-header #account.profile-button:hover {
+  background: #790b29;
+}
+
+.site-header #account.profile-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px;
+  border-radius: 0;
+}
+
+.site-header #account.profile-button img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.site-header #account.profile-button .account-name {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Footer beige de la référence. */
+footer {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 28px;
+  padding: 45px 6%;
+  background: #f4f0ea;
+  border-top: 1px solid #efe5d6;
+  color: #625a5b;
+  font-size: 13px;
+}
+
+footer .brand,
+footer .brand small,
+footer .brand span,
+footer .brand:hover {
+  color: #0c0002;
+}
+
+footer nav button {
+  color: #625a5b;
+}
+
+footer nav button:hover {
+  color: #640017;
+}
+
+footer small {
+  color: #8a7d80;
+}
+
+/* La bande finale n'existe pas dans la référence. */
+.home-bottom-stripe {
+  display: none;
+}
+
+/* Bande « Tout commence par une date » : la copie et le calendrier deviennent
+   les deux colonnes de .organiseband. */
+.organiseband .date-planning-inner {
+  display: contents;
+}
+
+/* Titres des bénéfices (Imaginez / Rencontrez / Organisez). */
+.eb-landing-benefits .benefit-kicker {
+  display: block;
+  margin-top: 8px;
+  color: #640017;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+/* Cartes prestataires (sélection du moment). */
+.featured-providers .collectiongrid {
+  margin-top: 8px;
+}
+
+.featured-providers .editorNote .explore {
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  color: #640017;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}

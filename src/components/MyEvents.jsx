@@ -48,7 +48,7 @@ function EventSummary({ event, isPast = false, onManageProviders, onEdit, locale
   const endDate = event.parsedEndDate || event.parsedDate;
   const isMultiDay = dateKey(endDate) !== dateKey(event.parsedDate);
   return (
-    <article className={`event-summary-card${isPast ? ' is-past' : ''}`}>
+    <article className={`event-summary-card work-row${isPast ? ' is-past' : ''}`}>
       <time className="event-summary-date" dateTime={dateKey(event.parsedDate)}>
         <strong>{formatDate(event.parsedDate, locale)}</strong>
         {isMultiDay && <span className="event-summary-end-date">{translateText('au')} {formatDate(endDate, locale)}</span>}
@@ -303,16 +303,16 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
   };
 
   return (
-    <main className="my-events-page">
-      <div className="my-events-layout">
-        <aside className="my-events-sidebar" aria-label={translateText('Navigation de vos événements')}>
+    <main className="my-events-page section workspace">
+      <div className="my-events-layout layout">
+        <aside className="my-events-sidebar sidebar" aria-label={translateText('Navigation de vos événements')}>
           <div className="my-events-sidebar-heading">
-            <span className="summary-label">{translateText('Votre agenda')}</span>
+            <span className="summary-label eyebrow">{translateText('Votre agenda')}</span>
             <strong>{loading ? '…' : `${upcomingEvents.length} ${translateText('à venir')}`}</strong>
           </div>
           <nav className="my-events-side-nav" aria-label={translateText('Vues des événements')}>
-            <button type="button" className={view === 'overview' ? 'is-active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => setView('overview')}>{translateText('Vue d’ensemble')}</button>
-            <button type="button" className={view === 'calendar' ? 'is-active' : ''} aria-current={view === 'calendar' ? 'page' : undefined} onClick={() => setView('calendar')}>{translateText('Calendrier')}</button>
+            <button type="button" className={view === 'overview' ? 'is-active active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => setView('overview')}>{translateText('Vue d’ensemble')}</button>
+            <button type="button" className={view === 'calendar' ? 'is-active active' : ''} aria-current={view === 'calendar' ? 'page' : undefined} onClick={() => setView('calendar')}>{translateText('Calendrier')}</button>
           </nav>
           <section className="my-events-sidebar-list" aria-labelledby="sidebar-upcoming-title">
             <div className="my-events-sidebar-list-heading">
@@ -340,8 +340,9 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
         <div className="my-events-content">
           <div className="my-events-heading">
             <button className="text-link my-events-back" onClick={onBack}>{translateText('Retour à l’accueil')}</button>
-            <div className="my-events-title-row">
+            <div className="my-events-title-row sectionhead">
               <div>
+                <span className="summary-label eyebrow">{translateText('Votre espace')}</span>
                 <h1>{translateText('Mes événements')}</h1>
                 <p>{translateText(view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.')}</p>
               </div>
@@ -358,7 +359,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
             <div className="event-overview">
               <section className="event-summary-section" aria-labelledby="future-events-title">
                 <div className="event-summary-section-heading">
-                  <div><span className="summary-label">{translateText('À venir')}</span><h2 id="future-events-title">{translateText('Futurs événements')}</h2></div>
+                  <div><span className="summary-label eyebrow">{translateText('À venir')}</span><h2 id="future-events-title">{translateText('Futurs événements')}</h2></div>
                   <span className="event-section-count">{upcomingEvents.length}</span>
                 </div>
                 {loading ? <p className="event-list-empty">{translateText('Chargement des événements…')}</p> : upcomingEvents.length ? (
@@ -368,7 +369,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
 
               <section className="event-summary-section past-events-section" aria-labelledby="past-events-title">
                 <div className="event-summary-section-heading">
-                  <div><span className="summary-label">{translateText('Historique')}</span><h2 id="past-events-title">{translateText('Événements passés')}</h2></div>
+                  <div><span className="summary-label eyebrow">{translateText('Historique')}</span><h2 id="past-events-title">{translateText('Événements passés')}</h2></div>
                   <span className="event-section-count">{pastEvents.length}</span>
                 </div>
                 {loading ? <p className="event-list-empty">{translateText('Chargement de l’historique…')}</p> : pastEvents.length ? (
@@ -380,7 +381,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
           <section className="events-calendar" aria-label={translateText('Calendrier des événements à venir')}>
         <div className="calendar-heading">
           <div>
-            <span className="summary-label">{translateText('Calendrier')}</span>
+            <span className="summary-label eyebrow">{translateText('Calendrier')}</span>
             <h2>{monthFormatter.format(visibleMonth)}</h2>
           </div>
           <div className="calendar-navigation">

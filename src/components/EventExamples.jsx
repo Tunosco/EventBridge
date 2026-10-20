@@ -60,38 +60,57 @@ const imageAltLabels = {
 };
 
 export default function EventExamples({ selectedType = '', onEventTypeSelect, onCreateEventClick, language = 'fr' }) {
-  const activeEvent = events.find((event) => event.title === selectedType);
-  const stories = activeEvent ? [activeEvent] : events;
   const eventLabel = (event) => eventLabels[language]?.[event.id] || [event.title, event.description];
   const eventImageAlt = (event) => imageAltLabels[language]?.[event.id] || event.imageAlt;
   const copy = language === 'en'
-    ? { kicker: 'Occasions', title: 'Gather around what matters.', intro: 'A few ideas to imagine the moment that feels like you.', action: 'Plan this event', celebrate: 'TO CELEBRATE' }
+    ? { kicker: 'Your next moment', title: 'Occasions to celebrate your way.', intro: 'A few ideas to imagine the moment that feels like you.', action: 'Imagine my event', tabsLabel: 'Event types' }
     : language === 'it'
-      ? { kicker: 'Occasioni', title: 'Celebra i momenti che contano.', intro: 'Qualche ispirazione per immaginare un momento tutto tuo.', action: 'Immagina il tuo evento', celebrate: 'DA CELEBRARE' }
-      : { kicker: 'Vos événements', title: 'Des occasions à célébrer à votre façon.', intro: 'Quelques inspirations pour imaginer le moment qui vous ressemble.', action: 'Imaginer mon événement', celebrate: 'À CÉLÉBRER' };
+      ? { kicker: 'Il tuo prossimo momento', title: 'Occasioni da celebrare a modo tuo.', intro: 'Qualche ispirazione per immaginare un momento tutto tuo.', action: 'Immagina il mio evento', tabsLabel: 'Tipi di evento' }
+      : { kicker: 'Votre prochain moment', title: 'Des occasions à célébrer à votre façon.', intro: 'Quelques inspirations pour imaginer le moment qui vous ressemble.', action: 'Imaginer mon événement', tabsLabel: 'Types d’événements' };
+  const activeEvent = events.find((event) => event.title === selectedType) || events[0];
+  const mosaicPositions = {
+    mariage: ['50% 47%', '48% 53%', '49% 56%'],
+    anniversaire: ['50% 43%', '50% 47%', '53% 44%'],
+    professionnel: ['50% 49%', '51% 52%', '50% 55%'],
+  };
+  const positions = mosaicPositions[activeEvent.id] || ['center', 'center', 'center'];
   return (
-    <section className={`event-examples${activeEvent ? ' is-event-gallery' : ''}`} aria-labelledby="event-examples-title">
+    <section className={`event-examples${selectedType ? ' is-event-gallery' : ''}`} aria-labelledby="event-examples-title">
       <div className="event-examples-inner">
         <div className="event-examples-heading">
-          <span className="kicker">{copy.kicker}</span>
-          <h2 id="event-examples-title">{activeEvent ? eventLabel(activeEvent)[0] : copy.title}</h2>
-          <p>{activeEvent ? eventLabel(activeEvent)[1] : copy.intro}</p>
-          {activeEvent && <nav className="event-type-tabs" aria-label={language === 'en' ? 'Event types' : language === 'it' ? 'Tipi di evento' : 'Types d’événements'}>{events.map((event) => <button className={event.id === activeEvent.id ? 'is-active' : ''} key={event.id} type="button" aria-current={event.id === activeEvent.id ? 'page' : undefined} onClick={() => onEventTypeSelect?.(event.title)}>{eventLabel(event)[0]}</button>)}</nav>}
+          <span className="eyebrow kicker">{copy.kicker}</span>
+          <h2 id="event-examples-title">{copy.title}</h2>
+          <p>{copy.intro}</p>
         </div>
-        <div className="event-example-grid">
-          {stories.map((event, index) => (
-            <article className="event-example" key={event.id}>
-              <div className="event-example-image" aria-label={eventImageAlt(event)}>
-                {event.images.map((image, imageIndex) => <img key={image} src={image} alt={imageIndex === 0 ? eventImageAlt(event) : ''} aria-hidden={imageIndex > 0 ? 'true' : undefined} loading="lazy" />)}
-              </div>
-              <div className="event-example-copy">
-                <span className="event-example-number">0{index + 1} / {copy.celebrate}</span>
-                <h3>{eventLabel(event)[0]}</h3>
-                <p>{eventLabel(event)[1]}</p>
-                {activeEvent && <button className="button button-primary" type="button" onClick={() => onCreateEventClick?.()}>{copy.action}</button>}
-              </div>
-            </article>
+        <nav className="event-type-tabs" aria-label={copy.tabsLabel}>
+          {events.map((event) => (
+            <button
+              key={event.id}
+              type="button"
+              className={event.id === activeEvent.id ? 'is-active' : ''}
+              aria-current={event.id === activeEvent.id ? 'page' : undefined}
+              onClick={() => onEventTypeSelect?.(event.title)}
+            >{eventLabel(event)[0]}</button>
           ))}
+        </nav>
+        <div className="event-example-grid" id="occasion">
+          {events.map((event) => {
+            const isSelected = event.id === activeEvent.id;
+            const label = eventLabel(event);
+            return (
+              <article key={event.id} className="event-example">
+                <div className="event-example-image">
+                  <img src={event.images[0]} alt={eventImageAlt(event)} loading="lazy" />
+                </div>
+                <div className="event-example-copy">
+                  <span className="event-example-number">{event.id.toUpperCase()}</span>
+                  <h3>{label[0]}</h3>
+                  <p>{label[1]}</p>
+                  <button className="button button-primary" type="button" onClick={() => onCreateEventClick?.()}>{copy.action}</button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>

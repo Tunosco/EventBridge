@@ -16,20 +16,22 @@ export default function ContactPage({ language = 'fr' }) {
 
   return (
     <main className="contact-page">
-      <div className="contact-layout">
+      <div className="contact-layout contactlayout section">
         <div className="contact-copy">
-          <span className="kicker">{copy.eyebrow}</span>
+          <span className="kicker eyebrow">{copy.eyebrow}</span>
           <h1>{copy.title}</h1>
           <p>{copy.body}</p>
-          <span className="contact-note">{copy.footer}</span>
+          <div className="contactaside">
+            <span className="contact-note">{copy.footer}</span>
+          </div>
         </div>
-        <form className="contact-form" onSubmit={handleSubmit}>
+        <form className="contact-form contactform" onSubmit={handleSubmit}>
           <label>{copy.name}<input name="name" autoComplete="name" required maxLength="120" /></label>
           <label>{copy.email}<input name="email" type="email" autoComplete="email" required maxLength="180" /></label>
           <label>{copy.subject}<select name="subject" defaultValue="event"><option value="event">{copy.event}</option><option value="provider">{copy.provider}</option><option value="other">{copy.other}</option></select></label>
           <label>{copy.message}<textarea name="message" rows="5" required maxLength="3000" /></label>
-          <button className="button button-primary" type="submit">{copy.send}</button>
-          <small>{copy.note}</small>
+          <button className="button button-primary primary" type="submit">{copy.send}</button>
+          <small className="notice">{copy.note}</small>
           {submitted && <p className="demo-status" role="status">{copy.success}</p>}
         </form>
       </div>

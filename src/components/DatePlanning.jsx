@@ -61,10 +61,10 @@ export default function DatePlanning({ onCreateEventClick, language = 'fr' }) {
   const selectedDateValue = new Date(`${selectedDate}T12:00:00`);
 
   return (
-    <section className="date-planning" aria-labelledby="date-planning-title">
-      <div className="date-planning-inner">
+    <section className="date-planning organiseband" aria-labelledby="date-planning-title">
+      <div className="organiseband-inner">
         <div className="date-planning-copy">
-          <span className="kicker">{copy.kicker}</span>
+          <span className="kicker eyebrow">{copy.kicker}</span>
           <h2 id="date-planning-title">{copy.title}</h2>
           <p>{copy.body}</p>
           <div className="date-planning-selected">
@@ -72,12 +72,14 @@ export default function DatePlanning({ onCreateEventClick, language = 'fr' }) {
             <strong>{selectedDateFormatter.format(selectedDateValue)}</strong>
             <DateInput aria-label={copy.edit} min={todayKey} value={selectedDate} onChange={setSelectedDate} />
           </div>
-          <button className="button button-primary" type="button" onClick={() => onCreateEventClick?.(selectedDate)}>{copy.create}</button>
+          <div className="actions">
+            <button className="button button-primary primary" type="button" onClick={() => onCreateEventClick?.(selectedDate)}>{copy.create}</button>
+          </div>
         </div>
         <div className="date-planning-calendar" aria-label={copy.calendar}>
           <div className="date-planning-calendar-heading">
             <h3>{localizedMonthFormatter.format(visibleMonth)}</h3>
-            <div>
+            <div className="calendar-controls">
               <button type="button" aria-label={copy.previous} disabled={new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1) < currentMonth} onClick={() => changeMonth(-1)}>←</button>
               <button type="button" aria-label={copy.next} onClick={() => changeMonth(1)}>→</button>
             </div>

@@ -116,20 +116,23 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
     <>
       <header className="site-header">
         <a className="brand" href="#accueil" aria-label={`EventBridge, ${text.home}`} onClick={navigate(() => onNavigate?.('home'))}><span>EVENT</span><small>BRIDGE</small></a>
-        <nav className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label={language === 'en' ? 'Main navigation' : language === 'it' ? 'Navigazione principale' : 'Navigation principale'}>
+        <button className="menu-button mobile-menu-toggle" type="button" aria-label={menuOpen ? text.closeMenu : text.openMenu} aria-expanded={menuOpen} aria-controls="eb-main-nav" onClick={() => setMenuOpen((open) => !open)}>
+          <span className="menu-icon" aria-hidden="true"><span /><span /><span /></span>
+        </button>
+        <nav id="eb-main-nav" className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label={language === 'en' ? 'Main navigation' : language === 'it' ? 'Navigazione principale' : 'Navigation principale'}>
           <button className="nav-link" onClick={navigate(() => onNavigate?.('home'))}>{text.home}</button>
-          <details className="site-nav-dropdown">
+          <details className="site-nav-dropdown nav-dropdown">
             <summary className="nav-link">{text.events}</summary>
-            <div className="site-nav-panel">{eventTypes.map(([value, label]) => <button key={value} onClick={navigate(() => onEventsClick?.(value))}>{label}</button>)}</div>
+            <div className="site-nav-panel nav-panel">{eventTypes.map(([value, label]) => <button key={value} onClick={navigate(() => onEventsClick?.(value))}>{label}</button>)}</div>
           </details>
           <button className="nav-link" onClick={navigate(() => onProviderSearch?.(''))}>{text.providers}</button>
           <button className="nav-link" onClick={navigate(() => onNavigate?.('history'))}>{text.story}</button>
           <button className="nav-link" onClick={navigate(() => onNavigate?.('contact'))}>{text.contact}</button>
-          {isAuthenticated && <details className="site-nav-dropdown">
+          {isAuthenticated && <details className="site-nav-dropdown nav-dropdown">
             <summary className="nav-link">{isProvider ? text.provider : text.client}</summary>
-            <div className="site-nav-panel">{roleNavigation.map(([section, label]) => <button key={section} onClick={navigate(() => onAccountSection?.(section))}>{label}</button>)}{!isProvider && <button onClick={navigate(() => onAccountSection?.('providers'))}>{text.favorites}</button>}</div>
+            <div className="site-nav-panel nav-panel">{roleNavigation.map(([section, label]) => <button key={section} onClick={navigate(() => onAccountSection?.(section))}>{label}</button>)}{!isProvider && <button onClick={navigate(() => onAccountSection?.('providers'))}>{text.favorites}</button>}</div>
           </details>}
-          <div className="language-control" ref={languageControlRef}>
+          <div className="language-control language" ref={languageControlRef}>
             <button
               ref={languageTriggerRef}
               className="language-trigger"
@@ -162,16 +165,18 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
           {demoRole && <button className="demo-header-exit" type="button" onClick={onDemoExit}>{text.exitDemo}</button>}
           {isAuthenticated ? (
             <div className="account-menu" ref={accountMenuRef}>
-              <button
-                className="profile-button"
-                aria-label={text.openProfile}
-                aria-expanded={accountMenuOpen}
-                onClick={() => setAccountMenuOpen((open) => !open)}
-              >
-                <img src="https://i.pravatar.cc/96?img=12" alt="Photo de profil" />
-              </button>
+                <button
+                  id="account"
+                  className="profile-button"
+                  aria-label={text.openProfile}
+                  aria-expanded={accountMenuOpen}
+                  onClick={() => setAccountMenuOpen((open) => !open)}
+                >
+                  <img src="https://i.pravatar.cc/96?img=12" alt="Photo de profil" />
+                  <span className="account-name">{user?.nom || 'Utilisateur'}</span>
+                </button>
               {accountMenuOpen && (
-                <div className="account-dropdown">
+                <div className="account-dropdown nav-panel">
                   {isProvider && <button onClick={() => openAccountAction('calendrier')}>{text.calendar}</button>}
                   <button onClick={() => openAccountAction('profil')}>{text.profile}</button>
                   <button onClick={() => openAccountAction('parametres')}>{text.settings}</button>
@@ -182,10 +187,9 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
               )}
             </div>
           ) : (
-            <button className="button button-primary nav-cta" onClick={navigate(() => onProjectClick('connexion'))}>{text.login}</button>
+            <button id="account" className="button button-primary nav-cta" onClick={navigate(() => onProjectClick('connexion'))}>{text.login}</button>
           )}
         </nav>
-        <button className="menu-button" aria-label={menuOpen ? text.closeMenu : text.openMenu} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>☰</button>
       </header>
     </>
   );

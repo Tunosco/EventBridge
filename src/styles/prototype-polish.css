@@ -31,15 +31,15 @@
 }
 
 :root {
-  --navy: #000861;
-  --coral: #bba177;
-  --coral-dark: #8d7652;
-  --mint: #e8dfd2;
-  --sky: #efe5d6;
-  --sand: #f4f0ea;
+  --navy: #0c0002;
+  --coral: #640017;
+  --coral-dark: #790b29;
+  --mint: #f8eff0;
+  --sky: #efe3df;
+  --sand: #faf5f2;
   --ink: #0c0002;
   --muted: #625a5b;
-  --line: #e7dccd;
+  --line: #eadbdd;
   --white: #fff;
   --shadow: 0 12px 35px rgba(12, 0, 2, .08);
 }

@@ -132,7 +132,7 @@ export default function ProviderFinder({
 
   return (
     <div className={`provider-finder${selectionMode ? ' is-selection-mode' : ''}${featured ? ' is-featured' : ''}`}>
-      {!featured && <div className="provider-finder-toolbar">
+      {!featured && <div className="provider-finder-toolbar searchbox">
         <form className="provider-finder-search-controls" onSubmit={submitSearch}>
           <label>{translateText('Nom ou mot-clé')}<input type="search" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} placeholder={translateText('Ex. fleurs, sonorisation…')} /></label>
           <label>{translateText('Prestation')}<select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })}>
@@ -143,7 +143,7 @@ export default function ProviderFinder({
           <label>{translateText('Date')}<DateInput aria-label={translateText('Date')} min={new Date().toISOString().slice(0, 10)} value={filters.date} onChange={(date) => setFilters({ ...filters, date })} /></label>
           <button className="button button-primary" type="submit">{translateText('Rechercher')}</button>
         </form>
-        <div className="provider-finder-filters" aria-label={translateText('Filtrer les prestataires')}>
+        <div className="provider-finder-filters chips" aria-label={translateText('Filtrer les prestataires')}>
           <button type="button" className={!favoritesOnly ? 'is-active' : ''} aria-pressed={!favoritesOnly} onClick={() => setFavoritesOnly(false)}>{translateText('Tous')}</button>
           <button type="button" className={favoritesOnly ? 'is-active' : ''} aria-pressed={favoritesOnly} onClick={() => {
             if (!isAuthenticated) {
@@ -158,7 +158,7 @@ export default function ProviderFinder({
 
       {error && <p className="provider-finder-error" role="alert">{translateText(error)}</p>}
       {loading ? <p className="provider-finder-status">{translateText('Recherche des prestataires…')}</p> : providers.length ? (
-        <div className="provider-results" aria-live="polite">
+        <div className="provider-results grid" aria-live="polite">
           {providers.slice(0, limit).map((provider) => {
             const isSelected = selectedIds.includes(provider.id);
             return (

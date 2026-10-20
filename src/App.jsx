@@ -9,6 +9,7 @@ import ContactModal from './components/ContactModal';
 import ContactPage from './components/ContactPage';
 import DemoSpace from './components/DemoSpace';
 import Process from './components/Process';
+import PathsSection from './components/PathsSection';
 import StoryPage from './components/StoryPage';
 const Profile = lazy(() => import('./components/Profile'));
 const Settings = lazy(() => import('./components/Settings'));
@@ -31,6 +32,8 @@ import './styles/provider-directory.css';
 import './styles/prototype-theme.css';
 import './styles/prototype-polish.css';
 import './styles/demo-space.css';
+import './styles/visuel-reference.css';
+import './styles/visuel-react.css';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true);
@@ -53,6 +56,10 @@ export default function App() {
   const confirmationHandled = useRef(false);
   const authRequestVersion = useRef(0);
   const eventCreationPendingAuth = useRef(false);
+  useEffect(() => {
+    document.body.classList.toggle('homeheader', page === 'home');
+    return () => document.body.classList.remove('homeheader');
+  }, [page]);
   const handleProjectClick = (type) => {
     if (type === 'prestataire') {
       setProviderSection('home');
@@ -208,7 +215,7 @@ export default function App() {
   return (
     <LanguageProvider language={language}>
     <>
-      <div className="app-content" inert={showIntro} aria-hidden={showIntro ? 'true' : undefined}>
+      <div className="app-content" id="app" inert={showIntro} aria-hidden={showIntro ? 'true' : undefined}>
       {authNotice && <div className={`auth-confirmation-notice is-${authNotice.type}`} role={authNotice.type === 'error' ? 'alert' : 'status'}>
         <span>{translate(authNotice.message, language)}</span>
         <button type="button" aria-label={translate('Fermer', language)} onClick={() => setAuthNotice(null)}>×</button>
@@ -253,7 +260,13 @@ export default function App() {
             <FeaturedProviders isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} onProviderSearch={handleProviderSearch} onDemoSelect={handleDemoSelect} language={language} />
             <EventExamples language={language} onCreateEventClick={handleCreateEventClick} />
             <DatePlanning onCreateEventClick={handleCreateEventClick} language={language} />
-            <Process />
+            <Process onDiscover={() => handleProviderSearch('')} />
+            <PathsSection
+              language={language}
+              onClientSpace={() => { if (user) setPage('events'); else setContactType('connexion'); }}
+              onProviderSpace={handleProviderSpaceClick}
+              onLearnMore={() => setPage('contact')}
+            />
           </main>
         )}
       </Suspense>
