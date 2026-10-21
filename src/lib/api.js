@@ -69,7 +69,10 @@ export function updateEvent(eventId, payload) {
 
 export function searchProviders(search, favoritesOnly = false) {
   const parameters = new URLSearchParams();
-  if (search) parameters.set('q', search);
+  const query = typeof search === 'string'
+    ? search
+    : (search && typeof search === 'object' ? search.query : '');
+  if (query && String(query).trim()) parameters.set('q', String(query).trim());
   if (favoritesOnly) parameters.set('favoris', 'true');
   const token = localStorage.getItem('eventbridge_token');
   return request(`/providers?${parameters.toString()}`, { headers: token ? authHeaders() : {} });

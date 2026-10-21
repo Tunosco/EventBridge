@@ -5,62 +5,93 @@ import { searchProviders } from '../lib/api';
 
 const emptyFilters = { query: '', category: '', city: '', maxBudget: '', date: '' };
 
-export default function FeaturedProviders({ isAuthenticated, onRequireAuth, onProviderSearch, onDemoSelect, language = 'fr' }) {
+function firstValue(value) {
+  if (!value) return '';
+  return String(value).split(',')[0].trim();
+}
+
+/**
+ * « Sélection du moment » de la référence (Visuel_EventBridge.html) :
+ * quatre prestataires mis en avant dans la grille `.collectiongrid`.
+ */
+export default function FeaturedProviders({
+  isAuthenticated,
+  onRequireAuth,
+  onProviderSearch,
+  onDemoSelect,
+  language = 'fr',
+  selectionLabel,
+  catalogLabel,
+}) {
   const { locale, translateText } = useTranslation();
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     async function fetchFeatured() {
       try {
         const result = await searchProviders({ query: '' });
-        setProviders(result.slice(0, 4));
+        if (!active) return;
+        setProviders(Array.isArray(result) ? result : []);
       } catch (e) {
         console.error('Erreur chargement prestataires:', e);
+        if (active) setProviders([]);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
     fetchFeatured();
+    return () => { active = false; };
   }, []);
 
   const copy = language === 'en'
-    ? { head: 'Selection of the moment', title: 'Meetings that bring your ideas to life.', body: 'Explore the services, keep your favourites and talk about your project.', discover: 'Discover the service', link: 'See all providers', demo: 'Explore the demo', favourite: 'Find my favourites' }
+    ? { discover: 'Discover the service', link: 'See the whole catalogue' }
     : language === 'it'
-      ? { head: 'Selezione la momento', title: 'Incontri che danno vita alle tue idee.', body: 'Esplora i servizi, salva i preferiti e parla del tuo progetto.', discover: 'Scopri il servizio', link: 'Vedi tutti i fornitori', demo: 'Esplora la demo', favourite: 'Trova i miei preferiti' }
-      : { head: 'Sélection du moment', title: 'Des rencontres qui donnent vie à vos idées.', body: 'Explorez les prestations, gardez vos favoris et échangez autour de votre projet.', discover: 'Découvrir la prestation', link: 'Voir tous les prestataires', demo: 'Explorer la démo', favourite: 'Retrouver mes favoris' };
+      ? { discover: 'Scopri il servizio', link: 'Vedi tutto il catalogo' }
+      : { discover: 'Découvrir la prestation', link: 'Voir tout le catalogue' };
 
   return (
     <section className="featured-providers" aria-labelledby="featured-providers-title">
       <div className="featured-providers-inner">
         <div className="collectionhead" id="collections">
-          <span id="featured-providers-title" className="benefit-kicker">{copy.head}</span>
-          <button type="button" className="nav-link" onClick={() => onProviderSearch?.(emptyFilters)}>{copy.link}</button>
+          <span id="featured-providers-title">{selectionLabel || translateText('Sélection du moment')}</span>
+          <button type="button" onClick={() => onProviderSearch?.(emptyFilters)}>{catalogLabel || copy.link}</button>
         </div>
         <div className="collectiongrid">
-          <aside className="editorNote">
-            <h2 className="featured-providers-heading">{copy.title}</h2>
-            <p>{copy.body}</p>
-            <button className="explore" type="button" onClick={() => onDemoSelect?.('client', 'search')}>{copy.favourite}</button>
-          </aside>
           {loading ? (
-            <div className="loading-providers">Chargement...</div>
+            <div className="loading-providers">{translateText('Chargement…')}</div>
           ) : providers.length > 0 ? (
-            providers.map((provider) => (
-              <article className="editorcard" key={provider.id}>
-                <button className="saveheart" type="button" aria-label={`${translateText('Ajouter aux')} ${provider.nom}`} onClick={() => (isAuthenticated ? onDemoSelect?.('client', 'search') : onRequireAuth?.())}>♡</button>
-                <div className="provider-result-image">
-                  <img src={provider.image || '/images/prototype/default-provider.jpg'} alt="" loading="lazy" />
-                </div>
-                <span className="eyebrow">{translateText(provider.categorie)} · {provider.ville}</span>
-                <h3 className="provider-result-copy">{provider.nom}</h3>
-                <p>{translateText(provider.description)}</p>
-                <div className="metadata">{translateText('À partir de')} {provider.prix ? Number(provider.prix.replace(' ', '')).toLocaleString(locale) : 'N/C'} €</div>
-                <button className="explore" type="button" onClick={() => onDemoSelect?.('client', 'search')}>{copy.discover}</button>
-              </article>
-            ))
+            providers.slice(0, 4).map((provider) => {
+              const name = provider.raisonSociale || provider.nom || '';
+              const category = firstValue(provider.categories || provider.categorie);
+              const city = provider.adressePostale || provider.ville || '';
+              const price = provider.prixMinimum ?? provider.prix;
+              return (
+                <article className="editorcard" key={provider.id}>
+                  <button
+                    className="saveheart"
+                    type="button"
+                    aria-label={`${translateText('Ajouter aux favoris')} : ${name}`}
+                    onClick={() => (isAuthenticated ? onDemoSelect?.('client', 'search') : onRequireAuth?.())}
+                  >
+                    {provider.estFavori ? '♥' : '♡'}
+                  </button>
+                  <div className="provider-result-image">
+                    <img src={provider.photoUrl || provider.image || '/images/prototype/atelier.jpg'} alt="" loading="lazy" />
+                  </div>
+                  <span className="eyebrow">{category && city ? `${translateText(category)} · ${city}` : (category || city)}</span>
+                  <h3 className="provider-result-copy">{name}</h3>
+                  {provider.description && <p>{translateText(provider.description)}</p>}
+                  {price !== null && price !== undefined && price !== '' ? (
+                    <div className="metadata">{translateText('À partir de')} {Number(String(price).replace(/\s/g, '').replace(',', '.')).toLocaleString(locale)} €</div>
+                  ) : null}
+                  <button className="explore" type="button" onClick={() => onDemoSelect?.('client', 'search')}>{copy.discover}</button>
+                </article>
+              );
+            })
           ) : (
-            <div className="no-providers">Aucun prestataire disponible pour le moment.</div>
+            <div className="no-providers">{translateText('Aucun prestataire disponible pour le moment.')}</div>
           )}
         </div>
       </div>

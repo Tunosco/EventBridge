@@ -6,7 +6,7 @@ const labels = {
   it: { home: 'Home', events: 'I nostri eventi', providers: 'Trova un fornitore', story: 'La nostra storia', contact: 'Contatti', login: 'Accedi', client: 'Area clienti', provider: 'Area fornitori', profile: 'Profilo', settings: 'Impostazioni', logout: 'Esci', clientEvents: 'I miei eventi', calendar: 'Calendario', favorites: 'Preferiti', messages: 'Messaggi', availability: 'Disponibilità', tasks: 'Le mie attività', clientDemo: 'Demo cliente', providerDemo: 'Demo fornitore', exitDemo: 'Esci dalla demo', openProfile: 'Apri il menu del profilo', openMenu: 'Apri il menu', closeMenu: 'Chiudi il menu', language: 'Lingua' },
 };
 
-export default function Header({ onNavigate, onProjectClick, onEventsClick, onProviderSearch, onLoggedOut, onProfileClick, onSettingsClick, onAccountSection, onLanguageChange, onDemoSelect, onDemoExit, demoRole, language = 'fr', user, isAuthenticated }) {
+export default function Header({ onNavigate, onProjectClick, onProviderSearch, onLoggedOut, onProfileClick, onSettingsClick, onAccountSection, onLanguageChange, onDemoSelect, onDemoExit, demoRole, language = 'fr', user, isAuthenticated }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
@@ -64,12 +64,6 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
   };
   const isProvider = user?.typeUtilisateur === 'prestataire';
   const text = labels[language] || labels.fr;
-  const eventTypes = [
-    ['Mariage', language === 'en' ? 'Wedding' : language === 'it' ? 'Matrimonio' : 'Mariage'],
-    ['Anniversaire', language === 'en' ? 'Birthday' : language === 'it' ? 'Compleanno' : 'Anniversaire'],
-    ['Événement professionnel', language === 'en' ? 'Corporate event' : language === 'it' ? 'Evento aziendale' : 'Événement professionnel'],
-    ['Autres événements', language === 'en' ? 'Other events' : language === 'it' ? 'Altri eventi' : 'Autres événements'],
-  ];
   const roleNavigation = isProvider
     ? [['home', text.home], ['events', text.clientEvents], ['availability', text.availability], ['tasks', text.tasks], ['messages', text.messages]]
     : [['home', text.home], ['events', text.clientEvents], ['calendar', text.calendar], ['messages', text.messages]];
@@ -121,10 +115,6 @@ export default function Header({ onNavigate, onProjectClick, onEventsClick, onPr
         </button>
         <nav id="eb-main-nav" className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label={language === 'en' ? 'Main navigation' : language === 'it' ? 'Navigazione principale' : 'Navigation principale'}>
           <button className="nav-link" onClick={navigate(() => onNavigate?.('home'))}>{text.home}</button>
-          <details className="site-nav-dropdown nav-dropdown">
-            <summary className="nav-link">{text.events}</summary>
-            <div className="site-nav-panel nav-panel">{eventTypes.map(([value, label]) => <button key={value} onClick={navigate(() => onEventsClick?.(value))}>{label}</button>)}</div>
-          </details>
           <button className="nav-link" onClick={navigate(() => onProviderSearch?.(''))}>{text.providers}</button>
           <button className="nav-link" onClick={navigate(() => onNavigate?.('history'))}>{text.story}</button>
           <button className="nav-link" onClick={navigate(() => onNavigate?.('contact'))}>{text.contact}</button>

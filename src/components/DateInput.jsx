@@ -173,7 +173,10 @@ export default function DateInput({ value, onChange, min, max, disabledDates = [
         aria-controls={calendarId}
         onClick={openCalendar}
       >
-        <span aria-hidden="true">▦</span>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="5" width="18" height="16" rx="1" />
+          <path d="M8 3v4M16 3v4M3 10h18" />
+        </svg>
       </button>
       {isCalendarOpen && <div className="date-input-calendar" id={calendarId} role="dialog" aria-label={translateText('Calendrier')}>
         <div className="date-input-calendar-header">

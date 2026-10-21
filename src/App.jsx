@@ -1,15 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
-import Hero from './components/Hero';
-import EventExamples from './components/EventExamples';
-import FeaturedProviders from './components/FeaturedProviders';
-import DatePlanning from './components/DatePlanning';
+import HomePage from './components/HomePage';
 import IntroOverlay from './components/IntroOverlay';
 import ContactModal from './components/ContactModal';
 import ContactPage from './components/ContactPage';
 import DemoSpace from './components/DemoSpace';
-import Process from './components/Process';
-import PathsSection from './components/PathsSection';
 import StoryPage from './components/StoryPage';
 const Profile = lazy(() => import('./components/Profile'));
 const Settings = lazy(() => import('./components/Settings'));
@@ -34,6 +29,7 @@ import './styles/prototype-polish.css';
 import './styles/demo-space.css';
 import './styles/visuel-reference.css';
 import './styles/visuel-react.css';
+import './styles/visuel-final.css';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true);
@@ -42,7 +38,6 @@ export default function App() {
   const [page, setPage] = useState('home');
   const [openCreateEventOnEvents, setOpenCreateEventOnEvents] = useState(false);
   const [eventDraftDate, setEventDraftDate] = useState('');
-  const [eventGalleryType, setEventGalleryType] = useState('');
   const [demoRole, setDemoRole] = useState(null);
   const [demoInitialSection, setDemoInitialSection] = useState('overview');
   const [language, setLanguage] = useState(() => {
@@ -75,10 +70,6 @@ export default function App() {
     }
     setProviderSection('home');
     setPage('provider');
-  };
-  const handleEventsClick = (eventType = '') => {
-    setEventGalleryType(eventType);
-    setPage('event-gallery');
   };
   const handleLanguageChange = (nextLanguage) => {
     setLanguage(nextLanguage);
@@ -209,13 +200,13 @@ export default function App() {
   }, [language]);
 
   useEffect(() => {
-    if (!showIntro) document.querySelector('.site-header .brand')?.focus();
+    if (!showIntro) document.getElementById('app')?.focus();
   }, [showIntro]);
 
   return (
     <LanguageProvider language={language}>
     <>
-      <div className="app-content" id="app" inert={showIntro} aria-hidden={showIntro ? 'true' : undefined}>
+      <div className="app-content" id="app" tabIndex={-1} inert={showIntro} aria-hidden={showIntro ? 'true' : undefined}>
       {authNotice && <div className={`auth-confirmation-notice is-${authNotice.type}`} role={authNotice.type === 'error' ? 'alert' : 'status'}>
         <span>{translate(authNotice.message, language)}</span>
         <button type="button" aria-label={translate('Fermer', language)} onClick={() => setAuthNotice(null)}>×</button>
@@ -224,7 +215,7 @@ export default function App() {
         if (nextPage === 'home' && user) navigateToAccountHome();
         else if (nextPage === 'provider') handleProviderSpaceClick();
         else setPage(nextPage);
-      }} onProjectClick={handleProjectClick} onEventsClick={handleEventsClick} onProviderSearch={handleProviderSearch} onLoggedOut={handleLoggedOut} onProfileClick={() => {
+      }} onProjectClick={handleProjectClick} onProviderSearch={handleProviderSearch} onLoggedOut={handleLoggedOut} onProfileClick={() => {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
         else setPage('profile');
       }} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} user={user} isAuthenticated={Boolean(user)} />
@@ -235,8 +226,6 @@ export default function App() {
           <ContactPage language={language} />
         ) : page === 'demo' ? (
           <DemoSpace role={demoRole} initialSection={demoInitialSection} onRealAccount={() => { setDemoRole(null); setPage('home'); setContactType('connexion'); }} onExit={() => { setDemoRole(null); setPage('home'); }} />
-        ) : page === 'event-gallery' ? (
-          <main><EventExamples selectedType={eventGalleryType} onEventTypeSelect={handleEventsClick} onCreateEventClick={handleCreateEventClick} language={language} /></main>
         ) : page === 'provider' ? (
           <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} />
         ) : page === 'providers' ? (
@@ -255,19 +244,17 @@ export default function App() {
         ) : page === 'settings' && user ? (
           <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
         ) : (
-          <main>
-            <Hero onProjectClick={handleProjectClick} onCreateEventClick={handleCreateEventClick} onProviderSearch={handleProviderSearch} language={language} />
-            <FeaturedProviders isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} onProviderSearch={handleProviderSearch} onDemoSelect={handleDemoSelect} language={language} />
-            <EventExamples language={language} onCreateEventClick={handleCreateEventClick} />
-            <DatePlanning onCreateEventClick={handleCreateEventClick} language={language} />
-            <Process onDiscover={() => handleProviderSearch('')} />
-            <PathsSection
-              language={language}
-              onClientSpace={() => { if (user) setPage('events'); else setContactType('connexion'); }}
-              onProviderSpace={handleProviderSpaceClick}
-              onLearnMore={() => setPage('contact')}
-            />
-          </main>
+          <HomePage
+            language={language}
+            isAuthenticated={Boolean(user)}
+            onRequireAuth={() => setContactType('connexion')}
+            onProviderSearch={handleProviderSearch}
+            onCreateEventClick={handleCreateEventClick}
+            onDemoSelect={handleDemoSelect}
+            onClientSpace={() => { if (user) setPage('events'); else setContactType('connexion'); }}
+            onProviderSpace={handleProviderSpaceClick}
+            onLearnMore={() => setPage('contact')}
+          />
         )}
       </Suspense>
       <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}><span>EVENT</span><small>BRIDGE</small></a><small>{translate('La rencontre entre les idées et les talents.', language)}</small></div><nav><button onClick={() => setPage('history')}>{translate('Notre histoire', language)}</button><button onClick={() => setPage('contact')}>{translate('Contact', language)}</button><button onClick={handleProviderSpaceClick}>{translate('Espace prestataire', language)}</button><button onClick={() => setContactType('connexion')}>{translate('Connexion', language)}</button></nav><small>© 2026 EventBridge</small></footer>
