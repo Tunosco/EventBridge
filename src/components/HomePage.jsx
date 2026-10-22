@@ -1,114 +1,77 @@
-import { useState } from 'react';
-import SearchBlock from './SearchBlock';
-import FeaturedProviders from './FeaturedProviders';
-import EventExamples from './EventExamples';
-import PathsSection from './PathsSection';
+import CategoryShowcase from './CategoryShowcase';
 
 const copy = {
   fr: {
     title: 'Comment allez-vous célébrer ?',
     types: 'Mariage · Anniversaire · Baby shower · Événement professionnel',
-    intro: 'Les bons prestataires pour vos événements d’entreprise et vos fêtes privées, réunis au même endroit.',
-    selection: 'Sélection du moment',
-    catalog: 'Voir tout le catalogue',
+    storyEyebrow: 'Votre événement commence ici',
+    storyTitle: 'Une idée, des envies : imaginez votre événement, puis donnez-lui vie.',
+    storyText: 'Un mariage, un anniversaire, une rencontre professionnelle… Créez votre événement, rassemblez vos idées et suivez chaque détail, du premier préparatif au dernier instant.',
+    create: 'Créer un événement',
+    catalogEyebrow: 'Des talents, pour chaque envie',
+    catalogTitle: 'Nos prestations phares',
+    seeMore: 'Voir plus',
   },
   en: {
     title: 'How will you celebrate?',
     types: 'Wedding · Birthday · Baby shower · Corporate event',
-    intro: 'The right providers for your corporate events and private parties, all in one place.',
-    selection: 'Selection of the moment',
-    catalog: 'See the whole catalogue',
+    storyEyebrow: 'Your event starts here',
+    storyTitle: 'An idea, a wish: imagine your event, then bring it to life.',
+    storyText: 'A wedding, a birthday, a business gathering… Create your event, bring your ideas together and keep track of every detail, from the first plan to the final moment.',
+    create: 'Create an event',
+    catalogEyebrow: 'Our signature services',
+    catalogTitle: 'Our signature services',
+    seeMore: 'See more',
   },
   it: {
     title: 'Come vuoi festeggiare?',
     types: 'Matrimonio · Compleanno · Baby shower · Evento aziendale',
-    intro: 'I fornitori giusti per i tuoi eventi aziendali e le tue feste private, tutti insieme.',
-    selection: 'Selezione del momento',
-    catalog: 'Vedi tutto il catalogo',
+    storyEyebrow: 'Il tuo evento comincia qui',
+    storyTitle: 'Un’idea, un desiderio: immagina il tuo evento e dagli vita.',
+    storyText: 'Un matrimonio, un compleanno, un incontro professionale… Crea il tuo evento, raccogli le tue idee e segui ogni dettaglio, dal primo preparativo all’ultimo istante.',
+    create: 'Crea un evento',
+    catalogEyebrow: 'I talenti per ogni desiderio',
+    catalogTitle: 'I nostri servizi di punta',
+    seeMore: 'Scopri di più',
   },
 };
 
 /**
- * Accueil de la référence (Visuel_EventBridge.html → `homeMarkup()` + `tidyHome()`) :
- * photo plein écran, recherche à deux onglets, sélection de prestataires,
- * occasions et « Deux espaces ».
+ * Accueil public : photo plein écran, récit et vitrine des prestations.
+ * Reproduit la page d’accueil de Visuel.html.
  */
-export default function HomePage({
-  language = 'fr',
-  isAuthenticated,
-  onRequireAuth,
-  onProviderSearch,
-  onCreateEventClick,
-  onDemoSelect,
-  onClientSpace,
-  onProviderSpace,
-  onLearnMore,
-}) {
+export default function HomePage({ language = 'fr', onCreateEvent, onProviderSearch }) {
   const text = copy[language] || copy.fr;
-  const [tab, setTab] = useState('search');
-  const [occasion, setOccasion] = useState('Mariage');
-  const [values, setValues] = useState({ kind: '', sub: '', city: '', date: '', guests: '', brief: '' });
-
-  const updateValue = (key, value) => setValues((current) => ({ ...current, [key]: value }));
-
-  const submitSearch = (event) => {
-    event.preventDefault();
-    if (tab === 'ai') {
-      onDemoSelect?.('client', 'search');
-      return;
-    }
-    onProviderSearch?.({
-      query: '',
-      category: values.sub || '',
-      city: values.city || '',
-      date: values.date || '',
-      maxBudget: '',
-    });
-  };
 
   return (
     <main className="eb-home">
       <section className="editorhero" aria-labelledby="eb-home-title">
         <div className="hero-shade" aria-hidden="true" />
-        <h1 id="eb-home-title">{text.title}</h1>
+        <h1 id="eb-home-title">
+          Comment <span className="eb-hero-word">allez-vous</span> célébrer&nbsp;?
+        </h1>
         <p>{text.types}</p>
       </section>
 
       <div className="editorbody">
-        <p className="searchintro">{text.intro}</p>
+        <section className="eb-home-story">
+          <span className="eyebrow">{text.storyEyebrow}</span>
+          <h2>{text.storyTitle}</h2>
+          <p>{text.storyText}</p>
+        </section>
 
-        <SearchBlock
-          language={language}
-          tab={tab}
-          onTabChange={setTab}
-          values={values}
-          onChange={updateValue}
-          onSubmit={submitSearch}
-        />
-
-        <FeaturedProviders
-          isAuthenticated={isAuthenticated}
-          onRequireAuth={onRequireAuth}
-          onProviderSearch={onProviderSearch}
-          onDemoSelect={onDemoSelect}
-          language={language}
-          selectionLabel={text.selection}
-          catalogLabel={text.catalog}
-        />
-
-        <EventExamples
-          selectedType={occasion}
-          onEventTypeSelect={setOccasion}
-          onCreateEventClick={onCreateEventClick}
-          language={language}
-        />
-
-        <PathsSection
-          language={language}
-          onClientSpace={onClientSpace}
-          onProviderSpace={onProviderSpace}
-          onLearnMore={onLearnMore}
-        />
+        <section className="eb-category-section" aria-labelledby="collections">
+          <div className="collectionhead">
+            <div>
+              <span className="eyebrow">{text.catalogEyebrow}</span>
+              <h2 id="collections">{text.catalogTitle}</h2>
+            </div>
+            <button type="button" className="eb-featured-more" onClick={() => onProviderSearch?.('')}>
+              {text.seeMore}
+            </button>
+          </div>
+          <CategoryShowcase language={language} onCategoryClick={(search) => onProviderSearch?.({ category: search })} />
+        </section>
       </div>
     </main>
   );

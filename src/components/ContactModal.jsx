@@ -4,7 +4,7 @@ import { useTranslation } from '../lib/i18n';
 import '../styles/auth-form.css';
 import '../styles/signup-name-fields.css';
 
-export default function ContactModal({ type, user, onAuthenticated, onLoggedOut, onDemo, onClose }) {
+export default function ContactModal({ type, user, onAuthenticated, onLoggedOut, onClose }) {
   const { translateText } = useTranslation();
   const isLogin = type === 'connexion';
   const isAccount = type === 'compte';
@@ -158,7 +158,6 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
           </>}
           <button className="button button-primary submit" type="submit">{translateText(isProviderSignup ? 'Créer mon compte prestataire' : isSignup ? 'Créer mon compte' : mode === 'connexion' ? 'Se connecter' : 'Envoyer ma demande')}</button>
         </form>}
-        {mode === 'connexion' && !sent && <div className="modal-demo-options"><span>{translateText('Explorer les espaces de démonstration')}</span><button type="button" onClick={() => onDemo?.('client')}>{translateText('Démo client')}</button><button type="button" onClick={() => onDemo?.('provider')}>{translateText('Démo prestataire')}</button></div>}
         {isAuth && (!sent || verificationPending) && <button className="modal-switch" onClick={switchMode}>{translateText(sent ? 'Retour à la connexion' : isSignup ? 'J’ai déjà un compte' : 'Créer un compte')}</button>}
         {isAccount && <button className="button button-primary submit" onClick={() => { localStorage.removeItem('eventbridge_token'); onLoggedOut?.(); onClose(); }}>{translateText('Se déconnecter')}</button>}
       </div>

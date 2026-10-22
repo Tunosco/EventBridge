@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ProviderFinder from './ProviderFinder';
+import WorkspaceShell, { Icon } from './WorkspaceShell';
 import { createEvent, getEventTypes, getMyEvents, updateEvent, updateEventProviders } from '../lib/api';
 import { formatDate } from '../lib/dateFormat';
 import DateInput from './DateInput';
@@ -78,7 +79,7 @@ function EventSummary({ event, isPast = false, onManageProviders, onEdit, locale
   );
 }
 
-export default function MyEvents({ onBack, openCreateInitially = false, initialDate = '', onCreateInitiallyHandled }) {
+export default function MyEvents({ onBack, onFindProviders, user, language = 'fr', openCreateInitially = false, initialDate = '', onCreateInitiallyHandled }) {
   const { locale, translateText } = useTranslation();
   const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
   const [events, setEvents] = useState([]);
@@ -113,9 +114,9 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
     getMyEvents()
       .then((result) => {
         if (!active) return;
-        setEvents(result);
+        setEvents(Array.isArray(result) ? result : []);
         const today = startOfDay(new Date());
-        const nextEvent = result
+        const nextEvent = (Array.isArray(result) ? result : [])
           .map((event) => {
             const date = parseEventDate(event.dateEvenement);
             return { date, endDate: parseEventDate(event.dateFin) || date };
@@ -136,7 +137,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
   useEffect(() => {
     let active = true;
     getEventTypes()
-      .then((result) => { if (active) setEventTypes(result); })
+      .then((result) => { if (active) setEventTypes(Array.isArray(result) ? result : []); })
       .catch((loadError) => { if (active) setEventTypesError(loadError.message); })
       .finally(() => { if (active) setEventTypesLoading(false); });
     return () => { active = false; };
@@ -188,6 +189,31 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
   ));
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const isCurrentMonth = monthStart.getTime() === currentMonth.getTime();
+
+  const totalBudget = datedEvents.reduce(
+    (sum, event) => sum + (Number(event.budget) || 0),
+    0,
+  );
+  const priorities = [
+    [
+      translateText('Créer un événement'),
+      translateText('Le programme de votre événement prend forme ici.'),
+      () => openCreateForm(initialDate),
+    ],
+    [
+      translateText('Trouver un prestataire'),
+      translateText('Comparez les offres et réservez vos prestataires.'),
+      () => onFindProviders?.(),
+    ],
+    [
+      translateText('Gérer mes prestataires'),
+      translateText('Associez vos prestataires à votre événement.'),
+      () => {
+        const event = upcomingEvents[0];
+        if (event) openProviderManager(event);
+      },
+    ],
+  ];
 
   const changeMonth = (offset) => {
     const nextMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + offset, 1);
@@ -303,81 +329,187 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
   };
 
   return (
-    <main className="my-events-page section workspace">
-      <div className="my-events-layout layout">
-        <aside className="my-events-sidebar sidebar" aria-label={translateText('Navigation de vos événements')}>
-          <div className="my-events-sidebar-heading">
-            <span className="summary-label eyebrow">{translateText('Votre agenda')}</span>
-            <strong>{loading ? '…' : `${upcomingEvents.length} ${translateText('à venir')}`}</strong>
+    <main className="my-events-page">
+      <WorkspaceShell
+        role="client"
+        active={view === 'calendar' ? 'calendar' : 'overview'}
+        onNavigate={(key) => setView(key === 'calendar' ? 'calendar' : 'overview')}
+        onFindProviders={onFindProviders}
+        onHome={onBack}
+        language={language}
+      >
+        <button className="eb-page-back" type="button" onClick={onBack}>
+          <Icon name="arrow" />
+          <span>{translateText('Retour')}</span>
+        </button>
+
+        <div className="ux-pagehead">
+          <div>
+            <span className="ux-overline">{translateText('Espace client')}</span>
+            <h1>{translateText('Bonjour')} {user?.nom ? `${user.nom}.` : '.'}</h1>
+            <p className="ux-muted">{translateText('Tout avance, au même endroit.')}</p>
           </div>
-          <nav className="my-events-side-nav" aria-label={translateText('Vues des événements')}>
-            <button type="button" className={view === 'overview' ? 'is-active active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => setView('overview')}>{translateText('Vue d’ensemble')}</button>
-            <button type="button" className={view === 'calendar' ? 'is-active active' : ''} aria-current={view === 'calendar' ? 'page' : undefined} onClick={() => setView('calendar')}>{translateText('Calendrier')}</button>
-          </nav>
-          <section className="my-events-sidebar-list" aria-labelledby="sidebar-upcoming-title">
-            <div className="my-events-sidebar-list-heading">
-              <h2 id="sidebar-upcoming-title">{translateText('Prochains événements')}</h2>
-              <span>{upcomingEvents.length}</span>
-            </div>
-            {loading ? <p className="sidebar-empty">{translateText('Chargement…')}</p> : upcomingEvents.length ? (
-              <div className="sidebar-event-list">
-                {upcomingEvents.map((event) => (
-                  <button className="sidebar-event" type="button" key={event.id} onClick={() => openEventInCalendar(event)}>
-                    <time dateTime={dateKey(event.parsedDate)}>
-                      <strong>{formatDate(event.parsedDate, locale)}</strong>
-                    </time>
-                    <span className="sidebar-event-copy">
-                      <strong>{event.titre}</strong>
-                      <small>{formatEventPeriod(event, locale)}</small>
-                    </span>
-                  </button>
+          <div className="ux-head-actions">
+            <button className="ux-btn ux-primary" type="button" onClick={() => openCreateForm(initialDate)}>
+              <Icon name="plus" />
+              <span>{translateText('Créer un événement')}</span>
+            </button>
+          </div>
+        </div>
+
+        {error && <div className="my-events-error" role="alert">
+          <p>{translateText(error)}</p>
+          <button className="text-link" onClick={() => setReload((value) => value + 1)}>{translateText('Réessayer')}</button>
+        </div>}
+
+        {view === 'overview' ? (
+          upcomingEvents.length ? (
+            <div className="ux-grid">
+              <div className="ux-stack">
+                {upcomingEvents.slice(0, 1).map((event) => (
+                  <section className="ux-panel ux-event" key={event.id}>
+                    <div className="ux-event-label">
+                      <span className="ux-overline" style={{ margin: 0 }}>{translateText('Votre prochain événement')}</span>
+                      <span className="ux-countdown">{formatEventPeriod(event, locale)}</span>
+                    </div>
+                    <h2>{event.titre}</h2>
+                    <div className="ux-event-meta">
+                      <span><Icon name="calendar" />{formatEventPeriod(event, locale)}</span>
+                      {event.lieu && <span><Icon name="users" />{event.lieu}</span>}
+                      {event.nombreInvites ? <span><Icon name="users" />{event.nombreInvites} {translateText('invités')}</span> : null}
+                    </div>
+                    <div className="ux-progress-caption">
+                      <strong>{`${event.prestataires?.length || 0}/${event.prestataires?.length || 1} ${translateText('prestataires réservés')}`}</strong>
+                      <span>{event.prestataires?.length ? '100 %' : '0 %'}</span>
+                    </div>
+                    <div className="ux-progress" role="progressbar" aria-label={translateText('Prestataires')} aria-valuemin={0} aria-valuemax={1} aria-valuenow={event.prestataires?.length ? 1 : 0}>
+                      <span style={{ width: event.prestataires?.length ? '100%' : '0%' }} />
+                    </div>
+                    {event.prestataires?.length > 0 ? (
+                      <div className="ux-provider-pills">
+                        {event.prestataires.map((provider) => (
+                          <span className="ux-provider-pill booked" key={provider.id}>{provider.raisonSociale}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="ux-head-actions" style={{ marginTop: 22 }}>
+                      <button className="ux-btn ux-small" type="button" onClick={() => openEditForm(event)}>{translateText('Modifier l’événement')}</button>
+                      <button className="ux-btn ux-small" type="button" onClick={() => openProviderManager(event)}>
+                        {translateText(event.prestataires?.length ? 'Gérer les prestataires' : 'Ajouter des prestataires')}
+                      </button>
+                    </div>
+                  </section>
                 ))}
+
+                <section className="ux-panel">
+                  <div className="ux-heading">
+                    <h2>{translateText('Budget en un regard')}</h2>
+                  </div>
+                  <div className="ux-budget">
+                    <div className="ux-budget-item">
+                      <small>{translateText('Budget total')}</small>
+                      <strong>{totalBudget.toLocaleString(locale)} €</strong>
+                      <em>{translateText('Prévu')}</em>
+                    </div>
+                    <div className="ux-budget-item">
+                      <small>{translateText('Engagé')}</small>
+                      <strong>{upcomingEvents.length.toLocaleString(locale)} €</strong>
+                      <em>{translateText('prestataires associés')}</em>
+                    </div>
+                    <div className="ux-budget-item">
+                      <small>{translateText('Reste à payer')}</small>
+                      <strong>{Math.max(totalBudget - upcomingEvents.length, 0).toLocaleString(locale)} €</strong>
+                      <em>{translateText('sur les réservations')}</em>
+                    </div>
+                  </div>
+                  <div className="ux-progress" aria-label={translateText('Suivi du budget')}>
+                    <span style={{ width: totalBudget ? `${Math.min(100, (upcomingEvents.length / totalBudget) * 100)}%` : '0%' }} />
+                  </div>
+                </section>
+
+                <section className="ux-panel">
+                  <div className="ux-heading">
+                    <div>
+                      <h2>{translateText('Suivi')}</h2>
+                      <p>{translateText('Vos événements, un par un.')}</p>
+                    </div>
+                  </div>
+                  {upcomingEvents.length ? upcomingEvents.map((event) => (
+                    <button className="ux-activity" type="button" key={event.id} onClick={() => openEventInCalendar(event)}>
+                      <span className="ux-activity-icon"><Icon name="calendar" /></span>
+                      <span className="ux-activity-text">
+                        {event.titre}
+                        <small>{[event.typeEvenement, event.lieu].filter(Boolean).join(' · ')}</small>
+                      </span>
+                      <span className="ux-activity-value">{formatEventPeriod(event, locale)}</span>
+                    </button>
+                  )) : <p className="ux-empty">{translateText('Rien en attente pour le moment.')}</p>}
+                </section>
               </div>
-            ) : <p className="sidebar-empty">{translateText('Aucun événement à venir.')}</p>}
-          </section>
-        </aside>
 
-        <div className="my-events-content">
-          <div className="my-events-heading">
-            <button className="text-link my-events-back" onClick={onBack}>{translateText('Retour à l’accueil')}</button>
-            <div className="my-events-title-row sectionhead">
-              <div>
-                <span className="summary-label eyebrow">{translateText('Votre espace')}</span>
-                <h1>{translateText('Mes événements')}</h1>
-                <p>{translateText(view === 'overview' ? 'Vos événements à venir, puis votre historique.' : 'Retrouvez vos événements à leurs dates.')}</p>
+              <div className="ux-stack">
+                <section className="ux-panel">
+                  <div className="ux-heading" style={{ marginBottom: 7 }}>
+                    <div>
+                      <h2>{translateText('Prochaines étapes')}</h2>
+                      <p>{translateText('L’essentiel, dans l’ordre.')}</p>
+                    </div>
+                  </div>
+                  <ol className="ux-priority-list">
+                    {priorities.map(([name, sub, action], index) => (
+                      <li key={name}>
+                        <button className="ux-priority" type="button" onClick={action}>
+                          <span className="ux-priority-number">{index + 1}</span>
+                          <span className="ux-priority-text">{name}<small>{sub}</small></span>
+                          <Icon name="arrow" />
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+
+                <section className="ux-panel">
+                  <div className="ux-heading">
+                    <div>
+                      <h2>{translateText('Déroulé de l’événement')}</h2>
+                      <p>{translateText('Le programme de votre événement prend forme ici.')}</p>
+                    </div>
+                  </div>
+                  {upcomingEvents.length ? (
+                    <ol className="ux-timeline">
+                      {upcomingEvents.map((event) => (
+                        <li key={event.id}>
+                          <time className="ux-timeline-time">{formatDate(event.parsedDate, locale)}</time>
+                          <span className="ux-timeline-dot" />
+                          <div className="ux-timeline-title">
+                            {event.titre}
+                            <small>{[event.typeEvenement, event.lieu].filter(Boolean).join(' · ')}</small>
+                          </div>
+                          <button className="ux-icon-btn" type="button" aria-label={translateText('Modifier l’événement')} onClick={() => openEditForm(event)}>
+                            <Icon name="arrow" />
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : <p className="ux-empty">{translateText('Ajoutez les horaires, les interventions et les contacts utiles.')}</p>}
+                </section>
               </div>
-              <button className="button button-primary create-event-button" type="button" onClick={() => openCreateForm(initialDate)}>{translateText('Créer un événement')}</button>
-            </div>
-          </div>
-
-          {error && <div className="my-events-error" role="alert">
-            <p>{translateText(error)}</p>
-            <button className="text-link" onClick={() => setReload((value) => value + 1)}>{translateText('Réessayer')}</button>
-          </div>}
-
-          {view === 'overview' ? (
-            <div className="event-overview">
-              <section className="event-summary-section" aria-labelledby="future-events-title">
-                <div className="event-summary-section-heading">
-                  <div><span className="summary-label eyebrow">{translateText('À venir')}</span><h2 id="future-events-title">{translateText('Futurs événements')}</h2></div>
-                  <span className="event-section-count">{upcomingEvents.length}</span>
-                </div>
-                {loading ? <p className="event-list-empty">{translateText('Chargement des événements…')}</p> : upcomingEvents.length ? (
-                  <div className="event-summary-list">{upcomingEvents.map((event) => <EventSummary event={event} locale={locale} translateText={translateText} key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
-                ) : <p className="event-list-empty">{translateText('Aucun événement futur pour le moment.')}</p>}
-              </section>
-
-              <section className="event-summary-section past-events-section" aria-labelledby="past-events-title">
-                <div className="event-summary-section-heading">
-                  <div><span className="summary-label eyebrow">{translateText('Historique')}</span><h2 id="past-events-title">{translateText('Événements passés')}</h2></div>
-                  <span className="event-section-count">{pastEvents.length}</span>
-                </div>
-                {loading ? <p className="event-list-empty">{translateText('Chargement de l’historique…')}</p> : pastEvents.length ? (
-                  <div className="event-summary-list">{pastEvents.map((event) => <EventSummary event={event} locale={locale} translateText={translateText} isPast key={event.id} onEdit={() => openEditForm(event)} onManageProviders={() => openProviderManager(event)} />)}</div>
-                ) : <p className="event-list-empty">{translateText('Vos événements passés apparaîtront ici.')}</p>}
-              </section>
             </div>
           ) : (
+            <div className="ux-onboarding">
+              <span className="ux-overline">{translateText('Votre prochain événement')}</span>
+              <h2>{translateText('Tout est au même endroit.')}</h2>
+              <p>{translateText('Commencez par créer votre événement pour retrouver son budget, ses prestataires et son déroulé.')}</p>
+              <div className="ux-head-actions">
+                <button className="ux-btn ux-primary" type="button" onClick={() => openCreateForm(initialDate)}>
+                  <Icon name="plus" />
+                  <span>{translateText('Créer un événement')}</span>
+                </button>
+                <button className="ux-btn" type="button" onClick={onFindProviders}>{translateText('Trouver un prestataire')}</button>
+              </div>
+            </div>
+          )
+        ) : (
           <section className="events-calendar" aria-label={translateText('Calendrier des événements à venir')}>
         <div className="calendar-heading">
           <div>
@@ -438,8 +570,7 @@ export default function MyEvents({ onBack, openCreateInitially = false, initialD
         </div>}
           </section>
           )}
-        </div>
-      </div>
+      </WorkspaceShell>
       {showCreateForm && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingEvent) { setShowCreateForm(false); setEditingEvent(null); } }}>
         <section className="event-form-dialog" role="dialog" aria-modal="true" aria-labelledby="create-event-title">
           <div className="event-form-heading">

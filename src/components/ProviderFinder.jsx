@@ -158,30 +158,17 @@ export default function ProviderFinder({
 
       {error && <p className="provider-finder-error" role="alert">{translateText(error)}</p>}
       {loading ? <p className="provider-finder-status">{translateText('Recherche des prestataires…')}</p> : providers.length ? (
-        <div className="provider-results grid" aria-live="polite">
+        <div className="provider-results grid eb-uniform-cards" aria-live="polite">
           {providers.slice(0, limit).map((provider) => {
             const isSelected = selectedIds.includes(provider.id);
+            const categories = provider.categories ? provider.categories.split(',').map((category) => translateText(category.trim())) : [];
             return (
-              <article className="provider-result" key={provider.id}>
+              <article className="card" key={provider.id}>
                 {provider.photoUrl
-                  ? <img className="provider-result-avatar" src={provider.photoUrl} alt="" />
-                  : <div className="provider-result-avatar provider-result-initials" aria-hidden="true">{providerInitials(provider)}</div>}
-                <div className="provider-result-copy">
-                  <h3>{provider.raisonSociale}</h3>
-                  {provider.categories && <span className="provider-result-categories">{provider.categories.split(',').map((category) => translateText(category.trim())).join(' · ')}</span>}
-                  {provider.description && <p>{provider.description}</p>}
-                  {provider.adressePostale && <span className="provider-result-location">{provider.adressePostale}</span>}
-                  <span className="provider-result-price">{provider.prixMinimum !== null && provider.prixMinimum !== undefined
-                    ? `${translateText('À partir de')} ${Number(provider.prixMinimum).toLocaleString('fr-FR')} €`
-                    : translateText('Tarif sur demande')}</span>
-                </div>
-                <div className="provider-result-actions">
-                  {selectionMode && <button className={`provider-select-button${isSelected ? ' is-selected' : ''}`} type="button" aria-pressed={isSelected} onClick={() => toggleSelection(provider.id)}>
-                    {isSelected ? translateText('Retirer du projet') : translateText('Ajouter au projet')}
-                  </button>}
-                  <button className="provider-detail-button" type="button" aria-expanded={expandedProviderId === provider.id} aria-controls={`provider-details-${provider.id}`} onClick={() => toggleDetails(provider)}>
-                    {expandedProviderId === provider.id ? translateText('Fermer') : translateText('Voir le profil')}
-                  </button>
+                  ? <img className="provider-photo" src={provider.photoUrl} alt="" loading="lazy" />
+                  : <div className="provider-photo provider-result-initials" aria-hidden="true">{providerInitials(provider)}</div>}
+                <div className="banner">
+                  <span className="pill">{categories[0] || translateText('Prestataire')}</span>
                   <button
                     className={`provider-favorite-button${provider.estFavori ? ' is-favorite' : ''}`}
                     type="button"
@@ -191,19 +178,43 @@ export default function ProviderFinder({
                     onClick={() => toggleFavorite(provider)}
                   >{provider.estFavori ? '♥' : '♡'}</button>
                 </div>
-                {expandedProviderId === provider.id && <div className="provider-result-details" id={`provider-details-${provider.id}`}>
-                  <h4>{provider.raisonSociale}</h4>
-                  {provider.description && <p>{provider.description}</p>}
-                  {provider.siteWeb && <p>{translateText('Site internet :')} {provider.siteWeb}</p>}
-                  {!selectionMode && <form className="provider-quote-form" onSubmit={(event) => submitQuote(event, provider)}>
-                    <h5>{translateText('Demander un devis')}</h5>
-                    <label>{translateText('Date de l’événement')}<DateInput aria-label={translateText('Date de l’événement')} min={new Date().toISOString().slice(0, 10)} value={quoteDate} onChange={setQuoteDate} /></label>
-                    <label>{translateText('Votre demande')}<textarea rows="3" maxLength="3000" value={quoteMessage} onChange={(event) => setQuoteMessage(event.target.value)} placeholder={translateText('Décrivez votre événement et vos besoins.')} /></label>
-                    <button className="button button-primary" type="submit" disabled={sendingQuote}>{sendingQuote ? translateText('Envoi…') : translateText('Envoyer la demande')}</button>
+                <div className="cardbody">
+                  <span className="muted">
+                    {[provider.adressePostale, categories.slice(1).join(' · ')].filter(Boolean).join(' · ')}
+                  </span>
+                  <h3>{provider.raisonSociale}</h3>
+                  {provider.description && <p className="eb-card-description">{provider.description}</p>}
+                  <p className="eb-card-price">
+                    <strong>
+                      {provider.prixMinimum !== null && provider.prixMinimum !== undefined
+                        ? `${translateText('À partir de')} ${Number(provider.prixMinimum).toLocaleString(locale)} €`
+                        : translateText('Tarif sur demande')}
+                    </strong>
+                  </p>
+                  <div className="actions">
+                    {selectionMode && (
+                      <button className={`provider-select-button${isSelected ? ' is-selected' : ''}`} type="button" aria-pressed={isSelected} onClick={() => toggleSelection(provider.id)}>
+                        {isSelected ? translateText('Retirer du projet') : translateText('Ajouter au projet')}
+                      </button>
+                    )}
+                    <button className="provider-detail-button" type="button" aria-expanded={expandedProviderId === provider.id} aria-controls={`provider-details-${provider.id}`} onClick={() => toggleDetails(provider)}>
+                      {expandedProviderId === provider.id ? translateText('Fermer') : translateText('Voir le profil')}
+                    </button>
+                  </div>
+                  {expandedProviderId === provider.id && <div className="provider-result-details" id={`provider-details-${provider.id}`}>
+                    <h4>{provider.raisonSociale}</h4>
+                    {provider.description && <p>{provider.description}</p>}
+                    {provider.siteWeb && <p>{translateText('Site internet :')} {provider.siteWeb}</p>}
+                    {!selectionMode && <form className="provider-quote-form" onSubmit={(event) => submitQuote(event, provider)}>
+                      <h5>{translateText('Demander un devis')}</h5>
+                      <label>{translateText('Date de l’événement')}<DateInput aria-label={translateText('Date de l’événement')} min={new Date().toISOString().slice(0, 10)} value={quoteDate} onChange={setQuoteDate} /></label>
+                      <label>{translateText('Votre demande')}<textarea rows="3" maxLength="3000" value={quoteMessage} onChange={(event) => setQuoteMessage(event.target.value)} placeholder={translateText('Décrivez votre événement et vos besoins.')} /></label>
+                      <button className="button button-primary" type="submit" disabled={sendingQuote}>{sendingQuote ? translateText('Envoi…') : translateText('Envoyer la demande')}</button>
+                    </form>}
                     {quoteStatus && <p className="provider-quote-status" role="status">{translateText(quoteStatus)}</p>}
                     <small>{translateText('La demande est transmise via la messagerie; il ne s’agit pas encore d’un devis structuré.')}</small>
-                  </form>}
-                </div>}
+                  </div>}
+                </div>
               </article>
             );
           })}
