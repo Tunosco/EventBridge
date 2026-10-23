@@ -92,9 +92,6 @@ export default function Header({
               <option value="it">IT</option>
             </select>
           </label>
-          {!isAuthenticated && (
-            <button id="account" className="button button-primary nav-cta" onClick={navigate(() => onProjectClick('connexion'))}>{text.login}</button>
-          )}
           {isAuthenticated && (
             <div className="account-menu" ref={accountMenuRef}>
               <button
@@ -118,6 +115,17 @@ export default function Header({
             </div>
           )}
         </nav>
+        <label className="language mobile-language">
+          <span className="sr-only">{text.language}</span>
+          <select aria-label={text.language} value={language} onChange={(event) => onLanguageChange?.(event.target.value)}>
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="it">IT</option>
+          </select>
+        </label>
+        {!isAuthenticated && (
+          <button id="account" className="button button-primary nav-cta mobile-login" onClick={navigate(() => onProjectClick('connexion'))}>{text.login}</button>
+        )}
       </header>
     </>
   );

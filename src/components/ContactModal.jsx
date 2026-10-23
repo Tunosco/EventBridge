@@ -15,7 +15,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const providerFlow = type === 'provider-auth-required';
+  const providerFlow = type === 'provider-auth-required' || type === 'prestataire-inscription';
   const eventAuthPrompt = mode === 'event-auth-required';
   const providerAuthPrompt = mode === 'provider-auth-required';
   const isProviderSignup = mode === 'prestataire-inscription';
@@ -166,7 +166,10 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
               : (isProviderSignup ? 'Créer mon compte prestataire' : isSignup ? 'Créer mon compte' : mode === 'connexion' ? 'Se connecter' : 'Envoyer ma demande'))}
           </button>
         </form>}
-        {isAuth && (!sent || verificationPending) && <button className="modal-switch" onClick={switchMode}>{translateText(sent ? 'Retour à la connexion' : isSignup ? 'J’ai déjà un compte' : 'Créer un compte')}</button>}
+        {isAuth && (!sent || verificationPending) && <>
+          <button className="modal-switch" onClick={switchMode}>{translateText(sent ? 'Retour à la connexion' : isSignup ? 'J’ai déjà un compte' : 'Créer un compte')}</button>
+          {isProviderSignup && !sent && <p className="provider-login-hint">{translateText('Vous pouvez vous connecter en tant que prestataire grâce au bouton « Se connecter » en haut de page.')}</p>}
+        </>}
         {isAccount && <button className="button button-primary submit" onClick={() => { localStorage.removeItem('eventbridge_token'); onLoggedOut?.(); onClose(); }}>{translateText('Se déconnecter')}</button>}
       </div>
     </div>

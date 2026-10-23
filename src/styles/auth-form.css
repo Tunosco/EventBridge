@@ -92,6 +92,15 @@
   font-size: 13px;
 }
 
+.provider-login-hint {
+  margin: 8px auto 0;
+  color: var(--coral-dark) !important;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
 @media (max-width: 600px) {
   .provider-signup-grid {
     grid-template-columns: 1fr;

@@ -681,18 +681,22 @@
 
 .event-form-close {
   flex: 0 0 38px;
+  display: grid;
   width: 38px;
   height: 38px;
-  border: 1px solid var(--line);
+  place-items: center;
+  border: 0;
   border-radius: 4px;
-  background: var(--white);
+  background: transparent;
   color: var(--navy);
+  padding: 0;
   font-size: 25px;
   line-height: 1;
 }
 
-.event-form-close:hover:not(:disabled) {
-  border-color: var(--coral);
+.event-form-close:hover:not(:disabled),
+.event-form-close:focus-visible:not(:disabled) {
+  background: var(--sky);
   color: var(--coral-dark);
 }
 
@@ -808,16 +812,27 @@
 
 .secondary-location-list button {
   flex: 0 0 30px;
+  display: grid;
   width: 30px;
   height: 30px;
+  place-items: center;
   border: 0;
   background: transparent;
   color: var(--muted);
   font-size: 21px;
+  padding: 0;
 }
 
 .secondary-location-list button:hover {
+  border-radius: 4px;
+  background: var(--sky);
   color: var(--coral-dark);
+}
+
+.secondary-location-list button:focus-visible {
+  border-radius: 4px;
+  background: var(--sky);
+  color: var(--navy);
 }
 
 .event-form-error {

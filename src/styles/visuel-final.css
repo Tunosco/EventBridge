@@ -252,7 +252,7 @@ footer small {
   height: 70px !important;
   padding: 9px 3.3% !important;
   gap: 24px !important;
-  background: linear-gradient(105deg, #3c160fe8, #5c3328c9 50%, #3b271acb) !important;
+  background: linear-gradient(105deg, #3c160f, #5c3328 50%, #3b271a) !important;
   -webkit-backdrop-filter: blur(24px) !important;
   backdrop-filter: blur(24px) !important;
   color: #fff !important;
@@ -261,12 +261,23 @@ footer small {
   z-index: 40 !important;
 }
 
+.eb-reference-header,
+.eb-reference-header .brand,
+.eb-reference-header .brand small,
+.eb-reference-header .nav-link,
+.eb-reference-header .nav-dropdown > summary,
+.eb-reference-header .language,
+.eb-reference-header .language select,
+.eb-reference-header .eb-account-button {
+  color: #fff !important;
+}
+
 body.homeheader .eb-reference-header {
   position: absolute !important;
   top: 0 !important;
   left: 0 !important;
   width: 100%;
-  background: linear-gradient(105deg, #3b150fdc, #6034288f 50%, #3c2a16a8) !important;
+  background: linear-gradient(105deg, #3c160f, #5c3328 50%, #3b271a) !important;
 }
 
 .eb-reference-header .brand {
@@ -295,6 +306,16 @@ body.homeheader .eb-reference-header {
   gap: 19px;
   align-items: center;
   flex-wrap: nowrap;
+}
+
+.eb-reference-header nav {
+  margin-left: auto;
+  margin-right: 0;
+  gap: 14px;
+}
+
+.eb-reference-header .mobile-login {
+  margin-left: 0;
 }
 
 .eb-reference-header nav > button,
@@ -349,9 +370,22 @@ body.homeheader .eb-reference-header {
   appearance: none;
 }
 
+.eb-reference-header .language select:hover,
+.eb-reference-header .language select:focus-visible {
+  box-shadow: inset 0 -1px 0 #fff8;
+}
+
 .eb-reference-header .language option {
   color: #32262c;
   background: #fff;
+}
+
+.mobile-language {
+  display: none;
+}
+
+.mobile-login {
+  display: block;
 }
 
 .eb-reference-header .nav-panel {
@@ -411,6 +445,104 @@ body.homeheader .eb-reference-header {
 
 .eb-reference-header #account:focus-visible {
   outline-color: #fff;
+}
+
+/* ------------------------------------------------------ Types d'événements --- */
+
+.eb-home .occasion-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 64px 0 26px;
+  border-bottom: 1px solid var(--eb-line);
+}
+
+.eb-home .occasion-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 8px 0 10px;
+  background: transparent;
+  color: var(--eb-wine);
+  font: 300 12px/1.4 'Jost', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.eb-home .occasion-tabs button:hover,
+.eb-home .occasion-tabs button.selected {
+  border-bottom-color: var(--eb-wine);
+}
+
+.eb-home .occasion {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+  gap: 42px;
+  align-items: center;
+  margin: 0 0 84px;
+}
+
+.eb-home .occasion-mosaic {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: 385px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.eb-home .occasion-mosaic img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  object-fit: cover;
+}
+
+.eb-home .occasion-copy h2 {
+  margin: 12px 0 18px;
+  color: var(--eb-ink);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(36px, 4vw, 52px);
+  font-weight: 400;
+}
+
+.eb-home .occasion-copy p {
+  margin: 0 0 24px;
+  color: var(--eb-muted);
+  font: 300 16px/1.7 'Jost', sans-serif;
+}
+
+.eb-home .occasion-copy button {
+  border: 1px solid var(--eb-wine);
+  padding: 14px 20px;
+  background: var(--eb-wine);
+  color: #fff;
+  font: 300 12px/1.4 'Jost', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.eb-home .occasion-copy button:hover {
+  background: var(--eb-wine-hover);
+}
+
+@media (max-width: 750px) {
+  .eb-home .occasion-tabs {
+    margin-top: 44px;
+    gap: 8px 16px;
+  }
+
+  .eb-home .occasion {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    margin-bottom: 60px;
+  }
+
+  .eb-home .occasion-mosaic {
+    grid-template-rows: 245px;
+    gap: 7px;
+  }
 }
 
 /* --------------------------------------------------------- Accueil (public) --- */
@@ -1908,26 +2040,111 @@ body.ux-workspace footer {
     padding: 16px 5% !important;
   }
 
-  .eb-reference-header .mobile-menu-toggle { display: flex !important; }
+  .eb-reference-header .mobile-menu-toggle {
+    display: flex !important;
+    order: 2;
+    flex: 0 0 46px;
+  }
+
+  .eb-reference-header .mobile-login {
+    display: block;
+    order: 1;
+    min-height: 44px !important;
+    margin-left: 0;
+    margin-right: 8px;
+    padding: 11px 16px !important;
+  }
+
+  body.homeheader .eb-reference-header {
+    background: linear-gradient(105deg, #3c160f, #5c3328 50%, #3b271a) !important;
+  }
+
+  .eb-reference-header .mobile-language {
+    display: block;
+    order: 1;
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0 !important;
+  }
+
+  .eb-reference-header .mobile-language select {
+    width: 44px;
+    min-width: 44px;
+    min-height: 0;
+    padding: 5px 20px 5px 0;
+    border: 0;
+    background-color: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23fff' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1px center;
+    background-size: 12px 12px;
+    color: #fff !important;
+    font: 300 11px 'Jost', sans-serif;
+    letter-spacing: 1px;
+    text-align: left;
+    -webkit-appearance: none;
+    appearance: none;
+  }
 
   .eb-reference-header nav {
     display: none !important;
-    position: static;
-    flex: 1 0 100%;
+    order: 3;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex: 0 0 100%;
     width: 100%;
     flex-direction: column;
     align-items: stretch;
-    gap: 5px;
-    padding: 15px 0 0;
+    gap: 0;
+    padding: 12px 5% 18px;
+    background: #fff !important;
+    box-shadow: 0 14px 28px rgba(12, 0, 2, .16);
   }
 
-  body.mobile-nav-open .eb-reference-header nav { display: flex !important; }
-  body.mobile-nav-open .eb-reference-header { height: auto !important; max-height: 95dvh; overflow: auto; background: #3c1e18fa !important; }
-  body.mobile-nav-open .eb-reference-header nav { background: #3c1e18fa !important; }
-  body.mobile-nav-open .eb-reference-header nav > button { text-align: left; padding: 12px 0 !important; }
-  body.mobile-nav-open .eb-reference-header #account { text-align: center !important; }
+  .eb-reference-header nav.is-open { display: flex !important; }
+
+  .eb-reference-header nav > button,
+  .eb-reference-header nav > .nav-dropdown > summary {
+    width: auto !important;
+    min-height: 44px !important;
+    padding: 12px 4px !important;
+    border-bottom: 1px solid #eadbdd !important;
+    color: var(--eb-ink) !important;
+    text-align: left !important;
+  }
+
+  .eb-reference-header nav.is-open > .nav-link,
+  .eb-reference-header nav.is-open > .nav-dropdown > .nav-link,
+  .eb-reference-header nav.is-open > .nav-dropdown > summary {
+    color: #0c0002 !important;
+  }
+
+  .eb-reference-header nav > button:hover,
+  .eb-reference-header nav > .nav-dropdown > summary:hover {
+    background: var(--eb-blush) !important;
+    color: var(--eb-wine) !important;
+  }
+
+  .eb-reference-header nav > .language {
+    display: none;
+    width: auto !important;
+    padding: 10px 4px !important;
+    color: var(--eb-ink) !important;
+  }
+
+  .eb-reference-header nav > .language select {
+    color: var(--eb-ink) !important;
+    background-image: none;
+  }
+
+  .eb-reference-header nav > .language select:hover,
+  .eb-reference-header nav > .language select:focus-visible {
+    box-shadow: inset 0 -1px 0 var(--eb-ink);
+  }
+
   .eb-reference-header .nav-panel { position: relative; left: 0; right: auto; max-height: 40vh; margin: 10px 0; }
-  .eb-reference-header .language { padding: 10px 0; }
 
   .collectiongrid.eb-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .eb-category-card img { height: 330px; }

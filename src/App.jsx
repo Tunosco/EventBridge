@@ -82,7 +82,7 @@ export default function App() {
     setEventDraftDate(date);
     if (!user) {
       eventCreationPendingAuth.current = true;
-      setContactType('event-auth-required');
+      setContactType('connexion');
       return;
     }
     setOpenCreateEventOnEvents(true);

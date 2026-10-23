@@ -15,7 +15,7 @@ export default function IntroOverlay({ onFinish }) {
     window.clearTimeout(timersRef.current.enter);
     setDeparting(true);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    timersRef.current.finish = window.setTimeout(() => onFinishRef.current(), reducedMotion ? 0 : 450);
+    timersRef.current.finish = window.setTimeout(() => onFinishRef.current(), reducedMotion ? 0 : 500);
   };
 
   closeIntroRef.current = closeIntro;
@@ -25,7 +25,7 @@ export default function IntroOverlay({ onFinish }) {
     overlayRef.current?.focus();
     const animationFrame = window.requestAnimationFrame(() => setReady(true));
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    timersRef.current.enter = window.setTimeout(() => closeIntroRef.current?.(), reducedMotion ? 300 : 3400);
+    timersRef.current.enter = window.setTimeout(() => closeIntroRef.current?.(), reducedMotion ? 300 : 1500);
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') closeIntroRef.current?.();

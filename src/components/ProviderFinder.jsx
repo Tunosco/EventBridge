@@ -136,7 +136,10 @@ export default function ProviderFinder({
         <form className="provider-finder-search-controls" onSubmit={submitSearch}>
           <label>{translateText('Nom ou mot-clé')}<input type="search" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} placeholder={translateText('Ex. fleurs, sonorisation…')} /></label>
           <label>{translateText('Prestation')}<select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })}>
-            <option value="">{translateText('Toutes les catégories')}</option><option value="Traiteur">{translateText('Traiteur')}</option><option value="Photographie">{translateText('Photographie')}</option><option value="Décoration">{translateText('Décoration')}</option><option value="Musique">{translateText('Musique')}</option><option value="Lieu de réception">{translateText('Lieu de réception')}</option>
+            <option value="">{translateText('Toutes les catégories')}</option>
+            {['Traiteur', 'Photographie', 'Décoration', 'Musique', 'Lieu de réception', 'Animateur', 'Organisation', 'Location de mobilier'].map((category) => (
+              <option key={category} value={category}>{translateText(category)}</option>
+            ))}
           </select></label>
           <label>{translateText('Ville')}<input type="search" autoComplete="address-level2" value={filters.city} onChange={(event) => setFilters({ ...filters, city: event.target.value })} placeholder={translateText('Paris, Lyon…')} /></label>
           <label>{translateText('Budget max. (€)')}<input type="number" min="0" step="50" value={filters.maxBudget} onChange={(event) => setFilters({ ...filters, maxBudget: event.target.value })} placeholder={translateText('Sans limite')} /></label>
