@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS favori_prestataire (
   FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS session (
+  token TEXT PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL,
+  date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_expiration TEXT NOT NULL,
+  FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS session_utilisateur_idx ON session (utilisateur_id);
+
 CREATE TABLE IF NOT EXISTS type_evenement (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   libelle TEXT NOT NULL UNIQUE

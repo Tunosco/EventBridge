@@ -33,6 +33,7 @@ const eventFormDefaults = {
   lieu: '',
   lieuxSecondaires: [],
   description: '',
+  nombreInvites: '',
   budget: '',
   prestatairesIds: [],
 };
@@ -277,6 +278,7 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
       lieu: event.lieu || '',
       lieuxSecondaires: event.lieuxSecondaires || [],
       description: event.description || '',
+      nombreInvites: event.nombreInvites ? String(event.nombreInvites) : '',
       budget: event.budget === null || event.budget === undefined ? '' : String(event.budget),
       prestatairesIds: (event.prestataires || []).map((provider) => provider.id),
     });
@@ -589,6 +591,7 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
               <label>{translateText('Jour de fin')}<DateInput aria-label={translateText('Jour de fin')} name="dateFin" value={eventForm.dateFin} min={eventForm.dateDebut || undefined} onChange={(value) => updateEventForm({ target: { name: 'dateFin', value } })} required /></label>
             </div>
             <label>{translateText('Emplacement principal')}<input name="lieu" value={eventForm.lieu} onChange={updateEventForm} required maxLength="180" placeholder={translateText('Ville ou lieu principal')} /></label>
+            <label>{translateText('Nombre d’invités (facultatif)')}<input name="nombreInvites" type="number" min="1" step="1" value={eventForm.nombreInvites} onChange={updateEventForm} placeholder={translateText('Ex. 80')} /></label>
             <div className="secondary-location-field">
               <label htmlFor="secondary-location">{translateText('Emplacements secondaires (facultatif)')}</label>
               <div className="secondary-location-add">

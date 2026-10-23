@@ -14,6 +14,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const providerFlow = type === 'provider-auth-required';
   const eventAuthPrompt = mode === 'event-auth-required';
   const providerAuthPrompt = mode === 'provider-auth-required';
@@ -34,6 +35,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    setSubmitting(true);
     const formData = new FormData(event.currentTarget);
     try {
       if (isSignup) {
@@ -68,6 +70,8 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
       setSent(true);
     } catch (submissionError) {
       setError(submissionError.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -156,7 +160,11 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
             <select aria-label={translateText('Type de demande')} defaultValue="Je prépare un événement"><option>{translateText('Je prépare un événement')}</option></select>
             <small className="contact-demo-note">{translateText('Démonstration : aucun message ne sera envoyé.')}</small>
           </>}
-          <button className="button button-primary submit" type="submit">{translateText(isProviderSignup ? 'Créer mon compte prestataire' : isSignup ? 'Créer mon compte' : mode === 'connexion' ? 'Se connecter' : 'Envoyer ma demande')}</button>
+          <button className="button button-primary submit" type="submit" disabled={submitting}>
+            {translateText(submitting
+              ? (isProviderSignup ? 'Création du compte…' : isSignup ? 'Création du compte…' : 'Connexion…')
+              : (isProviderSignup ? 'Créer mon compte prestataire' : isSignup ? 'Créer mon compte' : mode === 'connexion' ? 'Se connecter' : 'Envoyer ma demande'))}
+          </button>
         </form>}
         {isAuth && (!sent || verificationPending) && <button className="modal-switch" onClick={switchMode}>{translateText(sent ? 'Retour à la connexion' : isSignup ? 'J’ai déjà un compte' : 'Créer un compte')}</button>}
         {isAccount && <button className="button button-primary submit" onClick={() => { localStorage.removeItem('eventbridge_token'); onLoggedOut?.(); onClose(); }}>{translateText('Se déconnecter')}</button>}

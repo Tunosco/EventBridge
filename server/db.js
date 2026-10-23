@@ -3,8 +3,6 @@ import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import Database from 'better-sqlite3';
 
-export const isPostgres = Boolean(process.env.DATABASE_URL);
-
 function postgresQuery(client, sql, parameters = []) {
 	let index = 0;
 	let query = sql
@@ -47,34 +45,48 @@ function createPostgresDatabase(pool) {
 }
 
 let pool;
-if (isPostgres) {
-	const { Pool } = await import('pg');
-	const connectionUrl = new URL(process.env.DATABASE_URL);
-	for (const option of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) {
-		connectionUrl.searchParams.delete(option);
-	}
-	const ssl = { rejectUnauthorized: true };
-	if (process.env.SUPABASE_DB_SSL_CA_PATH) {
-		const caPath = path.resolve(process.env.SUPABASE_DB_SSL_CA_PATH);
-		try {
-			ssl.ca = fs.readFileSync(caPath, 'utf8');
-		} catch (error) {
-			throw new Error(`Supabase CA certificate not found at ${caPath}. Download it from Database > Settings > SSL Configuration.`, { cause: error });
+let usingPostgres = false;
+
+if (process.env.DATABASE_URL) {
+	try {
+		const { Pool } = await import('pg');
+		const connectionUrl = new URL(process.env.DATABASE_URL);
+		for (const option of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) {
+			connectionUrl.searchParams.delete(option);
 		}
+		const ssl = { rejectUnauthorized: true };
+		if (process.env.SUPABASE_DB_SSL_CA_PATH) {
+			const caPath = path.resolve(process.env.SUPABASE_DB_SSL_CA_PATH);
+			try {
+				ssl.ca = fs.readFileSync(caPath, 'utf8');
+			} catch (error) {
+				throw new Error(`Supabase CA certificate not found at ${caPath}. Download it from Database > Settings > SSL Configuration.`, { cause: error });
+			}
+		}
+		pool = new Pool({ connectionString: connectionUrl.toString(), ssl, max: 5, connectionTimeoutMillis: 8000 });
+		await pool.query('SELECT 1');
+		usingPostgres = true;
+		console.log('[db] PostgreSQL (Supabase) connecté.');
+	} catch (error) {
+		pool = undefined;
+		usingPostgres = false;
+		console.warn(`[db] PostgreSQL indisponible (${error.message}).`);
+		console.warn('[db] Repli automatique sur la base SQLite locale (data/eventbridge.sqlite).');
 	}
-	pool = new Pool({ connectionString: connectionUrl.toString(), ssl, max: 5 });
 }
+
+export const isPostgres = usingPostgres;
 
 const dataDirectory = path.resolve('data');
 const databasePath = process.env.DB_PATH || path.join(dataDirectory, 'eventbridge.sqlite');
 let sqlite;
-if (!isPostgres) {
+if (!usingPostgres) {
 	fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 	sqlite = new Database(databasePath);
 	sqlite.pragma('foreign_keys = ON');
 }
 
-export const db = isPostgres ? createPostgresDatabase(pool) : {
+export const db = usingPostgres ? createPostgresDatabase(pool) : {
 	prepare: (sql) => sqlite.prepare(sql),
 	transaction: (callback) => async (...args) => {
 		sqlite.exec('BEGIN');
@@ -90,7 +102,7 @@ export const db = isPostgres ? createPostgresDatabase(pool) : {
 };
 
 export async function initializeDatabase() {
-	if (isPostgres) {
+	if (usingPostgres) {
 		await pool.query('SELECT 1');
 		return;
 	}

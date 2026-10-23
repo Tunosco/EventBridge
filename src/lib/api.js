@@ -1,11 +1,23 @@
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
+// L'API est servie sur la même origine (/api) :
+// - en production, par le serveur Express qui sert aussi le frontend compilé ;
+// - en développement, par le proxy Vite vers http://localhost:3001.
+// VITE_API_URL reste disponible pour une API hébergée ailleurs.
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 async function request(path, options = {}) {
   const { headers: optionHeaders, ...requestOptions } = options;
-  const response = await fetch(`${API_URL}${path}`, {
-    ...requestOptions,
-    headers: { 'Content-Type': 'application/json', ...(optionHeaders || {}) },
-  });
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...requestOptions,
+      headers: { 'Content-Type': 'application/json', ...(optionHeaders || {}) },
+    });
+  } catch (error) {
+    throw new Error(
+      `L'API EventBridge est injoignable (${API_URL}). Démarrez-la avec « npm run server ».`,
+      { cause: error },
+    );
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Une erreur est survenue.');
   return data;
@@ -67,13 +79,21 @@ export function updateEvent(eventId, payload) {
   return request(`/me/events/${eventId}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
 }
 
-export function searchProviders(search, favoritesOnly = false) {
+export function searchProviders(search, favoritesOnly = false, filters = {}) {
   const parameters = new URLSearchParams();
   const query = typeof search === 'string'
     ? search
     : (search && typeof search === 'object' ? search.query : '');
   if (query && String(query).trim()) parameters.set('q', String(query).trim());
   if (favoritesOnly) parameters.set('favoris', 'true');
+  const category = filters?.category;
+  const city = filters?.city;
+  const maxBudget = filters?.maxBudget;
+  const date = filters?.date;
+  if (category) parameters.set('category', category);
+  if (city) parameters.set('city', city);
+  if (maxBudget) parameters.set('maxBudget', maxBudget);
+  if (date) parameters.set('date', date);
   const token = localStorage.getItem('eventbridge_token');
   return request(`/providers?${parameters.toString()}`, { headers: token ? authHeaders() : {} });
 }

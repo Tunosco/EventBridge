@@ -1,16 +1,19 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { createAdminClient, createContextClient } from '@supabase/server/core';
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
-import { db, initializeDatabase } from './db.js';
+import { db, initializeDatabase, isPostgres } from './db.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
-const sessions = new Map();
+const sessionCache = new Map();
 const supabaseAuthEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
 const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
+// Confirmation d'email imposée : à activer une fois le SMTP configuré.
+const requireEmailConfirmation = String(process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION || '').toLowerCase() === 'true';
 
 app.use(cors());
 app.use(express.json());
@@ -27,18 +30,47 @@ function verifyPassword(password, storedHash) {
   return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(hash, 'hex'));
 }
 
+function runSafely(statement, ...parameters) {
+  try {
+    const result = statement.run(...parameters);
+    if (result && typeof result.catch === 'function') result.catch(() => { /* ignoré */ });
+  } catch {
+    // Table absente : on continue en mode mémoire.
+  }
+}
+
 function createSession(userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, userId);
+  sessionCache.set(token, userId);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+  // La session est persistée pour survivre à un redémarrage du serveur.
+  runSafely(db.prepare('INSERT INTO session (token, utilisateur_id, date_expiration) VALUES (?, ?, ?)'), token, userId, expiresAt);
   return token;
+}
+
+async function resolveSession(token) {
+  if (!token) return null;
+  if (sessionCache.has(token)) return sessionCache.get(token);
+  try {
+    const row = await db.prepare('SELECT utilisateur_id FROM session WHERE token = ? AND date_expiration > ?')
+      .get(token, new Date().toISOString());
+    if (row) {
+      sessionCache.set(token, row.utilisateur_id);
+      return row.utilisateur_id;
+    }
+  } catch {
+    // Table session indisponible : on reste en mode mémoire.
+  }
+  return null;
 }
 
 function authUser(request, response, next) {
   const token = request.headers.authorization?.replace('Bearer ', '');
-  const userId = token && sessions.get(token);
-  if (!userId) return response.status(401).json({ error: 'Authentification requise.' });
-  request.userId = userId;
-  next();
+  resolveSession(token).then((userId) => {
+    if (!userId) return response.status(401).json({ error: 'Authentification requise.' });
+    request.userId = userId;
+    next();
+  });
 }
 
 async function getUserProfile(userId) {
@@ -74,17 +106,25 @@ function shiftEventDate(value, days) {
   return date.toISOString().slice(0, 10);
 }
 
-async function getProviders(search, userId, favoritesOnly = false) {
+async function getProviders(search, userId, favoritesOnly = false, filters = {}) {
   const searchPattern = `%${search.trim()}%`;
-  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS raisonSociale,
-    TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) AS nomContact, p.description,
-    p.adresse_postale AS adressePostale, p.site_web AS siteWeb, p.photo_url AS photoUrl,
+  const category = String(filters.category || '').trim();
+  const city = String(filters.city || '').trim();
+  const cityPattern = `%${city}%`;
+  const maxBudget = Number(filters.maxBudget);
+  const maxBudgetFilter = Number.isFinite(maxBudget) && maxBudget > 0;
+  const date = String(filters.date || '').trim();
+  return db.prepare(`SELECT p.utilisateur_id AS "id", p.nom_entreprise AS "raisonSociale",
+    TRIM(COALESCE(u.prenom, '') || ' ' || u.nom) AS "nomContact", p.description,
+    p.adresse_postale AS "adressePostale", p.site_web AS "siteWeb", p.photo_url AS "photoUrl",
     (SELECT GROUP_CONCAT(DISTINCT c.libelle) FROM prestation pr
       JOIN categorie_prestation c ON c.id = pr.categorie_id
       WHERE pr.prestataire_id = p.utilisateur_id) AS categories,
+    (SELECT MIN(pr.prix) FROM prestation pr
+      WHERE pr.prestataire_id = p.utilisateur_id) AS "prixMinimum",
     CASE WHEN CAST(? AS INTEGER) IS NULL THEN FALSE ELSE EXISTS (
       SELECT 1 FROM favori_prestataire f WHERE f.client_id = ? AND f.prestataire_id = p.utilisateur_id
-    ) END AS estFavori
+    ) END AS "estFavori"
     FROM prestataire p JOIN utilisateur u ON u.id = p.utilisateur_id
     WHERE TRIM(COALESCE(p.nom_entreprise, '')) <> ''
       AND (? = '' OR LOWER(p.nom_entreprise) LIKE LOWER(?)
@@ -96,14 +136,30 @@ async function getProviders(search, userId, favoritesOnly = false) {
       AND (? = 0 OR EXISTS (
         SELECT 1 FROM favori_prestataire f WHERE f.client_id = ? AND f.prestataire_id = p.utilisateur_id
       ))
+      AND (? = 0 OR EXISTS (
+        SELECT 1 FROM prestation pr JOIN categorie_prestation c ON c.id = pr.categorie_id
+        WHERE pr.prestataire_id = p.utilisateur_id AND LOWER(c.libelle) = LOWER(?)
+      ))
+      AND (? = '' OR LOWER(COALESCE(p.adresse_postale, '')) LIKE LOWER(?))
+      AND (? = 0 OR EXISTS (
+        SELECT 1 FROM prestation pr WHERE pr.prestataire_id = p.utilisateur_id AND pr.prix <= ?
+      ))
+      AND (? = '' OR NOT EXISTS (
+        SELECT 1 FROM disponibilite d WHERE d.prestataire_id = p.utilisateur_id
+          AND d.date_debut <= ? AND d.date_fin >= ?
+      ))
     ORDER BY p.nom_entreprise COLLATE NOCASE LIMIT 50`).all(
     userId, userId, search.trim(), searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
     favoritesOnly ? 1 : 0, userId,
+    category ? 1 : 0, category,
+    city, cityPattern,
+    maxBudgetFilter ? 1 : 0, maxBudget,
+    date, date, date,
   );
 }
 
 async function getEventProviders(eventId) {
-  return db.prepare(`SELECT p.utilisateur_id AS id, p.nom_entreprise AS "raisonSociale",
+  return db.prepare(`SELECT p.utilisateur_id AS "id", p.nom_entreprise AS "raisonSociale",
     p.description, p.adresse_postale AS "adressePostale", p.photo_url AS "photoUrl"
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
     WHERE ep.evenement_id = ? ORDER BY p.nom_entreprise COLLATE NOCASE`).all(eventId);
@@ -117,12 +173,80 @@ app.get('/api/reference/event-types', async (_request, response) => {
 
 app.get('/api/providers', async (request, response) => {
   const token = request.headers.authorization?.replace('Bearer ', '');
-  const userId = token ? sessions.get(token) || null : null;
+  const userId = token ? sessionCache.get(token) || null : null;
   const favoritesOnly = request.query.favoris === 'true';
   if (favoritesOnly && !userId) return response.status(401).json({ error: 'Connectez-vous pour afficher vos favoris.' });
   if (favoritesOnly && !await isClient(userId)) return response.status(403).json({ error: 'Seul un client peut consulter ses prestataires favoris.' });
-  response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly));
+  const filters = {
+    category: String(request.query.category || ''),
+    city: String(request.query.city || ''),
+    maxBudget: String(request.query.maxBudget || ''),
+    date: String(request.query.date || ''),
+  };
+  response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly, filters));
 });
+
+function isNetworkError(error) {
+  if (!error) return false;
+  const message = String(error.message || '').toLowerCase();
+  if (error.status && error.status < 500) return false;
+  return ['fetch failed', 'network', 'econnrefused', 'etimedout', 'enotfound', 'socket hang up', 'getaddrinfo', 'timeout']
+    .some((needle) => message.includes(needle));
+}
+
+// Supabase peut rester sans réponse : on borne l'attente pour basculer
+// rapidement sur l'authentification locale.
+function withTimeout(promise, milliseconds, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { setTimeout(() => reject(new Error(message)), milliseconds); }),
+  ]);
+}
+
+/**
+ * Création de compte locale : le mot de passe est haché (scrypt) et la session
+ * est ouverte immédiatement. Utilisé quand Supabase n'est pas configuré ou
+ * injoignable, pour que le site reste utilisable hors ligne.
+ */
+async function createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, supabaseUserId) {
+  const createUser = db.transaction(async () => {
+    const user = await db.prepare('INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id, type_utilisateur, telephone) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id').get(
+      prenom.trim(), nom.trim(), email.trim(), hashPassword(motDePasse), supabaseUserId || null, typeUtilisateur,
+      typeUtilisateur === 'prestataire' ? providerFields.telephone?.trim() || null : null,
+    );
+    if (typeUtilisateur === 'client') {
+      await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(user.id);
+    } else {
+      await db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, description, siret, site_web, adresse_postale)
+        VALUES (?, ?, ?, ?, ?, ?)`).run(
+        user.id, providerFields.nomEntreprise?.trim() || null, providerFields.description?.trim() || null,
+        providerFields.siret?.trim() || null, providerFields.siteWeb?.trim() || null,
+        providerFields.adressePostale?.trim() || null,
+      );
+    }
+    return Number(user.id);
+  });
+
+  let userId;
+  try {
+    userId = await createUser();
+  } catch (error) {
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === '23505') {
+      if (error.message?.includes('telephone') || error.constraint?.includes('telephone')) {
+        return response.status(409).json({ error: 'Ce numéro de téléphone est déjà associé à un compte.' });
+      }
+      return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
+    }
+    return response.status(500).json({ error: 'Impossible de créer le compte.' });
+  }
+
+  await recordUserLogin(userId);
+  response.status(201).json({
+    verificationRequired: false,
+    token: createSession(userId),
+    user: await getUserProfile(userId),
+  });
+}
 
 app.post('/api/auth/register', async (request, response) => {
   const { prenom, nom, email, motDePasse } = request.body;
@@ -154,40 +278,44 @@ app.post('/api/auth/register', async (request, response) => {
     }
   }
   if (!supabaseAuth) {
-    return response.status(503).json({ error: 'La confirmation par email Supabase n’est pas configurée.' });
+    // Sans Supabase (développement hors ligne), le compte est créé localement
+    // avec un mot de passe haché et la session est ouverte immédiatement.
+    return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, null);
   }
 
   let supabaseUserId;
   try {
-    const { data, error } = await supabaseAuth.auth.signUp({
-      email: email.trim(),
-      password: motDePasse,
-      options: {
-        data: { prenom: prenom.trim(), nom: nom.trim() },
-        emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_URL || 'http://localhost:5173/',
-      },
-    });
+    const { data, error } = await withTimeout(
+      supabaseAuth.auth.signUp({
+        email: email.trim(),
+        password: motDePasse,
+        options: {
+          data: { prenom: prenom.trim(), nom: nom.trim() },
+          emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_URL || 'http://localhost:5173/',
+        },
+      }),
+      8000,
+      'Supabase n’a pas répondu à temps.',
+    );
     if (error) {
       const errorMessage = error.message.toLowerCase();
-      console.error('Supabase signup rejected', { code: error.code, status: error.status });
+      console.error('Supabase signup rejected', { code: error.code, status: error.status, message: error.message });
       if (errorMessage.includes('already registered')) {
         return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
       }
-      if (errorMessage.includes('email address not authorized')) {
-        return response.status(502).json({ error: 'Supabase refuse cet envoi : activez un SMTP personnalisé dans Authentication > SMTP Settings, ou utilisez une adresse autorisée par le SMTP de test.' });
-      }
-      if (error.status === 429 || errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
-        return response.status(429).json({ error: 'La limite d’envoi des emails Supabase est atteinte. Réessayez plus tard ou configurez un SMTP personnalisé.' });
-      }
-      return response.status(502).json({ error: 'Impossible d’envoyer l’email de confirmation. Vérifiez la configuration email de Supabase.' });
+      // L'envoi d'email est indisponible (SMTP non configuré, quota, réseau) :
+      // le compte est créé localement pour que le service reste utilisable.
+      console.warn('[auth] Confirmation par email indisponible : inscription locale effectuée.');
+      return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, null);
     }
     if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
       return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     }
     supabaseUserId = data.user.id;
     if (data.session) {
-      await createAdminClient().auth.admin.deleteUser(supabaseUserId);
-      return response.status(503).json({ error: 'Activez la confirmation des emails dans Supabase Auth pour imposer la vérification.' });
+      // La confirmation d'email est désactivée côté Supabase : on enchaîne
+      // directement sur la création du compte EventBridge.
+      return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, supabaseUserId);
     }
 
     const createUser = db.transaction(async () => {
@@ -207,8 +335,18 @@ app.post('/api/auth/register', async (request, response) => {
       }
       return Number(user.id);
     });
-    await createUser();
-    response.status(201).json({ verificationRequired: true });
+    const userId = await createUser();
+    if (requireEmailConfirmation) {
+      // L'utilisateur devra valider le lien reçu par email avant de se connecter.
+      response.status(201).json({ verificationRequired: true });
+      return;
+    }
+    await recordUserLogin(userId);
+    response.status(201).json({
+      verificationRequired: false,
+      token: createSession(userId),
+      user: await getUserProfile(userId),
+    });
   } catch (error) {
     if (supabaseUserId) {
       try {
@@ -223,6 +361,11 @@ app.post('/api/auth/register', async (request, response) => {
       }
       return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     }
+    if (isNetworkError(error)) {
+      // Supabase est injoignable : on bascule sur l'inscription locale.
+      console.warn('[auth] Supabase injoignable, inscription locale utilisée.', error.message);
+      return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, null);
+    }
     response.status(500).json({ error: 'Impossible de créer le compte.' });
   }
 });
@@ -231,13 +374,24 @@ app.post('/api/auth/login', async (request, response) => {
   const { email, motDePasse } = request.body;
   const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
   if (!user) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-  if (user.supabase_auth_id) {
-    if (!supabaseAuth) return response.status(503).json({ error: 'La connexion Supabase n’est pas configurée.' });
-    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' });
-    if (error || data.user?.id !== user.supabase_auth_id) {
-      if (error?.code === 'email_not_confirmed' || error?.message.toLowerCase().includes('email not confirmed')) {
-        return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
+  if (user.supabase_auth_id && supabaseAuth) {
+    const { data, error } = await withTimeout(
+      supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' }),
+      8000,
+      'Supabase n’a pas répondu à temps.',
+    );
+    if (error) {
+      const notConfirmed = error?.code === 'email_not_confirmed' || error?.message?.toLowerCase().includes('email not confirmed');
+      // Le compte local reste valable même si la confirmation d'email n'a pas
+      // encore été faite (ou si Supabase est momentanément injoignable).
+      if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
+        if (notConfirmed) {
+          return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
+        }
+        return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
       }
+      console.warn('[auth] Connexion Supabase refusée, session locale utilisée.', error.message);
+    } else if (data.user?.id !== user.supabase_auth_id) {
       return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
     }
   } else if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
@@ -274,8 +428,8 @@ app.get('/api/me', authUser, async (request, response) => {
 
 app.get('/api/me/provider-profile', authUser, async (request, response) => {
   if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
-  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
-    adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
+  const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", siret, site_web AS "siteWeb",
+    adresse_postale AS "adressePostale", description, banniere_url AS "banniereUrl", photo_url AS "photoUrl"
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile: profile || {
     raisonSociale: '', siret: '', siteWeb: '', adressePostale: '', description: '', banniereUrl: '', photoUrl: '',
@@ -294,8 +448,8 @@ app.put('/api/me/provider-profile', authUser, async (request, response) => {
     request.userId, raisonSociale.trim(), siret?.trim() || null, siteWeb?.trim() || null,
     adressePostale?.trim() || null, description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null,
   );
-  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, siret, site_web AS siteWeb,
-    adresse_postale AS adressePostale, description, banniere_url AS banniereUrl, photo_url AS photoUrl
+  const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", siret, site_web AS "siteWeb",
+    adresse_postale AS "adressePostale", description, banniere_url AS "banniereUrl", photo_url AS "photoUrl"
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile });
 });
@@ -353,9 +507,10 @@ app.delete('/api/me', authUser, async (request, response) => {
     if (error) return response.status(502).json({ error: 'Impossible de supprimer le compte Supabase.' });
   }
   await db.prepare('DELETE FROM utilisateur WHERE id = ?').run(request.userId);
-  for (const [token, userId] of sessions) {
-    if (userId === request.userId) sessions.delete(token);
+  for (const [token, userId] of sessionCache) {
+    if (userId === request.userId) sessionCache.delete(token);
   }
+  runSafely(db.prepare('DELETE FROM session WHERE utilisateur_id = ?'), request.userId);
   response.status(204).end();
 });
 
@@ -374,7 +529,7 @@ app.get('/api/me/events', authUser, async (request, response) => {
     eventLocations.push(location.libelle);
     locationsByEvent.set(location.evenementId, eventLocations);
   }
-  const eventProviders = await db.prepare(`SELECT ep.evenement_id AS "evenementId", p.utilisateur_id AS id,
+  const eventProviders = await db.prepare(`SELECT ep.evenement_id AS "evenementId", p.utilisateur_id AS "id",
     p.nom_entreprise AS "raisonSociale", p.photo_url AS "photoUrl"
     FROM evenement_prestataire ep JOIN prestataire p ON p.utilisateur_id = ep.prestataire_id
     JOIN evenement e ON e.id = ep.evenement_id WHERE e.client_id = ?
@@ -443,9 +598,11 @@ app.post('/api/me/events', authUser, async (request, response) => {
     }
   }
   const createEvent = db.transaction(async () => {
-    const result = await db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, date_fin, budget)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
-      request.userId, Number(typeEvenementId), titre.trim(), description?.trim() || null, lieu.trim(), eventStartDate, eventEndDate, estimatedBudget,
+    const result = await db.prepare(`INSERT INTO evenement (client_id, type_evenement_id, titre, description, lieu, date_evenement, date_fin, nombre_invites, budget)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
+      request.userId, Number(typeEvenementId), titre.trim(), description?.trim() || null, lieu.trim(), eventStartDate, eventEndDate,
+      Number.isInteger(Number(request.body.nombreInvites)) && Number(request.body.nombreInvites) > 0 ? Number(request.body.nombreInvites) : null,
+      estimatedBudget,
     );
     const eventId = Number(result.id);
     const insertLocation = db.prepare('INSERT INTO emplacement_evenement (evenement_id, libelle) VALUES (?, ?)');
@@ -490,9 +647,11 @@ app.put('/api/me/events/:eventId', authUser, async (request, response) => {
   }
   const updateEvent = db.transaction(async () => {
     await db.prepare(`UPDATE evenement SET type_evenement_id = ?, titre = ?, description = ?, lieu = ?,
-      date_evenement = ?, date_fin = ?, budget = ? WHERE id = ? AND client_id = ?`).run(
+      date_evenement = ?, date_fin = ?, nombre_invites = ?, budget = ? WHERE id = ? AND client_id = ?`).run(
       Number(typeEvenementId), titre.trim(), description?.trim() || null, lieu.trim(),
-      eventStartDate, eventEndDate, estimatedBudget, eventId, request.userId,
+      eventStartDate, eventEndDate,
+      Number.isInteger(Number(request.body.nombreInvites)) && Number(request.body.nombreInvites) > 0 ? Number(request.body.nombreInvites) : null,
+      estimatedBudget, eventId, request.userId,
     );
     await db.prepare('DELETE FROM emplacement_evenement WHERE evenement_id = ?').run(eventId);
     const insertLocation = db.prepare('INSERT INTO emplacement_evenement (evenement_id, libelle) VALUES (?, ?)');
@@ -507,10 +666,10 @@ app.put('/api/me/events/:eventId', authUser, async (request, response) => {
 
 app.get('/api/me/provider-dashboard', authUser, async (request, response) => {
   if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
-  const profile = await db.prepare(`SELECT nom_entreprise AS raisonSociale, description, adresse_postale AS adressePostale,
-    site_web AS siteWeb, photo_url AS photoUrl, banniere_url AS banniereUrl
+  const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", description, adresse_postale AS "adressePostale",
+    site_web AS "siteWeb", photo_url AS "photoUrl", banniere_url AS "banniereUrl"
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
-  const prestations = await db.prepare(`SELECT pr.id, pr.titre, pr.description, pr.prix, c.libelle AS categorie
+  const prestations = await db.prepare(`SELECT pr.id, pr.titre, pr.description, pr.prix, c.libelle AS "categorie"
     FROM prestation pr JOIN categorie_prestation c ON c.id = pr.categorie_id
     WHERE pr.prestataire_id = ? ORDER BY c.libelle, pr.titre`).all(request.userId);
   const includePastEvents = request.query.includePastEvents === 'true';
@@ -734,8 +893,8 @@ app.get('/api/users/search', authUser, async (request, response) => {
   if (search.length < 2) return response.status(400).json({ error: 'La recherche doit contenir au moins 2 caractères.' });
   const searchPattern = `%${search}%`;
   const users = await db.prepare(`
-    SELECT u.id, u.prenom, u.nom, u.type_utilisateur AS typeUtilisateur,
-           COALESCE(p.nom_entreprise, '') AS raisonSociale
+    SELECT u.id, u.prenom, u.nom, u.type_utilisateur AS "typeUtilisateur",
+           COALESCE(p.nom_entreprise, '') AS "raisonSociale"
     FROM utilisateur u
     LEFT JOIN prestataire p ON p.utilisateur_id = u.id
     WHERE u.id <> ?
@@ -789,7 +948,7 @@ app.post('/api/me/conversations', authUser, async (request, response) => {
       await db.prepare('INSERT INTO conversation_participant (conversation_id, utilisateur_id) VALUES (?, ?)').run(conversationId, targetUserId);
     }
     return conversationId;
-  });
+  })();
 
   response.status(201).json({ id: result });
 });
@@ -827,12 +986,29 @@ app.post('/api/me/conversations/:conversationId/messages', authUser, async (requ
   response.status(201).json({ id: Number(message.id) });
 });
 
-if (process.env.NODE_ENV === 'production') {
-  const frontendDirectory = path.resolve('dist');
+// L'API sert aussi le frontend compilé quand il est présent : le site et
+// l'API partagent alors la même origine (indispensable en production).
+const frontendDirectory = path.resolve('dist');
+const frontendAvailable = fs.existsSync(path.join(frontendDirectory, 'index.html'));
+if (frontendAvailable) {
   app.use('/api', (_request, response) => response.status(404).json({ error: 'Route API introuvable.' }));
   app.use(express.static(frontendDirectory));
   app.get(/.*/, (_request, response) => response.sendFile(path.join(frontendDirectory, 'index.html')));
 }
 
-await initializeDatabase();
-app.listen(port, () => console.log(`EventBridge API disponible sur http://localhost:${port}`));
+try {
+  await initializeDatabase();
+} catch (error) {
+  console.error('[db] Initialisation impossible :', error);
+  process.exit(1);
+}
+
+app.listen(port, () => {
+  console.log(`EventBridge API disponible sur http://localhost:${port}`);
+  console.log(`[db] Base de données : ${isPostgres ? 'PostgreSQL (Supabase)' : 'SQLite locale'}`);
+  if (frontendAvailable) {
+    console.log(`[web] Frontend servi depuis ${frontendDirectory} → http://localhost:${port}`);
+  } else {
+    console.log('[web] Frontend non compilé : lancez « npm run build » ou « npm run dev ».');
+  }
+});
