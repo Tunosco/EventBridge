@@ -142,17 +142,6 @@ export default function WorkspaceShell({ role = 'client', active, onNavigate, on
             {key === 'messages' && messageCount ? <span className="ux-side-badge">{messageCount}</span> : null}
           </button>
         ))}
-        <div className="ux-side-separator" />
-        <button type="button" className="eb-find-primary" onClick={() => onFindProviders?.()}>
-          <Icon name="users" />
-          <span>{isProvider ? text.exploreProviders : text.findProvider}</span>
-        </button>
-        <div className="ux-side-bottom">
-          <button type="button" onClick={() => onHome?.()}>
-            <Icon name="home" />
-            <span>{text.home}</span>
-          </button>
-        </div>
       </aside>
       <div className="ux-main">{children}</div>
     </div>

@@ -4,7 +4,7 @@ import ProviderDashboard from './ProviderDashboard';
 import ProviderProfile from './ProviderProfile';
 import ProviderPublicProfile from './ProviderPublicProfile';
 import ProviderTasks from './ProviderTasks';
-import WorkspaceShell, { Icon } from './WorkspaceShell';
+import WorkspaceShell from './WorkspaceShell';
 import { useTranslation } from '../lib/i18n';
 
 export default function ProviderSpace({ user, section, onNavigateSection, isAuthenticated, onAuth, onBack, onFindProviders, language = 'fr' }) {
@@ -12,8 +12,8 @@ export default function ProviderSpace({ user, section, onNavigateSection, isAuth
   const copy = language === 'en'
     ? { restricted: 'Restricted access', title: 'Provider space', description: 'Sign in with a provider account or create an account to access your profile and services.', login: 'Sign in', signup: 'Create an account', back: 'Back to home' }
     : language === 'it'
-      ? { restricted: 'Accesso riservato', title: 'Area fornitori', description: 'Accedi con un account fornitore o creane uno per accedere al profilo e ai servizi.', login: 'Accedi', signup: 'Crea un account', back: 'Torna alla home' }
-      : { restricted: 'Accès réservé', title: 'Espace prestataire', description: 'Connectez-vous avec un compte prestataire ou créez votre compte pour accéder à vos informations et à vos prestations.', login: 'Se connecter', signup: 'Créer un compte', back: 'Retour à l’accueil' };
+      ? { restricted: 'Accesso riservato', title: 'Area fornitori', description: 'Accedi con un account fornitore o creane uno per accedere al profilo e ai servizi.', login: 'Accedi', signup: 'Crea un account' }
+      : { restricted: 'Accès réservé', title: 'Espace prestataire', description: 'Connectez-vous avec un compte prestataire ou créez votre compte pour accéder à vos informations et à vos prestations.', login: 'Se connecter', signup: 'Créer un compte' };
   const isProvider = user?.typeUtilisateur === 'prestataire';
 
   if (!isAuthenticated || !isProvider) {
@@ -26,7 +26,6 @@ export default function ProviderSpace({ user, section, onNavigateSection, isAuth
           <div className="ux-head-actions">
             <button className="ux-btn ux-primary" type="button" onClick={() => onAuth('connexion')}>{copy.login}</button>
             <button className="ux-btn" type="button" onClick={() => onAuth('prestataire-inscription')}>{copy.signup}</button>
-            <button className="ux-btn" type="button" onClick={onBack}>{copy.back}</button>
           </div>
         </div>
       </main>
@@ -43,10 +42,6 @@ export default function ProviderSpace({ user, section, onNavigateSection, isAuth
         onHome={onBack}
         language={currentLanguage}
       >
-        <button className="eb-page-back" type="button" onClick={onBack}>
-          <Icon name="arrow" />
-          <span>Retour</span>
-        </button>
         {section === 'home' && <ProviderDashboard onEditProfile={() => onNavigateSection('profile')} onFindProviders={onFindProviders} />}
         {section === 'events' && <ProviderDashboard eventsOnly onFindProviders={onFindProviders} />}
         {section === 'availability' && <ProviderAvailability />}

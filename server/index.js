@@ -12,8 +12,9 @@ const port = Number(process.env.PORT || 3001);
 const sessionCache = new Map();
 const supabaseAuthEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
 const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
-// Confirmation d'email imposée : à activer une fois le SMTP configuré.
-const requireEmailConfirmation = String(process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION || '').toLowerCase() === 'true';
+// La confirmation est activée par défaut pour les comptes Supabase. Elle ne
+// peut être désactivée que pour un environnement explicitement configuré ainsi.
+const requireEmailConfirmation = String(process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION || 'true').toLowerCase() !== 'false';
 
 app.use(cors());
 app.use(express.json());
@@ -64,12 +65,37 @@ async function resolveSession(token) {
   return null;
 }
 
+async function isEmailConfirmed(userId) {
+  const user = await db.prepare('SELECT supabase_auth_id FROM utilisateur WHERE id = ?').get(userId);
+  if (!user) return false;
+  if (!supabaseAuth) return !user.supabase_auth_id;
+  if (!user.supabase_auth_id) return false;
+  try {
+    const { data, error } = await withTimeout(
+      createAdminClient().auth.admin.getUserById(user.supabase_auth_id),
+      8000,
+      'Supabase n’a pas répondu à temps.',
+    );
+    return !error && Boolean(data.user?.email_confirmed_at);
+  } catch (error) {
+    console.error('[auth] Vérification de confirmation email impossible.', error);
+    return false;
+  }
+}
+
 function authUser(request, response, next) {
   const token = request.headers.authorization?.replace('Bearer ', '');
   resolveSession(token).then((userId) => {
     if (!userId) return response.status(401).json({ error: 'Authentification requise.' });
-    request.userId = userId;
-    next();
+    isEmailConfirmed(userId).then((confirmed) => {
+      if (!confirmed) {
+        sessionCache.delete(token);
+        runSafely(db.prepare('DELETE FROM session WHERE token = ?'), token);
+        return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
+      }
+      request.userId = userId;
+      next();
+    }).catch(() => response.status(503).json({ error: 'La confirmation email ne peut pas être vérifiée pour le moment.' }));
   });
 }
 
@@ -186,16 +212,8 @@ app.get('/api/providers', async (request, response) => {
   response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly, filters));
 });
 
-function isNetworkError(error) {
-  if (!error) return false;
-  const message = String(error.message || '').toLowerCase();
-  if (error.status && error.status < 500) return false;
-  return ['fetch failed', 'network', 'econnrefused', 'etimedout', 'enotfound', 'socket hang up', 'getaddrinfo', 'timeout']
-    .some((needle) => message.includes(needle));
-}
-
-// Supabase peut rester sans réponse : on borne l'attente pour basculer
-// rapidement sur l'authentification locale.
+// Supabase peut rester sans réponse : on borne l'attente pour retourner une
+// erreur explicite plutôt que de contourner la confirmation par email.
 function withTimeout(promise, milliseconds, message) {
   return Promise.race([
     promise,
@@ -205,8 +223,8 @@ function withTimeout(promise, milliseconds, message) {
 
 /**
  * Création de compte locale : le mot de passe est haché (scrypt) et la session
- * est ouverte immédiatement. Utilisé quand Supabase n'est pas configuré ou
- * injoignable, pour que le site reste utilisable hors ligne.
+ * est ouverte immédiatement. Utilisé uniquement quand Supabase n'est pas
+ * configuré, par exemple pour le développement local hors ligne.
  */
 async function createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, supabaseUserId) {
   const createUser = db.transaction(async () => {
@@ -312,9 +330,13 @@ app.post('/api/auth/register', async (request, response) => {
       return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     }
     supabaseUserId = data.user.id;
+    if (data.session && requireEmailConfirmation) {
+      await createAdminClient().auth.admin.deleteUser(supabaseUserId);
+      return response.status(503).json({
+        error: 'La confirmation email doit être activée dans Supabase Authentication avant de créer un compte.',
+      });
+    }
     if (data.session) {
-      // La confirmation d'email est désactivée côté Supabase : on enchaîne
-      // directement sur la création du compte EventBridge.
       return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, supabaseUserId);
     }
 
@@ -361,12 +383,8 @@ app.post('/api/auth/register', async (request, response) => {
       }
       return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
     }
-    if (isNetworkError(error)) {
-      // Supabase est injoignable : on bascule sur l'inscription locale.
-      console.warn('[auth] Supabase injoignable, inscription locale utilisée.', error.message);
-      return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, null);
-    }
-    response.status(500).json({ error: 'Impossible de créer le compte.' });
+    console.error('[auth] Création du compte Supabase impossible.', error);
+    response.status(503).json({ error: 'Impossible d’envoyer le mail de confirmation. Vérifiez la configuration Supabase et réessayez.' });
   }
 });
 
@@ -374,7 +392,13 @@ app.post('/api/auth/login', async (request, response) => {
   const { email, motDePasse } = request.body;
   const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
   if (!user) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-  if (user.supabase_auth_id && supabaseAuth) {
+  if (supabaseAuth && !user.supabase_auth_id) {
+    return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
+  }
+  if (user.supabase_auth_id && !supabaseAuth) {
+    return response.status(503).json({ error: 'La confirmation email ne peut pas être vérifiée pour le moment.' });
+  }
+  if (user.supabase_auth_id) {
     const { data, error } = await withTimeout(
       supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' }),
       8000,
@@ -382,17 +406,15 @@ app.post('/api/auth/login', async (request, response) => {
     );
     if (error) {
       const notConfirmed = error?.code === 'email_not_confirmed' || error?.message?.toLowerCase().includes('email not confirmed');
-      // Le compte local reste valable même si la confirmation d'email n'a pas
-      // encore été faite (ou si Supabase est momentanément injoignable).
-      if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
-        if (notConfirmed) {
-          return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
-        }
-        return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+      if (notConfirmed) {
+        return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
       }
-      console.warn('[auth] Connexion Supabase refusée, session locale utilisée.', error.message);
+      console.error('[auth] Connexion Supabase impossible.', error);
+      return response.status(503).json({ error: 'Le service de connexion est temporairement indisponible. Réessayez dans quelques instants.' });
     } else if (data.user?.id !== user.supabase_auth_id) {
       return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+    } else if (!data.user.email_confirmed_at) {
+      return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
     }
   } else if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
     return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
@@ -894,7 +916,11 @@ app.get('/api/users/search', authUser, async (request, response) => {
   const searchPattern = `%${search}%`;
   const users = await db.prepare(`
     SELECT u.id, u.prenom, u.nom, u.type_utilisateur AS "typeUtilisateur",
-           COALESCE(p.nom_entreprise, '') AS "raisonSociale"
+           COALESCE(p.nom_entreprise, '') AS "raisonSociale",
+           COALESCE((SELECT GROUP_CONCAT(DISTINCT c.libelle)
+             FROM prestation pr
+             JOIN categorie_prestation c ON c.id = pr.categorie_id
+             WHERE pr.prestataire_id = p.utilisateur_id), '') AS categories
     FROM utilisateur u
     LEFT JOIN prestataire p ON p.utilisateur_id = u.id
     WHERE u.id <> ?

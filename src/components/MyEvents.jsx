@@ -1,12 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ProviderFinder from './ProviderFinder';
 import WorkspaceShell, { Icon } from './WorkspaceShell';
 import { createEvent, getEventTypes, getMyEvents, updateEvent, updateEventProviders } from '../lib/api';
 import { formatDate } from '../lib/dateFormat';
 import DateInput from './DateInput';
+import ClientEmptyState from './ClientEmptyState';
 import { useTranslation } from '../lib/i18n';
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+const pageTitles = {
+  overview: 'Vue d’ensemble',
+  events: 'Mes événements',
+  quotes: 'Devis reçus',
+  budget: 'Mon budget',
+  calendar: 'Mon calendrier',
+  followup: 'Suivi',
+  timeline: 'Déroulé de l’événement',
+};
 
 function parseEventDate(value) {
   if (!value) return null;
@@ -80,14 +91,14 @@ function EventSummary({ event, isPast = false, onManageProviders, onEdit, locale
   );
 }
 
-export default function MyEvents({ onBack, onFindProviders, user, language = 'fr', openCreateInitially = false, initialDate = '', onCreateInitiallyHandled }) {
+export default function MyEvents({ onBack, onFindProviders, onNavigateSection, user, language = 'fr', section = 'overview', openCreateInitially = false, initialDate = '', onCreateInitiallyHandled, onEventFormClosed, modalOnly = false }) {
   const { locale, translateText } = useTranslation();
   const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
-  const [view, setView] = useState('overview');
+  const [view, setView] = useState(section);
   const [eventTypes, setEventTypes] = useState([]);
   const [eventTypesLoading, setEventTypesLoading] = useState(true);
   const [eventTypesError, setEventTypesError] = useState('');
@@ -101,12 +112,15 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
   const [selectedProviderIds, setSelectedProviderIds] = useState([]);
   const [providerSaveError, setProviderSaveError] = useState('');
   const [savingProviders, setSavingProviders] = useState(false);
-  const initialCreateHandled = useRef(false);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
   const [selectedDateKey, setSelectedDateKey] = useState(() => dateKey(new Date()));
+
+  useEffect(() => {
+    setView(section);
+  }, [section]);
 
   useEffect(() => {
     let active = true;
@@ -229,6 +243,7 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
     setVisibleMonth(new Date(relevantDate.getFullYear(), relevantDate.getMonth(), 1));
     setSelectedDateKey(dateKey(relevantDate));
     setView('calendar');
+    onNavigateSection?.('calendar');
   };
   const updateEventForm = (event) => {
     const { name, value } = event.target;
@@ -263,10 +278,9 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
     setShowCreateForm(true);
   }, []);
   useEffect(() => {
-    if (!openCreateInitially || initialCreateHandled.current) return;
-    initialCreateHandled.current = true;
+    if (!openCreateInitially) return;
     openCreateForm(initialDate);
-    onCreateInitiallyHandled?.();
+    if (!modalOnly) onCreateInitiallyHandled?.();
   }, [openCreateInitially, onCreateInitiallyHandled, openCreateForm]);
   const openEditForm = (event) => {
     setEditingEvent(event);
@@ -322,6 +336,7 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
       setSecondaryLocationDraft('');
       setShowCreateForm(false);
       setEditingEvent(null);
+      onEventFormClosed?.();
       setReload((value) => value + 1);
     } catch (saveError) {
       setFormError(saveError.message);
@@ -331,25 +346,25 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
   };
 
   return (
+    <div className={modalOnly ? 'event-modal-only' : undefined}>
     <main className="my-events-page">
       <WorkspaceShell
         role="client"
-        active={view === 'calendar' ? 'calendar' : 'overview'}
-        onNavigate={(key) => setView(key === 'calendar' ? 'calendar' : 'overview')}
+        active={view}
+        onNavigate={(key) => {
+          setView(key);
+          onNavigateSection?.(key);
+        }}
         onFindProviders={onFindProviders}
         onHome={onBack}
         language={language}
       >
-        <button className="eb-page-back" type="button" onClick={onBack}>
-          <Icon name="arrow" />
-          <span>{translateText('Retour')}</span>
-        </button>
-
         <div className="ux-pagehead">
           <div>
-            <span className="ux-overline">{translateText('Espace client')}</span>
-            <h1>{translateText('Bonjour')} {user?.nom ? `${user.nom}.` : '.'}</h1>
-            <p className="ux-muted">{translateText('Tout avance, au même endroit.')}</p>
+            <h1>{view === 'overview'
+              ? `${translateText('Bonjour')} ${user?.prenom ? `${user.prenom}.` : '.'}`
+              : translateText(pageTitles[view] || pageTitles.overview)}</h1>
+            <p className="ux-muted">{translateText('Tout, au même endroit.')}</p>
           </div>
           <div className="ux-head-actions">
             <button className="ux-btn ux-primary" type="button" onClick={() => openCreateForm(initialDate)}>
@@ -364,7 +379,15 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
           <button className="text-link" onClick={() => setReload((value) => value + 1)}>{translateText('Réessayer')}</button>
         </div>}
 
-        {view === 'overview' ? (
+        {loading ? (
+          <p className="ux-muted" aria-live="polite">{translateText('Chargement…')}</p>
+        ) : error ? null : !events.length && view !== 'calendar' ? (
+          <ClientEmptyState
+            section={view}
+            onCreateEvent={() => openCreateForm(initialDate)}
+            onFindProviders={onFindProviders}
+          />
+        ) : view === 'overview' ? (
           upcomingEvents.length ? (
             <div className="ux-grid">
               <div className="ux-stack">
@@ -499,24 +522,20 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
             </div>
           ) : (
             <div className="ux-onboarding">
-              <span className="ux-overline">{translateText('Votre prochain événement')}</span>
-              <h2>{translateText('Tout est au même endroit.')}</h2>
-              <p>{translateText('Commencez par créer votre événement pour retrouver son budget, ses prestataires et son déroulé.')}</p>
+              <h2>{translateText('Créez un évènement pour trouver toutes les informations le concernant ici !')}</h2>
               <div className="ux-head-actions">
                 <button className="ux-btn ux-primary" type="button" onClick={() => openCreateForm(initialDate)}>
                   <Icon name="plus" />
                   <span>{translateText('Créer un événement')}</span>
                 </button>
-                <button className="ux-btn" type="button" onClick={onFindProviders}>{translateText('Trouver un prestataire')}</button>
               </div>
             </div>
           )
         ) : (
           <section className="events-calendar" aria-label={translateText('Calendrier des événements à venir')}>
-        <div className="calendar-heading">
-          <div>
-            <span className="summary-label eyebrow">{translateText('Calendrier')}</span>
-            <h2>{monthFormatter.format(visibleMonth)}</h2>
+          <div className="calendar-heading">
+            <div>
+              <h2>{monthFormatter.format(visibleMonth)}</h2>
           </div>
           <div className="calendar-navigation">
             <button type="button" aria-label={translateText('Mois précédent')} title={translateText('Mois précédent')} disabled={isCurrentMonth} onClick={() => changeMonth(-1)}>‹</button>
@@ -543,10 +562,9 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
                     className={`calendar-day${inMonth ? '' : ' is-outside'}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${dayEvents.length ? ' has-events' : ''}`}
                     aria-label={`${formatDate(date, locale)}${eventTitles ? ` : ${eventTitles}` : ''}`}
                     aria-pressed={isSelected}
-                    disabled={!inMonth || startOfDay(date) < today}
                     onClick={() => changeSelectedDay(date)}
                   >
-                    <time className="calendar-day-number" dateTime={dateKey(date)} title={formatDate(date, locale)}>{formatDate(date, locale)}</time>
+                    <time className="calendar-day-number" dateTime={dateKey(date)} title={formatDate(date, locale)}>{date.getDate()}</time>
                     <span className="calendar-day-event-list" aria-hidden="true">
                       {dayEvents.slice(0, 2).map((event) => <span className="calendar-event-title" key={event.id}>{event.titre}</span>)}
                       {dayEvents.length > 2 && <span className="calendar-event-more">+{dayEvents.length - 2} {translateText('autres')}</span>}
@@ -573,11 +591,11 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
           </section>
           )}
       </WorkspaceShell>
-      {showCreateForm && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingEvent) { setShowCreateForm(false); setEditingEvent(null); } }}>
+      {showCreateForm && <div className="event-form-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingEvent) { setShowCreateForm(false); setEditingEvent(null); onEventFormClosed?.(); } }}>
         <section className="event-form-dialog" role="dialog" aria-modal="true" aria-labelledby="create-event-title">
           <div className="event-form-heading">
             <div><span className="kicker">{translateText('Votre projet')}</span><h2 id="create-event-title">{translateText(editingEvent ? 'Modifier l’événement' : 'Créer un événement')}</h2></div>
-            <button className="event-form-close" type="button" aria-label={translateText('Fermer')} title={translateText('Fermer')} disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>×</button>
+            <button className="event-form-close" type="button" aria-label={translateText('Fermer')} title={translateText('Fermer')} disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); onEventFormClosed?.(); }}>×</button>
           </div>
           <form className="event-creation-form" onSubmit={handleSaveEvent}>
             <label>{translateText('Titre')}<input name="titre" value={eventForm.titre} onChange={updateEventForm} required maxLength="120" placeholder={translateText('Ex. Mariage de Camille et Alex')} /></label>
@@ -618,7 +636,7 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
             </section>
             {formError && <p className="event-form-error" role="alert">{translateText(formError)}</p>}
             <div className="event-form-actions">
-              <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); }}>{translateText('Annuler')}</button>
+              <button className="event-form-cancel" type="button" disabled={savingEvent} onClick={() => { setShowCreateForm(false); setEditingEvent(null); onEventFormClosed?.(); }}>{translateText('Annuler')}</button>
               <button className="button button-primary" type="submit" disabled={savingEvent || eventTypes.length === 0}>{translateText(savingEvent ? 'Enregistrement…' : editingEvent ? 'Enregistrer les modifications' : 'Enregistrer l’événement')}</button>
             </div>
           </form>
@@ -644,5 +662,6 @@ export default function MyEvents({ onBack, onFindProviders, user, language = 'fr
         </section>
       </div>}
     </main>
+    </div>
   );
 }

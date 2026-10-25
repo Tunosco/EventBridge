@@ -14,11 +14,11 @@ export default function Header({
   onProfileClick,
   onSettingsClick,
   onAccountSection,
-  onLanguageChange,
   onCreateEvent,
   language = 'fr',
   user,
   isAuthenticated,
+  activePage = 'home',
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -37,9 +37,10 @@ export default function Header({
 
   const isProvider = user?.typeUtilisateur === 'prestataire';
   const text = labels[language] || labels.fr;
-  const roleNavigation = isProvider
-    ? [['availability', text.availability], ['tasks', text.tasks], ['messages', text.messages]]
-    : [['events', text.clientEvents], ['messages', text.messages], ['favorites', text.favorites]];
+  const profileImage = user?.photoUrl || 'https://i.pravatar.cc/240?img=12';
+  const profileName = [user?.prenom, user?.nom].filter(Boolean).join(' ') || text.space;
+  const isClientSpace = isAuthenticated && !isProvider && ['events', 'messages'].includes(activePage);
+  const isPublicHome = activePage === 'home';
   const navigate = (callback) => (event) => {
     event?.preventDefault?.();
     closeMenu();
@@ -64,65 +65,44 @@ export default function Header({
           <span className="menu-icon" aria-hidden="true"><span /><span /><span /></span>
         </button>
         <nav id="eb-main-nav" className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label={language === 'en' ? 'Main navigation' : language === 'it' ? 'Navigazione principale' : 'Navigation principale'}>
-          <button className="nav-link" onClick={navigate(() => onNavigate?.('home'))}>{text.home}</button>
+          <button className={`nav-link${isPublicHome ? ' is-active' : ''}`} aria-current={isPublicHome ? 'page' : undefined} onClick={navigate(() => onNavigate?.('home'))}>{text.home}</button>
+          {isAuthenticated && !isProvider && (
+            <button className={`nav-link${isClientSpace ? ' is-active' : ''}`} aria-current={isClientSpace ? 'page' : undefined} onClick={navigate(() => onAccountSection?.('home'))}>
+              {text.client}
+            </button>
+          )}
           {!isProvider && <button className="nav-link" onClick={navigate(() => onCreateEvent?.())}>{text.create}</button>}
           <button className="nav-link" onClick={navigate(() => onProviderSearch?.(''))}>
             {isProvider ? text.explore : text.providers}
           </button>
           {isAuthenticated && (
-            <details className="nav-dropdown">
-              <summary className="nav-link">{isProvider ? text.provider : text.client}</summary>
-              <div className="nav-panel">
-                {roleNavigation.map(([section, label]) => (
-                  <button key={section} onClick={navigate(() => onAccountSection?.(section))}>{label}</button>
-                ))}
-                <button onClick={navigate(() => onProfileClick?.())}>{text.profile}</button>
-                <button onClick={navigate(() => onSettingsClick?.())}>{text.settings}</button>
-                <button onClick={navigate(() => { localStorage.removeItem('eventbridge_token'); onLoggedOut?.(); })}>{text.logout}</button>
-              </div>
-            </details>
-          )}
-          <button className="nav-link" onClick={navigate(() => onNavigate?.('history'))}>{text.story}</button>
-          <button className="nav-link" onClick={navigate(() => onNavigate?.('contact'))}>{text.contact}</button>
-          <label className="language">
-            <span className="sr-only">{text.language}</span>
-            <select id="language" aria-label={text.language} value={language} onChange={(event) => onLanguageChange?.(event.target.value)}>
-              <option value="fr">FR</option>
-              <option value="en">EN</option>
-              <option value="it">IT</option>
-            </select>
-          </label>
-          {isAuthenticated && (
+            <>
             <div className="account-menu" ref={accountMenuRef}>
               <button
                 id="account"
-                className="eb-account-button"
+                className="profile-button"
                 type="button"
                 aria-label={text.openProfile}
                 aria-expanded={accountMenuOpen}
                 onClick={() => setAccountMenuOpen((open) => !open)}
               >
-                {user?.nom || text.space}
+                <img src={profileImage} alt="" />
               </button>
               {accountMenuOpen && (
                 <div className="account-dropdown nav-panel">
-                  <button onClick={navigate(() => onAccountSection?.('home'))}>{text.space}</button>
+                  <div className="account-dropdown-profile">
+                    <img src={profileImage} alt="" />
+                    <strong>{profileName}</strong>
+                  </div>
                   <button onClick={navigate(() => onProfileClick?.())}>{text.profile}</button>
                   <button onClick={navigate(() => onSettingsClick?.())}>{text.settings}</button>
                   <button onClick={navigate(() => { localStorage.removeItem('eventbridge_token'); onLoggedOut?.(); })}>{text.logout}</button>
                 </div>
               )}
             </div>
+            </>
           )}
         </nav>
-        <label className="language mobile-language">
-          <span className="sr-only">{text.language}</span>
-          <select aria-label={text.language} value={language} onChange={(event) => onLanguageChange?.(event.target.value)}>
-            <option value="fr">FR</option>
-            <option value="en">EN</option>
-            <option value="it">IT</option>
-          </select>
-        </label>
         {!isAuthenticated && (
           <button id="account" className="button button-primary nav-cta mobile-login" onClick={navigate(() => onProjectClick('connexion'))}>{text.login}</button>
         )}

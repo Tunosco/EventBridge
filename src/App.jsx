@@ -1,17 +1,20 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
+import WorkspaceShell from './components/WorkspaceShell';
 import HomePage from './components/HomePage';
 import IntroOverlay from './components/IntroOverlay';
 import ContactModal from './components/ContactModal';
 import ContactPage from './components/ContactPage';
 import StoryPage from './components/StoryPage';
 const Profile = lazy(() => import('./components/Profile'));
+const ProfileEdit = lazy(() => import('./components/ProfileEdit'));
 const Settings = lazy(() => import('./components/Settings'));
 const MyEvents = lazy(() => import('./components/MyEvents'));
 const ProviderDirectory = lazy(() => import('./components/ProviderDirectory'));
 const ProviderSpace = lazy(() => import('./components/ProviderSpace'));
 const Messaging = lazy(() => import('./components/Messaging'));
-import { completeEmailConfirmation, getCurrentUser } from './lib/api';
+import { completeEmailConfirmation, getCurrentUser, getMyEvents } from './lib/api';
+import ClientEmptyState from './components/ClientEmptyState';
 import { LanguageProvider, translate } from './lib/i18n';
 
 const WORKSPACE_PAGES = new Set(['provider', 'events', 'messages', 'profile', 'settings']);
@@ -36,13 +39,14 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('home');
   const [openCreateEventOnEvents, setOpenCreateEventOnEvents] = useState(false);
+  const [createEventRequestId, setCreateEventRequestId] = useState(0);
   const [eventDraftDate, setEventDraftDate] = useState('');
-  const [language, setLanguage] = useState(() => {
-    const storedLanguage = localStorage.getItem('eventbridge_language');
-    return ['fr', 'en', 'it'].includes(storedLanguage) ? storedLanguage : 'fr';
-  });
+  const language = 'fr';
   const [providerSearchFilters, setProviderSearchFilters] = useState({ query: '', category: '', city: '', maxBudget: '', date: '' });
   const [providerSection, setProviderSection] = useState('home');
+  const [clientSection, setClientSection] = useState('overview');
+  const [clientHasEvents, setClientHasEvents] = useState(null);
+  const [providerDirectoryFavoritesOnly, setProviderDirectoryFavoritesOnly] = useState(false);
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
   const confirmationHandled = useRef(false);
@@ -73,31 +77,39 @@ export default function App() {
     // Un compte créé depuis « Espace prestataire » est toujours un compte prestataire.
     setContactType('prestataire-inscription');
   };
-  const handleLanguageChange = (nextLanguage) => {
-    setLanguage(nextLanguage);
-    localStorage.setItem('eventbridge_language', nextLanguage);
-    document.documentElement.lang = nextLanguage;
-  };
   const handleCreateEventClick = (date = '') => {
     setEventDraftDate(date);
+    setCreateEventRequestId((requestId) => requestId + 1);
     if (!user) {
       eventCreationPendingAuth.current = true;
       setContactType('connexion');
       return;
     }
     setOpenCreateEventOnEvents(true);
-    setPage('events');
   };
   const acknowledgeInitialEventCreate = useCallback(() => {
     setOpenCreateEventOnEvents(false);
     setEventDraftDate('');
   }, []);
+
+  useEffect(() => {
+    if (!user || user.typeUtilisateur === 'prestataire') {
+      setClientHasEvents(null);
+      return undefined;
+    }
+    let active = true;
+    getMyEvents()
+      .then((events) => { if (active) setClientHasEvents(Array.isArray(events) && events.length > 0); })
+      .catch(() => { if (active) setClientHasEvents(true); });
+    return () => { active = false; };
+  }, [user]);
   const handleProviderSearch = (search) => {
     const filters = typeof search === 'string'
       ? { query: search, category: '', city: '', maxBudget: '', date: '' }
       : { query: '', category: '', city: '', maxBudget: '', date: '', ...search };
     setProviderSearchQuery(filters.query || '');
     setProviderSearchFilters(filters);
+    setProviderDirectoryFavoritesOnly(false);
     setPage('providers');
   };
   const navigateToAccountHome = (accountUser = user) => {
@@ -106,6 +118,7 @@ export default function App() {
       setProviderSection('home');
       setPage('provider');
     } else {
+      setClientSection('overview');
       setPage('events');
     }
   };
@@ -114,7 +127,6 @@ export default function App() {
       eventCreationPendingAuth.current = false;
       setContactType(null);
       setOpenCreateEventOnEvents(true);
-      setPage('events');
       return;
     }
     navigateToAccountHome(accountUser);
@@ -148,7 +160,12 @@ export default function App() {
       favorites: 'providers',
       providers: 'providers',
       messages: 'messages',
+      profile: 'profile',
+      'profile-edit': 'profile-edit',
+      settings: 'settings',
     };
+    setClientSection(section === 'home' ? 'overview' : section);
+    setProviderDirectoryFavoritesOnly(section === 'favorites');
     setPage(clientPages[section] || 'events');
   };
 
@@ -194,6 +211,7 @@ export default function App() {
   useEffect(() => {
     const theme = localStorage.getItem('eventbridge_theme') || 'default';
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.textSize = localStorage.getItem('eventbridge_text_size') || 'normal';
   }, []);
 
   useEffect(() => {
@@ -212,9 +230,8 @@ export default function App() {
         <span>{translate(authNotice.message, language)}</span>
         <button type="button" aria-label={translate('Fermer', language)} onClick={() => setAuthNotice(null)}>×</button>
       </div>}
-      <Header language={language} onLanguageChange={handleLanguageChange} onNavigate={(nextPage) => {
-        if (nextPage === 'home' && user) navigateToAccountHome();
-        else if (nextPage === 'provider') handleProviderSpaceClick();
+      <Header language={language} activePage={page} onNavigate={(nextPage) => {
+        if (nextPage === 'provider') handleProviderSpaceClick();
         else setPage(nextPage);
       }} onProjectClick={handleProjectClick} onProviderSearch={handleProviderSearch} onLoggedOut={handleLoggedOut} onProfileClick={() => {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
@@ -228,28 +245,50 @@ export default function App() {
         ) : page === 'provider' ? (
           <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} onFindProviders={() => handleProviderSearch('')} />
         ) : page === 'providers' ? (
-          <ProviderDirectory searchQuery={providerSearchQuery} initialFilters={providerSearchFilters} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} />
+          <ProviderDirectory searchQuery={providerSearchQuery} initialFilters={providerSearchFilters} favoritesOnly={providerDirectoryFavoritesOnly} isAuthenticated={Boolean(user)} onRequireAuth={() => setContactType('connexion')} onNavigateSection={handleAccountSection} onBack={() => navigateToAccountHome()} />
         ) : page === 'events' && user ? (
           <MyEvents
             onBack={() => navigateToAccountHome()}
             onFindProviders={() => handleProviderSearch('')}
             user={user}
             language={language}
+            section={clientSection}
+            onNavigateSection={handleAccountSection}
             openCreateInitially={openCreateEventOnEvents}
             initialDate={eventDraftDate}
             onCreateInitiallyHandled={acknowledgeInitialEventCreate}
           />
         ) : page === 'messages' && user ? (
-          <Messaging user={user} />
+          <WorkspaceShell role="client" active="messages" onNavigate={handleAccountSection} onFindProviders={() => handleProviderSearch('')} onHome={() => navigateToAccountHome()} language={language}>
+            <Messaging user={user} />
+          </WorkspaceShell>
         ) : page === 'profile' && user ? (
-          <Profile user={user} onBack={() => navigateToAccountHome()} />
+          <Profile user={user} onBack={() => navigateToAccountHome()} onEdit={() => handleAccountSection('profile-edit')} />
+        ) : page === 'profile-edit' && user ? (
+          <ProfileEdit user={user} onUserUpdated={setUser} />
         ) : page === 'settings' && user ? (
-          <Settings user={user} onUserUpdated={setUser} onDeleted={handleLoggedOut} onBack={() => navigateToAccountHome()} />
+          <Settings onDeleted={handleLoggedOut} />
         ) : (
           <HomePage
             language={language}
             onCreateEvent={handleCreateEventClick}
             onProviderSearch={handleProviderSearch}
+          />
+        )}
+        {openCreateEventOnEvents && user?.typeUtilisateur !== 'prestataire' && page !== 'events' && (
+          <MyEvents
+            key={createEventRequestId}
+            modalOnly
+            onBack={() => navigateToAccountHome()}
+            onFindProviders={() => handleProviderSearch('')}
+            user={user}
+            language={language}
+            section={clientSection}
+            openCreateInitially
+            onNavigateSection={handleAccountSection}
+            initialDate={eventDraftDate}
+            onCreateInitiallyHandled={() => {}}
+            onEventFormClosed={acknowledgeInitialEventCreate}
           />
         )}
       </Suspense>

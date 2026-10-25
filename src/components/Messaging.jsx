@@ -19,6 +19,8 @@ export default function Messaging({ user }) {
   const [draft, setDraft] = useState('');
   const [targetUserId, setTargetUserId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [privateKey, setPrivateKey] = useState(null);
@@ -93,7 +95,12 @@ export default function Messaging({ user }) {
     if (searchQuery.length < 2) return;
     try {
       const results = await searchUsers(searchQuery);
-      setSearchResults(results);
+      setSearchResults(results.filter((result) => {
+        const categories = String(result.categories || '').split(',').filter(Boolean);
+        const matchesCategory = selectedCategories.length === 0
+          || selectedCategories.some((category) => categories.includes(category));
+        return matchesCategory;
+      }));
     } catch (err) {
       setError(err.message);
     }
@@ -154,7 +161,7 @@ export default function Messaging({ user }) {
   const activeConversation = conversations.find((conversation) => conversation.id === activeId);
   return (
     <main className="messaging-page">
-      <div className="messaging-heading"><span className="kicker">Vos échanges</span><h1>Messagerie</h1></div>
+      <div className="messaging-heading"><h1>Messagerie</h1></div>
       {error && <p className="form-error" role="alert">{error}</p>}
 
       <form className="message-start-form" onSubmit={handleSearch}>
@@ -169,6 +176,27 @@ export default function Messaging({ user }) {
             required
           />
           <button className="button button-primary" type="submit">Rechercher</button>
+          <button className="button filter-button" type="button" onClick={() => setFilterMenuOpen((open) => !open)} aria-expanded={filterMenuOpen}>
+            Filtrer
+          </button>
+          {filterMenuOpen && (
+            <div className="message-filter-menu">
+              <strong>Type de prestataire</strong>
+              {['Traiteur', 'Photographie', 'Décoration', 'Musique', 'Lieu de réception'].map((category) => (
+                <label key={category}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCategories.includes(category)}
+                    onChange={() => setSelectedCategories((current) => current.includes(category)
+                      ? current.filter((item) => item !== category)
+                      : [...current, category])}
+                  />
+                  <span>{category}</span>
+                </label>
+              ))}
+              <button className="button filter-button" type="submit" onClick={() => setFilterMenuOpen(false)}>Appliquer</button>
+            </div>
+          )}
         </div>
 
         {searchResults.length > 0 && (

@@ -102,7 +102,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
 
   const description = sent
     ? isSignup
-      ? verificationPending ? 'Si l’envoi a abouti, un lien de confirmation doit arriver à votre adresse. Vérifiez aussi les courriers indésirables. Si rien n’arrive, vérifiez la configuration SMTP dans Supabase > Authentication > SMTP Settings.' : 'Vous pouvez maintenant retrouver vos projets et vos échanges.'
+      ? verificationPending ? '' : 'Vous pouvez maintenant retrouver vos projets et vos échanges.'
       : mode === 'connexion' ? 'Connexion réussie. Vous pouvez retrouver vos projets et vos échanges.' : 'Démonstration : aucun message n’a été envoyé.'
     : isAccount ? `${translateText('Vous êtes connecté avec l’adresse')} ${user?.email || ''}.`
       : isProviderSignup ? 'Présentez votre activité et créez votre compte prestataire.'
@@ -116,7 +116,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
         <button className="close-button" type="button" onClick={onClose} aria-label={translateText('Fermer')}>×</button>
         {!isAuth && !isAccount && <div className="kicker">{translateText(providerAuthPrompt ? 'Espace prestataire' : 'Votre événement')}</div>}
         <h2 id="contact-title">{translateText(titleKey)}</h2>
-        <p>{translateText(description)}</p>
+        {verificationPending ? <p>{translateText('Pensez à vérifier vos courriers indésirables.')}</p> : <p>{translateText(description)}</p>}
         {error && <p className="form-error" role="alert">{translateText(error)}</p>}
         {!sent && !isAccount && !eventAuthPrompt && !providerAuthPrompt && <form className={isProviderSignup ? 'provider-signup-form' : undefined} onSubmit={handleSubmit}>
           {isProviderSignup ? <>

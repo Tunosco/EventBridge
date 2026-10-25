@@ -45,6 +45,8 @@ Pour Brevo, le projet hébergé utilise **Enable custom SMTP**, serveur `smtp-re
 
 Dans le projet hébergé, **Authentication > SMTP Settings** doit avoir **Enable custom SMTP** activé. Le SMTP par défaut de Supabase est limité aux adresses autorisées de l'équipe du projet et à un faible quota; il convient aux essais, pas à la production. Ne mets jamais le SMTP login, la SMTP key ni d'autres identifiants dans le frontend ou le dépôt. Après inscription, l'utilisateur doit ouvrir le lien reçu avant de pouvoir se connecter.
 
+Le serveur impose cette confirmation par défaut lorsque Supabase est configuré (`AUTH_REQUIRE_EMAIL_CONFIRMATION=true`). Si Supabase est indisponible ou si l'envoi échoue, l'inscription est refusée explicitement : elle ne bascule pas vers un compte local sans confirmation.
+
 ## Schéma
 
 Le schéma SQLite local reste défini dans `server/schema.sql`. Le schéma PostgreSQL en ligne est géré par l'unique migration du dossier `supabase/migrations/`; elle active RLS sans politiques publiques et ajoute les types/catégories de référence. Les deux variantes couvrent :

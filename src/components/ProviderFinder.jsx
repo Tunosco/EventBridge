@@ -16,6 +16,7 @@ function providerInitials(provider) {
 export default function ProviderFinder({
   initialQuery = '',
   initialFilters = {},
+  initialFavoritesOnly = false,
   isAuthenticated,
   onRequireAuth,
   selectionMode = false,
@@ -23,11 +24,12 @@ export default function ProviderFinder({
   limit = 50,
   selectedIds = [],
   onSelectionChange,
+  hideToolbar = false,
 }) {
   const { locale, translateText } = useTranslation();
   const [filters, setFilters] = useState({ query: initialQuery, category: '', city: '', maxBudget: '', date: '', ...initialFilters });
   const [activeFilters, setActiveFilters] = useState({ query: initialQuery, category: '', city: '', maxBudget: '', date: '', ...initialFilters });
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(initialFavoritesOnly);
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,6 +51,10 @@ export default function ProviderFinder({
     setFilters(nextFilters);
     setActiveFilters(nextFilters);
   }, [initialQuery, initialFilters?.category, initialFilters?.city, initialFilters?.maxBudget, initialFilters?.date]);
+
+  useEffect(() => {
+    setFavoritesOnly(initialFavoritesOnly);
+  }, [initialFavoritesOnly]);
 
   useEffect(() => {
     let active = true;
@@ -132,7 +138,7 @@ export default function ProviderFinder({
 
   return (
     <div className={`provider-finder${selectionMode ? ' is-selection-mode' : ''}${featured ? ' is-featured' : ''}`}>
-      {!featured && <div className="provider-finder-toolbar searchbox">
+      {!featured && !hideToolbar && <div className="provider-finder-toolbar searchbox">
         <form className="provider-finder-search-controls" onSubmit={submitSearch}>
           <label>{translateText('Nom ou mot-clé')}<input type="search" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} placeholder={translateText('Ex. fleurs, sonorisation…')} /></label>
           <label>{translateText('Prestation')}<select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })}>
@@ -157,8 +163,6 @@ export default function ProviderFinder({
           }}>{translateText('Mes favoris')}</button>
         </div>
       </div>}
-      {!featured && <p className="provider-availability-note">{translateText('Les indisponibilités enregistrées sont prises en compte. L’absence d’indisponibilité déclarée ne garantit pas une disponibilité.')}</p>}
-
       {error && <p className="provider-finder-error" role="alert">{translateText(error)}</p>}
       {loading ? <p className="provider-finder-status">{translateText('Recherche des prestataires…')}</p> : providers.length ? (
         <div className="provider-results grid eb-uniform-cards" aria-live="polite">
@@ -222,7 +226,11 @@ export default function ProviderFinder({
             );
           })}
         </div>
-      ) : <p className="provider-finder-status">{favoritesOnly ? translateText('Aucun prestataire favori pour le moment.') : translateText('Aucun prestataire ne correspond à votre recherche.')}</p>}
+      ) : favoritesOnly ? (
+        <div className="ux-onboarding provider-empty-state">
+          <h2>{translateText('Mettez des prestataires en favoris pour les voir apparaitre ici !')}</h2>
+        </div>
+      ) : <p className="provider-finder-status">{translateText('Aucun prestataire ne correspond à votre recherche.')}</p>}
     </div>
   );
 }

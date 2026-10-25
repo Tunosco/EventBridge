@@ -846,6 +846,7 @@
 }
 
 .message-start-form {
+  position: relative;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -861,6 +862,65 @@
   color: var(--navy);
   font-size: 13px;
   font-weight: 800;
+}
+
+.message-start-form .search-group {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.message-start-form .search-group input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.message-start-form .search-group select {
+  flex: 0 1 150px;
+  width: auto;
+}
+
+.message-start-form .search-group button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.message-start-form .filter-button {
+  background: var(--white);
+  color: var(--navy);
+  border: 1px solid var(--line);
+}
+
+.message-filter-menu {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% - 1px);
+  right: 16px;
+  display: grid;
+  gap: 9px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.message-filter-menu label {
+  display: grid;
+  grid-template-columns: 16px max-content;
+  align-items: center;
+  column-gap: 8px;
+  font-weight: 400;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.message-start-form .message-filter-menu input {
+  flex: 0 0 auto;
+  width: 16px;
+  min-width: 16px;
+  margin: 0;
 }
 
 .message-start-form select {

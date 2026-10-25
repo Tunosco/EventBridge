@@ -167,6 +167,11 @@
   font-size: 14px;
 }
 
+.provider-finder .ux-onboarding h2 {
+  margin: 0 0 24px;
+  font-size: 25px;
+}
+
 .provider-finder-error {
   color: #a63d32;
 }
