@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { updateCurrentUser } from '../lib/api';
 import { useTranslation } from '../lib/i18n';
 
-export default function ProfileEdit({ user, onUserUpdated }) {
+export default function ProfileEdit({ user, onUserUpdated, onDirtyChange }) {
   const { translateText } = useTranslation();
   const [form, setForm] = useState({
     prenom: user.prenom || '',
@@ -14,6 +14,12 @@ export default function ProfileEdit({ user, onUserUpdated }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const isDirty = Object.keys(form).some((key) => form[key] !== (user[key] || ''));
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+    return () => onDirtyChange?.(false);
+  }, [isDirty, onDirtyChange]);
 
   const updateField = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
 

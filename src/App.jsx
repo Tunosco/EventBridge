@@ -46,6 +46,8 @@ export default function App() {
   const [providerSection, setProviderSection] = useState('home');
   const [clientSection, setClientSection] = useState('overview');
   const [clientEventCount, setClientEventCount] = useState(null);
+  const [profileEditDirty, setProfileEditDirty] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
   const [providerDirectoryFavoritesOnly, setProviderDirectoryFavoritesOnly] = useState(false);
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
@@ -144,30 +146,39 @@ export default function App() {
     setUser(null);
     setPage('home');
   };
-  const handleAccountSection = (section) => {
-    if (user?.typeUtilisateur === 'prestataire') {
-      setProviderSection(section);
-      setPage(section === 'messages' ? 'messages' : 'provider');
+  const navigateOrWarn = (navigation) => {
+    if (profileEditDirty && page === 'profile-edit') {
+      setPendingNavigation(() => navigation);
       return;
     }
-    const clientPages = {
-      home: 'events',
-      overview: 'events',
-      events: 'events',
-      budget: 'events',
-      calendar: 'events',
-      quotes: 'events',
-      reservations: 'events',
-      favorites: 'providers',
-      providers: 'providers',
-      messages: 'messages',
-      profile: 'profile',
-      'profile-edit': 'profile-edit',
-      settings: 'settings',
-    };
-    setClientSection(section === 'home' ? 'overview' : section);
-    setProviderDirectoryFavoritesOnly(section === 'favorites');
-    setPage(clientPages[section] || 'events');
+    navigation();
+  };
+  const handleAccountSection = (section) => {
+    navigateOrWarn(() => {
+      if (user?.typeUtilisateur === 'prestataire') {
+        setProviderSection(section);
+        setPage(section === 'messages' ? 'messages' : 'provider');
+        return;
+      }
+      const clientPages = {
+        home: 'events',
+        overview: 'events',
+        events: 'events',
+        budget: 'events',
+        calendar: 'events',
+        quotes: 'events',
+        reservations: 'events',
+        favorites: 'providers',
+        providers: 'providers',
+        messages: 'messages',
+        profile: 'profile',
+        'profile-edit': 'profile-edit',
+        settings: 'settings',
+      };
+      setClientSection(section === 'home' ? 'overview' : section);
+      setProviderDirectoryFavoritesOnly(section === 'favorites');
+      setPage(clientPages[section] || 'events');
+    });
   };
 
   useEffect(() => {
@@ -232,12 +243,14 @@ export default function App() {
         <button type="button" aria-label={translate('Fermer', language)} onClick={() => setAuthNotice(null)}>×</button>
       </div>}
       <Header language={language} activePage={page} onNavigate={(nextPage) => {
-        if (nextPage === 'provider') handleProviderSpaceClick();
-        else setPage(nextPage);
-      }} onProjectClick={handleProjectClick} onProviderSearch={handleProviderSearch} onLoggedOut={handleLoggedOut} onProfileClick={() => {
+        navigateOrWarn(() => {
+          if (nextPage === 'provider') handleProviderSpaceClick();
+          else setPage(nextPage);
+        });
+      }} onProjectClick={handleProjectClick} onProviderSearch={(search) => navigateOrWarn(() => handleProviderSearch(search))} onLoggedOut={handleLoggedOut} onProfileMenuClick={(toggleMenu) => navigateOrWarn(toggleMenu)} onProfileClick={() => {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
-        else setPage('profile');
-      }} onSettingsClick={() => setPage('settings')} onAccountSection={handleAccountSection} onMessagesClick={() => setPage('messages')} onCreateEvent={handleCreateEventClick} user={user} isAuthenticated={Boolean(user)} />
+        else navigateOrWarn(() => setPage('profile'));
+      }} onSettingsClick={() => navigateOrWarn(() => setPage('settings'))} onAccountSection={handleAccountSection} onMessagesClick={() => navigateOrWarn(() => setPage('messages'))} onCreateEvent={() => navigateOrWarn(() => handleCreateEventClick())} user={user} isAuthenticated={Boolean(user)} />
       <Suspense fallback={<main aria-busy="true">{translate('Chargement…', language)}</main>}>
         {page === 'history' ? (
           <StoryPage language={language} onFindProviders={() => handleProviderSearch('')} />
@@ -268,7 +281,7 @@ export default function App() {
         ) : page === 'profile' && user ? (
           <Profile user={user} onBack={() => navigateToAccountHome()} onEdit={() => handleAccountSection('profile-edit')} />
         ) : page === 'profile-edit' && user ? (
-          <ProfileEdit user={user} onUserUpdated={setUser} />
+          <ProfileEdit user={user} onUserUpdated={setUser} onDirtyChange={setProfileEditDirty} />
         ) : page === 'settings' && user ? (
           <Settings onDeleted={handleLoggedOut} />
         ) : (
@@ -295,7 +308,24 @@ export default function App() {
           />
         )}
       </Suspense>
-      <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}><span>EVENT</span><small>BRIDGE</small></a><small>{translate('Le lien entre vos idées et les bonnes personnes.', language)}</small></div><nav><button onClick={() => setPage('history')}>{translate('Notre histoire', language)}</button><button onClick={() => setPage('contact')}>{translate('Contact', language)}</button><button onClick={handleProviderSpaceClick}>{translate('Espace prestataire', language)}</button><button onClick={() => setContactType('connexion')}>{translate('Connexion', language)}</button></nav><small>{translate('Vos événements, simplement', language)}</small></footer>
+      <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}><span>EVENT</span><small>BRIDGE</small></a><small>{translate('Le lien entre vos idées et les bonnes personnes.', language)}</small>        {pendingNavigation && (
+          <div className="settings-delete-dialog-backdrop" role="presentation">
+            <section className="settings-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-profile-title">
+              <h2 id="unsaved-profile-title">Etes-vous sûr ?</h2>
+              <p>Cette action entrainera la perte des dernières modifications</p>
+              <div className="settings-delete-dialog-actions">
+                <button type="button" className="button button-primary" onClick={() => setPendingNavigation(null)}>Non</button>
+                <button type="button" className="button" onClick={() => {
+                  const navigation = pendingNavigation;
+                  setPendingNavigation(null);
+                  setProfileEditDirty(false);
+                  navigation();
+                }}>Oui</button>
+              </div>
+            </section>
+          </div>
+        )}
+      </div><nav><button onClick={() => setPage('history')}>{translate('Notre histoire', language)}</button><button onClick={() => setPage('contact')}>{translate('Contact', language)}</button><button onClick={handleProviderSpaceClick}>{translate('Espace prestataire', language)}</button><button onClick={() => setContactType('connexion')}>{translate('Connexion', language)}</button></nav><small>{translate('Vos événements, simplement', language)}</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
       {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
         if (contactType === 'event-auth-required') eventCreationPendingAuth.current = false;

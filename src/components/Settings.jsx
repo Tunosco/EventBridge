@@ -11,6 +11,7 @@ export default function Settings({ onDeleted }) {
   const [notifications, setNotifications] = useState(localStorage.getItem('eventbridge_notifications') !== 'disabled');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
 
   const handleThemeChange = (event) => {
     const nextTheme = event.target.value;
@@ -34,13 +35,13 @@ export default function Settings({ onDeleted }) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(translateText('Voulez-vous vraiment supprimer votre compte ? Cette action est définitive.'))) return;
     try {
       await deleteCurrentUser();
       localStorage.removeItem('eventbridge_token');
       onDeleted();
     } catch (deleteError) {
       setError(deleteError.message);
+      setDeleteConfirmationOpen(false);
     }
   };
 
@@ -51,7 +52,7 @@ export default function Settings({ onDeleted }) {
         <aside className="settings-sidebar" aria-label={translateText('Paramètres')}>
           <button type="button" className={activeSection === 'appearance' ? 'is-active' : ''} onClick={() => setActiveSection('appearance')}>{translateText('Apparence')}</button>
           <button type="button" className={activeSection === 'banking' ? 'is-active' : ''} onClick={() => setActiveSection('banking')}>{translateText('Informations bancaires')}</button>
-          <button type="button" className={activeSection === 'emails' ? 'is-active' : ''} onClick={() => setActiveSection('emails')}>{translateText('Emails')}</button>
+          <button type="button" className={activeSection === 'emails' ? 'is-active' : ''} onClick={() => setActiveSection('emails')}>{translateText('Préférences')}</button>
           <button type="button" className={activeSection === 'account' ? 'is-active' : ''} onClick={() => setActiveSection('account')}>{translateText('Mon compte')}</button>
         </aside>
         <div className="settings-card">
@@ -70,7 +71,7 @@ export default function Settings({ onDeleted }) {
           )}
           {activeSection === 'emails' && (
             <div className="settings-section settings-notifications">
-              <h2>{translateText('Emails')}</h2>
+              <h2>{translateText('Préférences')}</h2>
               <label className="settings-checkbox"><input type="checkbox" checked={notifications} onChange={(event) => setNotifications(event.target.checked)} /><span>{translateText('Recevoir les emails liés à mon compte')}</span></label>
             </div>
           )}
@@ -78,8 +79,7 @@ export default function Settings({ onDeleted }) {
             <div className="settings-section settings-account">
               <h2>{translateText('Mon compte')}</h2>
               <div className="delete-account">
-                <div><h2>{translateText('Supprimer le compte')}</h2><p>{translateText('Cette action supprimera définitivement vos informations.')}</p></div>
-                <button className="delete-button" type="button" onClick={handleDelete}>{translateText('Supprimer mon compte')}</button>
+                <button className="delete-button" type="button" onClick={() => setDeleteConfirmationOpen(true)}>{translateText('Supprimer mon compte')}</button>
               </div>
             </div>
           )}
@@ -88,6 +88,18 @@ export default function Settings({ onDeleted }) {
           {activeSection !== 'account' && <button className="button button-primary settings-save" type="button" onClick={saveSettings}>{translateText('Enregistrer les paramètres')}</button>}
         </div>
       </div>
+      {deleteConfirmationOpen && (
+        <div className="settings-delete-dialog-backdrop" role="presentation">
+          <section className="settings-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
+            <h2 id="delete-account-title">{translateText('Etes-vous sûr ?')}</h2>
+            <p>{translateText('Cette action supprimera définitivement vos informations.')}</p>
+            <div className="settings-delete-dialog-actions">
+              <button type="button" className="button button-primary" onClick={() => setDeleteConfirmationOpen(false)}>{translateText('Non')}</button>
+              <button type="button" className="button" onClick={handleDelete}>{translateText('Oui')}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

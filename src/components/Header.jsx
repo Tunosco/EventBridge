@@ -15,6 +15,7 @@ export default function Header({
   onSettingsClick,
   onAccountSection,
   onCreateEvent,
+  onProfileMenuClick,
   language = 'fr',
   user,
   isAuthenticated,
@@ -84,7 +85,13 @@ export default function Header({
                 type="button"
                 aria-label={text.openProfile}
                 aria-expanded={accountMenuOpen}
-                onClick={() => setAccountMenuOpen((open) => !open)}
+                onClick={() => {
+                  if (onProfileMenuClick) {
+                    onProfileMenuClick(() => setAccountMenuOpen((open) => !open));
+                    return;
+                  }
+                  setAccountMenuOpen((open) => !open);
+                }}
               >
                 <img src={profileImage} alt="" />
               </button>

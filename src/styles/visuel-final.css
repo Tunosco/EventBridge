@@ -2403,6 +2403,49 @@ button.primary,
   border-top: 0;
 }
 
+.settings-delete-dialog-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(50, 38, 44, .42);
+}
+
+.settings-delete-dialog {
+  width: min(440px, 100%);
+  padding: 28px;
+  border: 1px solid var(--ux-line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(50, 38, 44, .2);
+}
+
+.settings-delete-dialog h2 {
+  margin: 0 0 12px;
+  color: var(--ux-text);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.settings-delete-dialog p {
+  margin: 0;
+  color: var(--ux-muted);
+  line-height: 1.6;
+}
+
+.settings-delete-dialog-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 24px;
+}
+
+.settings-delete-dialog-actions button {
+  justify-self: center;
+}
+
 @media (max-width: 600px) {
   .profile-page,
   .settings-page {
