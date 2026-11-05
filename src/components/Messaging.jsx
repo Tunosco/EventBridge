@@ -160,11 +160,16 @@ export default function Messaging({ user }) {
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeId);
   return (
-    <main className="messaging-page">
-      <div className="messaging-heading"><h1>Messagerie</h1></div>
+    <div className="messaging-page">
+      <div className="ux-pagehead messaging-heading">
+        <div>
+          <h1>Messagerie</h1>
+          <p className="ux-muted">Échangez avec les prestataires et les autres utilisateurs.</p>
+        </div>
+      </div>
       {error && <p className="form-error" role="alert">{error}</p>}
 
-      <form className="message-start-form" onSubmit={handleSearch}>
+      <form className="message-start-form ux-panel" onSubmit={handleSearch}>
         <label htmlFor="message-search">Rechercher un utilisateur</label>
         <div className="search-group">
           <input
@@ -226,7 +231,7 @@ export default function Messaging({ user }) {
         )}
       </form>
 
-      <div className="messaging-layout">
+      <div className="messaging-layout ux-panel">
         <aside className="conversation-list" aria-label="Conversations">
           {loading ? <p>Chargement…</p> : conversations.length ? conversations.map((conversation) => (
             <button className={activeId === conversation.id ? 'is-active' : ''} type="button" key={conversation.id} onClick={() => setActiveId(conversation.id)}>
@@ -250,6 +255,6 @@ export default function Messaging({ user }) {
           </> : <p className="provider-dashboard-empty">{loading ? 'Chargement des conversations…' : 'Sélectionnez une conversation pour afficher les messages.'}</p>}
         </section>
       </div >
-    </main>
+    </div>
   );
 }

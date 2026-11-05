@@ -830,9 +830,7 @@
 }
 
 .messaging-page {
-  min-height: 670px;
-  padding: 56px 6% 80px;
-  background: var(--sky);
+  width: 100%;
 }
 
 .messaging-heading,
@@ -842,7 +840,7 @@
 }
 
 .messaging-heading {
-  margin-bottom: 22px;
+  margin-bottom: 28px;
 }
 
 .message-start-form {
@@ -851,11 +849,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--white);
+  margin-bottom: 20px;
 }
 
 .message-start-form label {
@@ -933,10 +927,9 @@
   min-height: 480px;
   grid-template-columns: minmax(220px, .36fr) minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--white);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--ux-line);
+  border-radius: 10px;
+  background: #fff;
 }
 
 .conversation-list {
@@ -964,7 +957,7 @@
 
 .conversation-list button.is-active,
 .conversation-list button:hover {
-  background: var(--sky);
+  background: var(--ux-rose);
 }
 
 .conversation-list button span {
@@ -985,9 +978,9 @@
 .conversation-panel h2 {
   margin: 0;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-  color: var(--navy);
-  font-size: 18px;
+  border-bottom: 1px solid var(--ux-line);
+  color: var(--ux-text);
+  font-size: 25px;
 }
 
 .conversation-messages {
@@ -1008,8 +1001,8 @@
   margin: 0;
   padding: 10px 13px;
   border-radius: 9px 9px 9px 2px;
-  background: var(--sky);
-  color: var(--ink);
+  background: var(--ux-rose);
+  color: var(--ux-text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1017,7 +1010,7 @@
 .conversation-messages p.is-mine {
   align-self: flex-end;
   border-radius: 9px 9px 2px 9px;
-  background: var(--mint);
+  background: #f1e4e8;
 }
 
 .conversation-messages time {
@@ -1030,7 +1023,7 @@
   align-items: flex-end;
   gap: 10px;
   padding-top: 14px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--ux-line);
 }
 
 .conversation-compose textarea {
@@ -1109,10 +1102,6 @@
   .provider-task-form label:first-child,
   .provider-task-form label:nth-child(3) {
     grid-column: auto;
-  }
-
-  .messaging-page {
-    padding: 42px 4% 60px;
   }
 
   .messaging-layout {

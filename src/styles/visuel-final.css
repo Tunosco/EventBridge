@@ -1997,8 +1997,8 @@ button.primary,
   margin-bottom: 20px;
   padding: 20px;
   border: 1px solid var(--ux-line);
-  border-radius: 8px;
-  background: var(--ux-paper);
+  border-radius: 10px;
+  background: #fff;
   box-shadow: none;
 }
 
@@ -2040,8 +2040,9 @@ button.primary,
 
 .ux-main .messaging-layout {
   min-height: 480px;
+  padding: 0;
   border: 1px solid var(--ux-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--ux-paper);
   box-shadow: none;
 }
@@ -2091,6 +2092,27 @@ button.primary,
 
 .ux-main .conversation-compose textarea {
   padding: 11px 12px;
+}
+
+@media (min-width: 1000px) {
+  .ux-main .message-start-form {
+    padding: 25px;
+  }
+
+  .ux-main .messaging-layout {
+    min-height: 560px;
+    grid-template-columns: minmax(250px, 30%) minmax(0, 1fr);
+    background: #fff;
+  }
+
+  .ux-main .conversation-list,
+  .ux-main .conversation-list button {
+    background: #fff;
+  }
+
+  .ux-main .conversation-panel {
+    padding: 25px;
+  }
 }
 
 .ux-main .profile-page {

@@ -45,7 +45,7 @@ export default function App() {
   const [providerSearchFilters, setProviderSearchFilters] = useState({ query: '', category: '', city: '', maxBudget: '', date: '' });
   const [providerSection, setProviderSection] = useState('home');
   const [clientSection, setClientSection] = useState('overview');
-  const [clientHasEvents, setClientHasEvents] = useState(null);
+  const [clientEventCount, setClientEventCount] = useState(null);
   const [providerDirectoryFavoritesOnly, setProviderDirectoryFavoritesOnly] = useState(false);
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
@@ -94,13 +94,13 @@ export default function App() {
 
   useEffect(() => {
     if (!user || user.typeUtilisateur === 'prestataire') {
-      setClientHasEvents(null);
+      setClientEventCount(null);
       return undefined;
     }
     let active = true;
     getMyEvents()
-      .then((events) => { if (active) setClientHasEvents(Array.isArray(events) && events.length > 0); })
-      .catch(() => { if (active) setClientHasEvents(true); });
+      .then((events) => { if (active) setClientEventCount(Array.isArray(events) ? events.length : 0); })
+      .catch(() => { if (active) setClientEventCount(0); });
     return () => { active = false; };
   }, [user]);
   const handleProviderSearch = (search) => {
@@ -157,6 +157,7 @@ export default function App() {
       budget: 'events',
       calendar: 'events',
       quotes: 'events',
+      reservations: 'events',
       favorites: 'providers',
       providers: 'providers',
       messages: 'messages',
@@ -259,9 +260,11 @@ export default function App() {
             onCreateInitiallyHandled={acknowledgeInitialEventCreate}
           />
         ) : page === 'messages' && user ? (
-          <WorkspaceShell role="client" active="messages" onNavigate={handleAccountSection} onFindProviders={() => handleProviderSearch('')} onHome={() => navigateToAccountHome()} language={language}>
-            <Messaging user={user} />
-          </WorkspaceShell>
+          <main className="my-events-page">
+            <WorkspaceShell role="client" active="messages" showEvents={clientEventCount !== null && clientEventCount > 1} onNavigate={handleAccountSection} onFindProviders={() => handleProviderSearch('')} onHome={() => navigateToAccountHome()} language={language}>
+              <Messaging user={user} />
+            </WorkspaceShell>
+          </main>
         ) : page === 'profile' && user ? (
           <Profile user={user} onBack={() => navigateToAccountHome()} onEdit={() => handleAccountSection('profile-edit')} />
         ) : page === 'profile-edit' && user ? (

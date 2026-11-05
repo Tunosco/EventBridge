@@ -28,15 +28,15 @@ const copy = {
     clientSpace: 'Espace client',
     providerSpace: 'Espace prestataire',
     overview: 'Vue d’ensemble',
-    myEvents: 'Mes événements',
-    quotes: 'Devis reçus',
+    myEvents: 'Mes évènements',
+    quotes: 'Devis',
     reservations: 'Réservations',
     budget: 'Mon budget',
     myCalendar: 'Mon calendrier',
     favorites: 'Mes favoris',
     followup: 'Suivi',
-    messages: 'Messages',
-    timeline: 'Déroulé de l’événement',
+    messages: 'Messagerie',
+    timeline: 'Déroulé de l’évènement',
     myProfile: 'Mon profil',
     myServices: 'Mes prestations',
     myTasks: 'Mes tâches',
@@ -52,13 +52,13 @@ const copy = {
     providerSpace: 'Provider space',
     overview: 'Overview',
     myEvents: 'My events',
-    quotes: 'Quotes received',
+    quotes: 'Quotes',
     reservations: 'Bookings',
     budget: 'My budget',
     myCalendar: 'My calendar',
     favorites: 'My favourites',
     followup: 'Follow-up',
-    messages: 'Messages',
+    messages: 'Messaging',
     timeline: 'Event timeline',
     myProfile: 'My profile',
     myServices: 'My services',
@@ -75,13 +75,13 @@ const copy = {
     providerSpace: 'Spazio fornitori',
     overview: 'Panoramica',
     myEvents: 'I miei eventi',
-    quotes: 'Preventivi ricevuti',
+    quotes: 'Preventivi',
     reservations: 'Prenotazioni',
     budget: 'Il mio budget',
     myCalendar: 'Il mio calendario',
     favorites: 'Preferiti',
     followup: 'Seguimento',
-    messages: 'Messaggi',
+    messages: 'Messaggistica',
     timeline: 'Timeline dell’evento',
     myProfile: 'Il mio profilo',
     myServices: 'Le mie prestazioni',
@@ -99,7 +99,7 @@ const copy = {
  * Coquille d'atelier de la référence (Visuel.html → `.ux-shell`) :
  * barre latérale des espaces, puis zone de travail.
  */
-export default function WorkspaceShell({ role = 'client', active, onNavigate, onFindProviders, onHome, language = 'fr', messageCount = 0, children }) {
+export default function WorkspaceShell({ role = 'client', active, onNavigate, onFindProviders, onHome, language = 'fr', messageCount = 0, showEvents = true, children }) {
   const text = copy[language] || copy.fr;
   const isProvider = role === 'provider';
 
@@ -114,15 +114,15 @@ export default function WorkspaceShell({ role = 'client', active, onNavigate, on
       ['messages', text.messages, 'message'],
     ]
     : [
+      ...(showEvents ? [['events', text.myEvents, 'calendar']] : []),
       ['overview', text.overview, 'grid'],
-      ['events', text.myEvents, 'calendar'],
-      ['quotes', text.quotes, 'file'],
-      ['budget', text.budget, 'wallet'],
-      ['calendar', text.myCalendar, 'calendar'],
-      ['favorites', text.favorites, 'star'],
-      ['followup', text.followup, 'trend'],
-      ['messages', text.messages, 'message'],
       ['timeline', text.timeline, 'clock'],
+      ['budget', text.budget, 'wallet'],
+      ['followup', text.followup, 'trend'],
+      ['quotes', text.quotes, 'file'],
+      ['reservations', text.reservations, 'check'],
+      ['messages', text.messages, 'message'],
+      ['calendar', text.myCalendar, 'calendar'],
     ];
 
   return (

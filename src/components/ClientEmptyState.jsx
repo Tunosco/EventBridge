@@ -17,8 +17,12 @@ export default function ClientEmptyState({ section = 'overview', onCreateEvent, 
       actions: true,
       createOnly: true,
     },
+    reservations: {
+      title: 'Créez un évènement pour voir ses resevations ici !',
+      actions: true,
+    },
     budget: {
-      title: 'Créez un évènement pour voir votre budget apparaitre en détail ici !',
+      title: 'Créez un évènement pour voir son budget ici !',
       actions: true,
     },
     calendar: {

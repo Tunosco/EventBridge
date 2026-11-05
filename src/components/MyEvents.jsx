@@ -11,8 +11,9 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 const pageTitles = {
   overview: 'Vue d’ensemble',
-  events: 'Mes événements',
-  quotes: 'Devis reçus',
+  events: 'Mes évènements',
+  quotes: 'Devis',
+  reservations: 'Réservations',
   budget: 'Mon budget',
   calendar: 'Mon calendrier',
   followup: 'Suivi',
@@ -121,6 +122,13 @@ export default function MyEvents({ onBack, onFindProviders, onNavigateSection, u
   useEffect(() => {
     setView(section);
   }, [section]);
+
+  useEffect(() => {
+    if (!loading && events.length <= 1 && view === 'events') {
+      setView('overview');
+      onNavigateSection?.('overview');
+    }
+  }, [events.length, loading, onNavigateSection, view]);
 
   useEffect(() => {
     let active = true;
@@ -358,6 +366,7 @@ export default function MyEvents({ onBack, onFindProviders, onNavigateSection, u
         onFindProviders={onFindProviders}
         onHome={onBack}
         language={language}
+        showEvents={events.length > 1}
       >
         <div className="ux-pagehead">
           <div>
