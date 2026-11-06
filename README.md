@@ -47,6 +47,8 @@ Dans le projet hébergé, **Authentication > SMTP Settings** doit avoir **Enable
 
 Le serveur impose cette confirmation par défaut lorsque Supabase est configuré (`AUTH_REQUIRE_EMAIL_CONFIRMATION=true`). Si Supabase est indisponible ou si l'envoi échoue, l'inscription est refusée explicitement : elle ne bascule pas vers un compte local sans confirmation.
 
+Le fallback local après une erreur Supabase est désactivé par défaut. Pour un développement hors production uniquement, active-le explicitement avec `AUTH_ALLOW_LOCAL_FALLBACK=true`; ne configure jamais cette option en production.
+
 ## Schéma
 
 Le schéma SQLite local reste défini dans `server/schema.sql`. Le schéma PostgreSQL en ligne est géré par l'unique migration du dossier `supabase/migrations/`; elle active RLS sans politiques publiques et ajoute les types/catégories de référence. Les deux variantes couvrent :

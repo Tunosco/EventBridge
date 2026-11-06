@@ -15,6 +15,8 @@ const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
 // La confirmation est activée par défaut pour les comptes Supabase. Elle ne
 // peut être désactivée que pour un environnement explicitement configuré ainsi.
 const requireEmailConfirmation = String(process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION || 'true').toLowerCase() !== 'false';
+const allowLocalFallback = !supabaseAuthEnabled
+  || (process.env.NODE_ENV !== 'production' && String(process.env.AUTH_ALLOW_LOCAL_FALLBACK || '').toLowerCase() === 'true');
 
 app.use(cors());
 app.use(express.json());
@@ -42,8 +44,8 @@ function runSafely(statement, ...parameters) {
 
 function createSession(userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  sessionCache.set(token, userId);
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+  sessionCache.set(token, { userId, expiresAt });
   // La session est persistée pour survivre à un redémarrage du serveur.
   runSafely(db.prepare('INSERT INTO session (token, utilisateur_id, date_expiration) VALUES (?, ?, ?)'), token, userId, expiresAt);
   return token;
@@ -51,12 +53,18 @@ function createSession(userId) {
 
 async function resolveSession(token) {
   if (!token) return null;
-  if (sessionCache.has(token)) return sessionCache.get(token);
+  const cachedSession = sessionCache.get(token);
+  if (cachedSession) {
+    if (cachedSession.expiresAt > new Date().toISOString()) return cachedSession.userId;
+    sessionCache.delete(token);
+    runSafely(db.prepare('DELETE FROM session WHERE token = ?'), token);
+    return null;
+  }
   try {
-    const row = await db.prepare('SELECT utilisateur_id FROM session WHERE token = ? AND date_expiration > ?')
+    const row = await db.prepare('SELECT utilisateur_id, date_expiration FROM session WHERE token = ? AND date_expiration > ?')
       .get(token, new Date().toISOString());
     if (row) {
-      sessionCache.set(token, row.utilisateur_id);
+      sessionCache.set(token, { userId: row.utilisateur_id, expiresAt: row.date_expiration });
       return row.utilisateur_id;
     }
   } catch {
@@ -124,6 +132,19 @@ function isValidEventDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+function normalizeHttpUrl(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return null;
+  try {
+    const url = new URL(trimmedValue);
+    return ['http:', 'https:'].includes(url.protocol) ? trimmedValue : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function shiftEventDate(value, days) {
@@ -199,7 +220,10 @@ app.get('/api/reference/event-types', async (_request, response) => {
 
 app.get('/api/providers', async (request, response) => {
   const token = request.headers.authorization?.replace('Bearer ', '');
-  const userId = token ? sessionCache.get(token) || null : null;
+  const cachedSession = token ? sessionCache.get(token) : null;
+  const userId = cachedSession && cachedSession.expiresAt > new Date().toISOString()
+    ? cachedSession.userId
+    : null;
   const favoritesOnly = request.query.favoris === 'true';
   if (favoritesOnly && !userId) return response.status(401).json({ error: 'Connectez-vous pour afficher vos favoris.' });
   if (favoritesOnly && !await isClient(userId)) return response.status(403).json({ error: 'Seul un client peut consulter ses prestataires favoris.' });
@@ -291,6 +315,9 @@ app.post('/api/auth/register', async (request, response) => {
       }
       if (typeof value === 'string') providerFields[field] = value.trim();
     }
+    if (providerFields.siteWeb !== undefined && normalizeHttpUrl(providerFields.siteWeb) === undefined) {
+      return response.status(400).json({ error: 'Le site internet doit utiliser une URL http ou https valide.' });
+    }
     if (providerFields.siret && !/^\d{14}$/.test(providerFields.siret)) {
       return response.status(400).json({ error: 'Le numéro de SIRET doit contenir 14 chiffres.' });
     }
@@ -321,10 +348,11 @@ app.post('/api/auth/register', async (request, response) => {
       if (errorMessage.includes('already registered')) {
         return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
       }
-      // L'envoi d'email est indisponible (SMTP non configuré, quota, réseau) :
-      // le compte est créé localement pour que le service reste utilisable.
-      console.warn('[auth] Confirmation par email indisponible : inscription locale effectuée.');
-      return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, null);
+      if (allowLocalFallback) {
+        console.warn('[auth] Fallback local explicitement activé hors production.');
+        return createLocalAccount(request, response, { prenom, nom, email, motDePasse, typeUtilisateur, providerFields }, null);
+      }
+      return response.status(503).json({ error: 'Le service d’inscription est temporairement indisponible. Réessayez plus tard.' });
     }
     if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
       return response.status(409).json({ error: 'Cette adresse email est déjà utilisée.' });
@@ -462,12 +490,15 @@ app.put('/api/me/provider-profile', authUser, async (request, response) => {
   if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
   const { raisonSociale, siret, siteWeb, adressePostale, description, banniereUrl, photoUrl } = request.body;
   if (!raisonSociale?.trim()) return response.status(400).json({ error: 'La raison sociale est requise pour publier le profil.' });
+  if (normalizeHttpUrl(siteWeb) === undefined) {
+    return response.status(400).json({ error: 'Le site internet doit utiliser une URL http ou https valide.' });
+  }
   await db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, siret, site_web, adresse_postale, description, banniere_url, photo_url)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(utilisateur_id) DO UPDATE SET nom_entreprise = excluded.nom_entreprise, siret = excluded.siret,
     site_web = excluded.site_web, adresse_postale = excluded.adresse_postale, description = excluded.description,
     banniere_url = excluded.banniere_url, photo_url = excluded.photo_url`).run(
-    request.userId, raisonSociale.trim(), siret?.trim() || null, siteWeb?.trim() || null,
+    request.userId, raisonSociale.trim(), siret?.trim() || null, normalizeHttpUrl(siteWeb),
     adressePostale?.trim() || null, description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null,
   );
   const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", siret, site_web AS "siteWeb",
@@ -529,8 +560,8 @@ app.delete('/api/me', authUser, async (request, response) => {
     if (error) return response.status(502).json({ error: 'Impossible de supprimer le compte Supabase.' });
   }
   await db.prepare('DELETE FROM utilisateur WHERE id = ?').run(request.userId);
-  for (const [token, userId] of sessionCache) {
-    if (userId === request.userId) sessionCache.delete(token);
+  for (const [token, session] of sessionCache) {
+    if (session.userId === request.userId) sessionCache.delete(token);
   }
   runSafely(db.prepare('DELETE FROM session WHERE utilisateur_id = ?'), request.userId);
   response.status(204).end();

@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react';
 import { getProviderProfile } from '../lib/api';
 import { useTranslation } from '../lib/i18n';
 
+function getSafeHttpUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ProviderPublicProfile() {
   const { translateText } = useTranslation();
   const [profile, setProfile] = useState(null);
@@ -13,6 +23,7 @@ export default function ProviderPublicProfile() {
 
   if (error) return <p className="form-error provider-profile-status" role="alert">{translateText(error)}</p>;
   if (!profile) return <p className="provider-profile-status">{translateText('Chargement du profil...')}</p>;
+  const safeSiteWeb = getSafeHttpUrl(profile.siteWeb);
 
   return (
     <article className="provider-public-profile">
@@ -25,7 +36,7 @@ export default function ProviderPublicProfile() {
         <dl className="provider-public-details">
           {profile.siret && <div><dt>SIRET</dt><dd>{profile.siret}</dd></div>}
           {profile.adressePostale && <div><dt>{translateText('Adresse')}</dt><dd>{profile.adressePostale}</dd></div>}
-          {profile.siteWeb && <div><dt>{translateText('Site internet')}</dt><dd><a href={profile.siteWeb} target="_blank" rel="noreferrer">{profile.siteWeb}</a></dd></div>}
+          {safeSiteWeb && <div><dt>{translateText('Site internet')}</dt><dd><a href={safeSiteWeb} target="_blank" rel="noreferrer">{safeSiteWeb}</a></dd></div>}
         </dl>
       </div>
     </article>
