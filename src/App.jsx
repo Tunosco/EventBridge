@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import Header from './components/Header';
 import WorkspaceShell from './components/WorkspaceShell';
 import HomePage from './components/HomePage';
@@ -333,6 +334,7 @@ export default function App() {
       }} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
+      <Analytics />
     </>
     </LanguageProvider>
   );
