@@ -437,6 +437,9 @@ app.post('/api/auth/login', async (request, response) => {
       if (notConfirmed) {
         return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
       }
+      if (error?.code === 'invalid_credentials') {
+        return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+      }
       console.error('[auth] Connexion Supabase impossible.', error);
       return response.status(503).json({ error: 'Le service de connexion est temporairement indisponible. Réessayez dans quelques instants.' });
     } else if (data.user?.id !== user.supabase_auth_id) {
