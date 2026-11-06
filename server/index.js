@@ -1053,19 +1053,25 @@ if (frontendAvailable) {
   app.get(/.*/, (_request, response) => response.sendFile(path.join(frontendDirectory, 'index.html')));
 }
 
-try {
-  await initializeDatabase();
-} catch (error) {
-  console.error('[db] Initialisation impossible :', error);
-  process.exit(1);
-}
+export { app };
 
-app.listen(port, () => {
-  console.log(`EventBridge API disponible sur http://localhost:${port}`);
-  console.log(`[db] Base de données : ${isPostgres ? 'PostgreSQL (Supabase)' : 'SQLite locale'}`);
-  if (frontendAvailable) {
-    console.log(`[web] Frontend servi depuis ${frontendDirectory} → http://localhost:${port}`);
-  } else {
-    console.log('[web] Frontend non compilé : lancez « npm run build » ou « npm run dev ».');
+if (process.env.VERCEL) {
+  await initializeDatabase();
+} else {
+  try {
+    await initializeDatabase();
+  } catch (error) {
+    console.error('[db] Initialisation impossible :', error);
+    process.exit(1);
   }
-});
+
+  app.listen(port, () => {
+    console.log(`EventBridge API disponible sur http://localhost:${port}`);
+    console.log(`[db] Base de données : ${isPostgres ? 'PostgreSQL (Supabase)' : 'SQLite locale'}`);
+    if (frontendAvailable) {
+      console.log(`[web] Frontend servi depuis ${frontendDirectory} → http://localhost:${port}`);
+    } else {
+      console.log('[web] Frontend non compilé : lancez « npm run build » ou « npm run dev ».');
+    }
+  });
+}
