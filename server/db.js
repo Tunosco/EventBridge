@@ -55,7 +55,7 @@ if (process.env.DATABASE_URL) {
 			connectionUrl.searchParams.delete(option);
 		}
 		const ssl = { rejectUnauthorized: true };
-		if (process.env.SUPABASE_DB_SSL_CA_PATH) {
+		if (process.env.SUPABASE_DB_SSL_CA_PATH && !process.env.VERCEL) {
 			const caPath = path.resolve(process.env.SUPABASE_DB_SSL_CA_PATH);
 			try {
 				ssl.ca = fs.readFileSync(caPath, 'utf8');
