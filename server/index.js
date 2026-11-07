@@ -336,7 +336,7 @@ app.post('/api/auth/register', async (request, response) => {
         password: motDePasse,
         options: {
           data: { prenom: prenom.trim(), nom: nom.trim() },
-          emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_URL || 'http://localhost:5173/',
+          emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_URL || 'https://bridgeevent.fr/',
         },
       }),
       8000,

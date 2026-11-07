@@ -37,7 +37,7 @@ Supabase héberge ici la base de données, pas cette API Express. L'API doit res
 
 ### Confirmation d'adresse email
 
-La configuration Supabase locale active **Confirm email** et autorise le retour vers `http://localhost:5173/`. Après `npx supabase start`, les messages locaux sont capturés par Inbucket (interface : http://127.0.0.1:54324); ils ne sont pas envoyés à de vraies adresses.
+La configuration Supabase locale active **Confirm email** et autorise le retour vers `https://bridgeevent.fr/` ainsi que `http://localhost:5173/` pour les tests locaux. Après `npx supabase start`, les messages locaux sont capturés par Inbucket (interface : http://127.0.0.1:54324); ils ne sont pas envoyés à de vraies adresses.
 
 Pour le projet hébergé, dans **Authentication > Sign In / Providers > Email**, active **Confirm email**. Dans **Authentication > URL Configuration**, règle **Site URL** sur l'URL publique du site et ajoute ses URL de redirection autorisées. Ajoute également `http://localhost:5173/` pour les tests locaux. `SUPABASE_EMAIL_REDIRECT_URL`, défini dans le `.env` du serveur, doit correspondre à l'une de ces URL.
 
