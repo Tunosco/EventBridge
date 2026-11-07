@@ -44,9 +44,9 @@ export default function IntroOverlay({ onFinish }) {
   return (
     <div ref={overlayRef} tabIndex={-1} id="opening" className={`intro-overlay opening${ready ? ' is-ready ready' : ''}${departing ? ' is-departing departing' : ''}`} role="dialog" aria-modal="true" aria-labelledby="intro-title">
       <div className="intro-content opening-inner">
-        <h1 className="intro-word opening-word" id="intro-title" aria-label="BridgeEvent">
-          <span className="intro-event" aria-hidden="true">EVENT</span>
-          <span className="intro-bridge" aria-hidden="true">BRIDGE</span>
+        <h1 className="intro-word opening-word" id="intro-title" aria-label="BridgeEvent">          
+          <span className="intro-event" aria-hidden="true">BRIDGE</span>
+          <span className="intro-bridge" aria-hidden="true">EVENT</span>
         </h1>
       </div>
     </div>
