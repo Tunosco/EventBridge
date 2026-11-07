@@ -14,7 +14,7 @@ function hashPassword(password) {
 
 const PRESTATAIRES = [
 	{
-		prenom: 'Alexis', nom: 'Moreau', email: 'alexis.moreau@eventbridge.local',
+		prenom: 'Alexis', nom: 'Moreau', email: 'alexis.moreau@bridgeevent.local',
 		entreprise: 'Atelier Lumière', ville: 'Cannes', categorie: 'Photographie',
 		description: 'Reportages naturels, instants spontanés et portraits pour vos événements.',
 		photo: '/images/prototype/atelier.jpg',
@@ -24,7 +24,7 @@ const PRESTATAIRES = [
 		],
 	},
 	{
-		prenom: 'Sofia', nom: 'Ferrand', email: 'sofia.ferrand@eventbridge.local',
+		prenom: 'Sofia', nom: 'Ferrand', email: 'sofia.ferrand@bridgeevent.local',
 		entreprise: 'Maison des Saveurs', ville: 'Nice', categorie: 'Traiteur',
 		description: 'Cocktails, buffets et menus de saison sur mesure, produits de la Côte d’Azur.',
 		photo: '/images/prototype/saveurs.jpg',
@@ -34,7 +34,7 @@ const PRESTATAIRES = [
 		],
 	},
 	{
-		prenom: 'Thomas', nom: 'Riviere', email: 'thomas.riviere@eventbridge.local',
+		prenom: 'Thomas', nom: 'Riviere', email: 'thomas.riviere@bridgeevent.local',
 		entreprise: 'Studio Tempo', ville: 'Antibes', categorie: 'Musique',
 		description: 'Une sélection musicale pensée pour votre soirée, de l’apéro au dernier verre.',
 		photo: '/images/prototype/tempo.jpg',
@@ -44,7 +44,7 @@ const PRESTATAIRES = [
 		],
 	},
 	{
-		prenom: 'Clara', nom: 'Bonnet', email: 'clara.bonnet@eventbridge.local',
+		prenom: 'Clara', nom: 'Bonnet', email: 'clara.bonnet@bridgeevent.local',
 		entreprise: 'Fleur & Matière', ville: 'Nice', categorie: 'Décoration',
 		description: 'Compositions florales, scénographie et éclairage pour donner vie à vos lieux.',
 		photo: '/images/prototype/fleurs.jpg',
@@ -54,7 +54,7 @@ const PRESTATAIRES = [
 		],
 	},
 	{
-		prenom: 'Hugo', nom: 'Vasseur', email: 'hugo.vasseur@eventbridge.local',
+		prenom: 'Hugo', nom: 'Vasseur', email: 'hugo.vasseur@bridgeevent.local',
 		entreprise: 'Les Jardins de la Côte', ville: 'Cannes', categorie: 'Lieu de réception',
 		description: 'Un cadre de réception enchanter, jardin botanique et terrasses sur la Côte.',
 		photo: '/images/prototype/jardins.jpg',
@@ -64,7 +64,7 @@ const PRESTATAIRES = [
 		],
 	},
 	{
-		prenom: 'Léa', nom: 'Marchand', email: 'lea.marchand@eventbridge.local',
+		prenom: 'Léa', nom: 'Marchand', email: 'lea.marchand@bridgeevent.local',
 		entreprise: 'Regards de Provence', ville: 'Antibes', categorie: 'Photographie',
 		description: 'Vidéastes et photographes de l’événementiel, films de mariage et aftermovies.',
 		photo: '/images/prototype/regards.jpg',

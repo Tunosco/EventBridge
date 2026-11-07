@@ -467,7 +467,7 @@ app.post('/api/auth/confirm', async (request, response) => {
   }
   const user = await db.prepare('SELECT id FROM utilisateur WHERE supabase_auth_id = ? AND LOWER(email) = LOWER(?)')
     .get(data.user.id, data.user.email);
-  if (!user) return response.status(403).json({ error: 'Ce compte n’est pas associé à un compte EventBridge.' });
+  if (!user) return response.status(403).json({ error: 'Ce compte n’est pas associé à un compte BridgeEvent.' });
 
   await recordUserLogin(user.id);
   response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
@@ -1069,7 +1069,7 @@ if (process.env.VERCEL) {
   }
 
   app.listen(port, () => {
-    console.log(`EventBridge API disponible sur http://localhost:${port}`);
+    console.log(`BridgeEvent API disponible sur http://localhost:${port}`);
     console.log(`[db] Base de données : ${isPostgres ? 'PostgreSQL (Supabase)' : 'SQLite locale'}`);
     if (frontendAvailable) {
       console.log(`[web] Frontend servi depuis ${frontendDirectory} → http://localhost:${port}`);

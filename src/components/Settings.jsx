@@ -5,10 +5,10 @@ import { useTranslation } from '../lib/i18n';
 export default function Settings({ onDeleted }) {
   const { translateText } = useTranslation();
   const [activeSection, setActiveSection] = useState('appearance');
-  const [theme, setTheme] = useState(localStorage.getItem('eventbridge_theme') || 'default');
-  const [textSize, setTextSize] = useState(localStorage.getItem('eventbridge_text_size') || 'normal');
-  const [bankDetails, setBankDetails] = useState(localStorage.getItem('eventbridge_bank_details') || '');
-  const [notifications, setNotifications] = useState(localStorage.getItem('eventbridge_notifications') !== 'disabled');
+  const [theme, setTheme] = useState(localStorage.getItem('bridgeevent_theme') || localStorage.getItem('eventbridge_theme') || 'default');
+  const [textSize, setTextSize] = useState(localStorage.getItem('bridgeevent_text_size') || localStorage.getItem('eventbridge_text_size') || 'normal');
+  const [bankDetails, setBankDetails] = useState(localStorage.getItem('bridgeevent_bank_details') || localStorage.getItem('eventbridge_bank_details') || '');
+  const [notifications, setNotifications] = useState((localStorage.getItem('bridgeevent_notifications') || localStorage.getItem('eventbridge_notifications')) !== 'disabled');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
@@ -16,20 +16,20 @@ export default function Settings({ onDeleted }) {
   const handleThemeChange = (event) => {
     const nextTheme = event.target.value;
     setTheme(nextTheme);
-    localStorage.setItem('eventbridge_theme', nextTheme);
+    localStorage.setItem('bridgeevent_theme', nextTheme);
     document.documentElement.dataset.theme = nextTheme;
   };
 
   const handleTextSizeChange = (event) => {
     const nextSize = event.target.value;
     setTextSize(nextSize);
-    localStorage.setItem('eventbridge_text_size', nextSize);
+    localStorage.setItem('bridgeevent_text_size', nextSize);
     document.documentElement.dataset.textSize = nextSize;
   };
 
   const saveSettings = () => {
-    localStorage.setItem('eventbridge_bank_details', bankDetails);
-    localStorage.setItem('eventbridge_notifications', notifications ? 'enabled' : 'disabled');
+    localStorage.setItem('bridgeevent_bank_details', bankDetails);
+    localStorage.setItem('bridgeevent_notifications', notifications ? 'enabled' : 'disabled');
     setMessage('Vos paramètres ont été enregistrés.');
     setError('');
   };
@@ -37,7 +37,7 @@ export default function Settings({ onDeleted }) {
   const handleDelete = async () => {
     try {
       await deleteCurrentUser();
-      localStorage.removeItem('eventbridge_token');
+      localStorage.removeItem('bridgeevent_token');
       onDeleted();
     } catch (deleteError) {
       setError(deleteError.message);

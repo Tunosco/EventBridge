@@ -52,8 +52,8 @@ export default function Header({
   return (
     <>
       <header className="eb-reference-header">
-        <button className="brand" type="button" aria-label="EventBridge" onClick={navigate(() => onNavigate?.('home'))}>
-          EVENT<small>BRIDGE</small>
+        <button className="brand" type="button" aria-label="BridgeEvent" onClick={navigate(() => onNavigate?.('home'))}>
+          BRIDGE<small>EVENT</small>
         </button>
         <button
           className="menu-button mobile-menu-toggle"
@@ -103,7 +103,7 @@ export default function Header({
                   </div>
                   <button onClick={navigate(() => onProfileClick?.())}>{text.profile}</button>
                   <button onClick={navigate(() => onSettingsClick?.())}>{text.settings}</button>
-                  <button onClick={navigate(() => { localStorage.removeItem('eventbridge_token'); onLoggedOut?.(); })}>{text.logout}</button>
+                  <button onClick={navigate(() => { localStorage.removeItem('bridgeevent_token'); onLoggedOut?.(); })}>{text.logout}</button>
                 </div>
               )}
             </div>

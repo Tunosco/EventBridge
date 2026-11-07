@@ -1,4 +1,4 @@
-/* Extrait de Visuel_EventBridge.html — blocs <style> dans l'ordre du document.
+/* Extrait de Visuel_BridgeEvent.html — blocs <style> dans l'ordre du document.
    Images/polices base64 déplacées vers public/images/visuel et public/fonts/visuel. */
 
 @font-face {
@@ -57,7 +57,7 @@ body{font-family:'Jost',sans-serif;font-weight:300;font-size:16px;letter-spacing
 
 #opening{background:#b87a52;color:#fff}.opening-word{display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(30px,3.8vw,58px);line-height:1.15;letter-spacing:.22em;gap:18px;text-align:center;font-weight:300;text-shadow:0 1px 18px #0003}.opening-word span{padding-left:.22em}.opening-inner{width:100%;padding:0 24px;text-align:center}.editorhero{background:url('/images/visuel/eb-6a44959555.png') center/cover;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:100px 24px 65px;text-align:center}.editorhero:before{display:none}.editorhero .hero-shade{background:linear-gradient(180deg,#00000035,#00000025 60%,#ffffff 100%)}.editorhero h1{font-size:clamp(38px,5vw,72px);max-width:850px;margin:0 auto 20px}.editorhero>p{max-width:650px;margin:0 auto}.story-intro{text-align:center;max-width:850px;margin:30px auto 75px}.story-intro h1{font-size:clamp(42px,6vw,76px);margin:20px 0}.story-intro p{font-size:19px;line-height:1.9}.story-columns{display:grid;grid-template-columns:1fr 1fr;gap:70px;border-top:1px solid #EFE5D6;padding:50px 0}.story-columns p{line-height:1.9;color:#625A5B}.story-columns h2{font-size:38px}.story-end{text-align:center;padding:50px 0}.story-end p{line-height:1.8}@media(max-width:750px){.opening-word{font-size:32px;gap:14px}.story-columns{grid-template-columns:1fr;gap:25px}.editorhero{padding-top:160px}}
 
-/* EventBridge — retouches 19 octobre 2026 : tons cuivre et bordeaux. */
+/* BridgeEvent — retouches 19 octobre 2026 : tons cuivre et bordeaux. */
 :root{--sky:#EFE3DF;--rose:#F4E0E3;--lilac:#CDA8A7;--berry:#640017;--poppy:#640017;--copper:#640017;--ink:#0C0002}
 #opening{
   background-color:#9c603f;
@@ -88,7 +88,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 @media(max-width:850px){.occasion-mosaic{grid-template-rows:330px;gap:10px}}
 @media(max-width:520px){.occasion-mosaic{grid-template-rows:245px;gap:6px}.occasion-tabs{gap:9px 15px}.occasion-tabs button{font-size:10px;letter-spacing:1.1px}}
 
-/* EventBridge : nouvelle sélection de photos et en-tête effet verre — 19 octobre 2026. */
+/* BridgeEvent : nouvelle sélection de photos et en-tête effet verre — 19 octobre 2026. */
 .homeheader header {
   position:absolute;
   z-index:20;
@@ -124,7 +124,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 }
 
 /* ===============================
-   EventBridge — adaptation téléphone, tablette, ordinateur
+   BridgeEvent — adaptation téléphone, tablette, ordinateur
    Couleurs, polices et visuels d'origine conservés.
    =============================== */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -284,7 +284,7 @@ img { max-width: 100%; }
 }
 
 
-/* EventBridge — espaces distincts et contrastes accessibles, sans changement de police. */
+/* BridgeEvent — espaces distincts et contrastes accessibles, sans changement de police. */
 :root{--eb-wine:#640017;--eb-wine-hover:#7f1430;--eb-ink:#27191d;--eb-blush:#f8eff0;--eb-line:#eadbdd}
 #app{min-height:55vh}
 header.role-signed{background:#fff}
@@ -409,7 +409,7 @@ body.homeheader header.role-signed nav#eb-main-nav>button:not(#account):hover,bo
 @media(max-width:750px){.workspace .sidebar .eyebrow{flex:0 0 100%;width:100%;margin-bottom:2px}.workspace .sidebar button{margin:2px!important}.demo-request{padding:18px}}
 
 /* ==========================================================================
-   EventBridge — extensions fonctionnelles (recherche, IA + scores, espaces, cookies).
+   BridgeEvent — extensions fonctionnelles (recherche, IA + scores, espaces, cookies).
    Aucune nouvelle couleur ni police : uniquement les variables et polices du prototype.
    ========================================================================== */
 
@@ -614,7 +614,7 @@ em.ev { background: var(--eb-wine); } em.rdv { background: #BBA177; } em.off { b
 .eb-landing{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#302327}.eb-landing-hero{min-height:min(790px,92svh);position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(130deg,rgba(30,12,17,.64),rgba(74,20,32,.46)),linear-gradient(125deg,#55353b,#a47d73 48%,#362328);color:white;text-align:center;padding:100px 24px 90px}.eb-landing-hero:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 76% 22%,#ebc6a74f,transparent 58%);pointer-events:none}.eb-landing-inner{position:relative;z-index:1;max-width:930px;margin:auto}.eb-landing-eyebrow{font-size:11px;letter-spacing:.26em;font-weight:650;opacity:.9}.eb-landing h1{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(48px,7vw,100px);font-weight:400;line-height:1.05;margin:25px 0}.eb-landing h1 em{font-weight:300}.eb-landing-hero p{max-width:670px;margin:0 auto 34px;font-size:clamp(15px,1.6vw,18px);line-height:1.8;color:#f5ebed}.eb-landing-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:835px;margin:35px auto 15px}.eb-landing-cta{background:#fff!important;color:#640017!important;display:flex;gap:13px;align-items:center;justify-content:space-between;text-align:left;padding:22px 19px;border:1px solid #fff!important;border-radius:6px;min-height:95px;cursor:pointer;box-shadow:0 12px 36px #1900072b;transition:transform .2s,box-shadow .2s;opacity:1!important}.eb-landing-cta:hover{transform:translateY(-3px);box-shadow:0 18px 45px #19000744}.eb-landing-cta-pro{background:#640017!important;color:#fff!important;border-color:#f7e4e7!important}.eb-landing-cta strong{display:block;font:650 15px/1.4 Inter,system-ui,sans-serif;color:inherit!important}.eb-landing-cta small{display:block;opacity:.76;font-size:12px;line-height:1.5;margin-top:6px;color:inherit!important}.eb-landing-cta>span:first-child,.eb-landing-cta>span:last-child{font-size:25px;flex-shrink:0}.eb-landing .eb-landing-caption{font-size:12px;opacity:.78;margin:12px auto 0}.eb-landing-about{padding:80px 6vw 88px;text-align:center;background:#faf7f7}.eb-landing-about h2{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(38px,5vw,65px);font-weight:400;margin:15px 0 32px}.eb-landing-benefits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;max-width:1120px;margin:auto;text-align:left}.eb-landing-benefits article{padding:30px;border:1px solid #e7d9dc;background:white;border-radius:5px}.eb-landing-benefits article>span{color:#640017;font-size:12px;letter-spacing:.16em}.eb-landing-benefits h3{font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:500;margin:14px 0 8px}.eb-landing-benefits p{color:#75666a;font-size:14px;line-height:1.8}.eb-landing-discover{margin:34px auto 0;padding:15px 28px;background:#640017!important;color:#fff!important;border-radius:4px;cursor:pointer}.eb-back-home{border:1px solid #dfc9d0!important;border-radius:4px!important;color:#640017!important;font-weight:650!important;padding:9px 13px!important;background:#fff!important}.workspace .work-row,.workspace .metricline>div,.workspace .sidebar,.workspace .client-links,.workspace .work-card{border-radius:8px}.workspace .layout{gap:clamp(20px,3vw,40px)}.workspace .sidebar button{margin-bottom:5px}.workspace input,.workspace select,.workspace textarea{max-width:100%}#app:empty{min-height:65vh}@media(max-width:700px){.eb-landing-hero{min-height:74svh;padding:95px 18px 65px}.eb-landing-actions{grid-template-columns:1fr;gap:12px}.eb-landing-cta{min-height:82px;padding:17px}.eb-landing-benefits{grid-template-columns:1fr}.eb-landing-about{padding:55px 20px}.eb-landing-benefits article{padding:23px}}@media(prefers-reduced-motion:reduce){.eb-landing-cta{transition:none}}
 
 /* ==========================================================================
-   EventBridge — accueil épuré (retour de la page d’accueil complète)
+   BridgeEvent — accueil épuré (retour de la page d’accueil complète)
    Mêmes couleurs et polices que le prototype.
    ========================================================================== */
 .editorhero p { font-weight: 400; text-shadow: 0 1px 14px rgba(0, 0, 0, .45); }

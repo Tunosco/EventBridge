@@ -192,6 +192,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    ['token', 'theme', 'text_size', 'bank_details', 'notifications'].forEach((suffix) => {
+      const currentKey = `bridgeevent_${suffix}`;
+      const legacyKey = `eventbridge_${suffix}`;
+      if (localStorage.getItem(currentKey) === null) {
+        const legacyValue = localStorage.getItem(legacyKey);
+        if (legacyValue !== null) localStorage.setItem(currentKey, legacyValue);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     const confirmationParams = new URLSearchParams(window.location.hash.slice(1));
     const queryParams = new URLSearchParams(window.location.search);
     const accessToken = confirmationParams.get('access_token');
@@ -211,7 +222,7 @@ export default function App() {
     completeEmailConfirmation(accessToken)
       .then(({ token, user: confirmedUser }) => {
         authRequestVersion.current += 1;
-        localStorage.setItem('eventbridge_token', token);
+        localStorage.setItem('bridgeevent_token', token);
         setUser(confirmedUser);
         navigateAfterAuthentication(confirmedUser);
         setAuthNotice({ message: 'Votre adresse est confirmée. Vous êtes connecté à votre compte.', type: 'success' });
@@ -222,9 +233,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const theme = localStorage.getItem('eventbridge_theme') || 'default';
+    const theme = localStorage.getItem('bridgeevent_theme') || localStorage.getItem('eventbridge_theme') || 'default';
     document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.textSize = localStorage.getItem('eventbridge_text_size') || 'normal';
+    document.documentElement.dataset.textSize = localStorage.getItem('bridgeevent_text_size') || 'normal';
   }, []);
 
   useEffect(() => {
@@ -309,7 +320,7 @@ export default function App() {
           />
         )}
       </Suspense>
-      <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}><span>EVENT</span><small>BRIDGE</small></a><small>{translate('Le lien entre vos idées et les bonnes personnes.', language)}</small>        {pendingNavigation && (
+      <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}><span>BRIDGE</span><small>EVENT</small></a><small>{translate('Le lien entre vos idées et les bonnes personnes.', language)}</small>        {pendingNavigation && (
           <div className="settings-delete-dialog-backdrop" role="presentation">
             <section className="settings-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-profile-title">
               <h2 id="unsaved-profile-title">Etes-vous sûr ?</h2>

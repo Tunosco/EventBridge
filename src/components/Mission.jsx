@@ -8,7 +8,7 @@ export default function Mission() {
         <div className="bridge-copy">
           <div className="kicker">Notre mission</div>
           <h2>Créer le pont entre une envie et son accomplissement.</h2>
-          <p>Organiser un événement ne devrait pas ressembler à une liste interminable de recherches. EventBridge rassemble au même endroit les talents qui donnent vie à vos idées et les personnes qui les font naître.</p>
+          <p>Organiser un événement ne devrait pas ressembler à une liste interminable de recherches. BridgeEvent rassemble au même endroit les talents qui donnent vie à vos idées et les personnes qui les font naître.</p>
           <div className="check-list">
             {benefits.map((benefit) => <div key={benefit}><i>✓</i><span>{benefit}</span></div>)}
           </div>

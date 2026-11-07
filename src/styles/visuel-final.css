@@ -1,5 +1,5 @@
 /* ==========================================================================
-   EventBridge — charte visuelle de « Visuel.html ».
+   BridgeEvent — charte visuelle de « Visuel.html ».
    Deux univers :
    · public  → en-tête verre sombre (.eb-reference-header), photo plein écran,
                 récit et vitrine des prestations ;
@@ -334,7 +334,10 @@ body.homeheader .eb-reference-header {
 
 .eb-reference-header .brand {
   flex-shrink: 0;
-  border: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100px;
+  border:0;
   padding: 0;
   background: transparent;
   color: #fff;

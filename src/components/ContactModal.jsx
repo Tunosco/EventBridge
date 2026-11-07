@@ -60,11 +60,11 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
           setSent(true);
           return;
         }
-        localStorage.setItem('eventbridge_token', result.token);
+        localStorage.setItem('bridgeevent_token', result.token);
         onAuthenticated?.(result.user);
       } else if (mode === 'connexion') {
         const result = await loginAccount({ email: formData.get('email'), motDePasse: formData.get('motDePasse') });
-        localStorage.setItem('eventbridge_token', result.token);
+        localStorage.setItem('bridgeevent_token', result.token);
         onAuthenticated?.(result.user);
       }
       setSent(true);
@@ -97,7 +97,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
       : providerAuthPrompt ? 'Vous êtes prestataire?'
         : isAccount ? 'Mon compte'
           : isProviderSignup ? 'Créer un compte prestataire.'
-            : isSignup ? 'Bienvenue sur EventBridge.'
+            : isSignup ? 'Bienvenue sur BridgeEvent.'
               : mode === 'connexion' ? 'Ravi de vous revoir.' : 'Parlons de votre projet.';
 
   const description = sent
@@ -170,7 +170,7 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
           <button className="modal-switch" onClick={switchMode}>{translateText(sent ? 'Retour à la connexion' : isSignup ? 'J’ai déjà un compte' : 'Créer un compte')}</button>
           {isProviderSignup && !sent && <p className="provider-login-hint">{translateText('Vous pouvez vous connecter en tant que prestataire grâce au bouton « Se connecter » en haut de page.')}</p>}
         </>}
-        {isAccount && <button className="button button-primary submit" onClick={() => { localStorage.removeItem('eventbridge_token'); onLoggedOut?.(); onClose(); }}>{translateText('Se déconnecter')}</button>}
+        {isAccount && <button className="button button-primary submit" onClick={() => { localStorage.removeItem('bridgeevent_token'); onLoggedOut?.(); onClose(); }}>{translateText('Se déconnecter')}</button>}
       </div>
     </div>
   );

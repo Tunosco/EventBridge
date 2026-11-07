@@ -172,7 +172,7 @@ export default function App() {
     completeEmailConfirmation(accessToken)
       .then(({ token, user: confirmedUser }) => {
         authRequestVersion.current += 1;
-        localStorage.setItem('eventbridge_token', token);
+        localStorage.setItem('bridgeevent_token', token);
         setUser(confirmedUser);
         checkProfileCompleteness(confirmedUser);
         navigateAfterAuthentication(confirmedUser);
@@ -184,7 +184,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const theme = localStorage.getItem('eventbridge_theme') || 'default';
+      ['token', 'theme', 'text_size', 'bank_details', 'notifications'].forEach((suffix) => {
+        const currentKey = `bridgeevent_${suffix}`;
+        const legacyKey = `eventbridge_${suffix}`;
+        if (localStorage.getItem(currentKey) === null) {
+          const legacyValue = localStorage.getItem(legacyKey);
+          if (legacyValue !== null) localStorage.setItem(currentKey, legacyValue);
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    const theme = localStorage.getItem('bridgeevent_theme') || localStorage.getItem('eventbridge_theme') || 'default';
     document.documentElement.dataset.theme = theme;
   }, []);
 
@@ -240,7 +251,7 @@ export default function App() {
           </main>
         )}
       </Suspense>
-      <footer><div><a className="brand" href="#accueil">Event<span>Bridge</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); handleProviderSpaceClick(); }}>Espace prestataire</a></nav><small>© 2026 EventBridge</small></footer>
+      <footer><div><a className="brand" href="#accueil">Bridge<span>Event</span></a><small>La rencontre entre les idées et les talents.</small></div><nav><a href="#mission">Notre mission</a><a href="#fonctionnement">Méthode</a><a href="#prestataire" onClick={(event) => { event.preventDefault(); handleProviderSpaceClick(); }}>Espace prestataire</a></nav><small>© 2026 BridgeEvent</small></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
       {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
         if (contactType === 'event-auth-required') eventCreationPendingAuth.current = false;

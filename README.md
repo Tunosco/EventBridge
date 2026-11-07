@@ -1,4 +1,4 @@
-# EventBridge
+# BridgeEvent
 
 Application React/Vite avec une API Express et une base PostgreSQL hébergée sur Supabase. SQLite reste disponible pour le développement local sans configuration.
 
@@ -20,7 +20,7 @@ npm run dev
 - API : http://localhost:3001
 - Vérification : http://localhost:3001/api/health
 
-La base locale est créée automatiquement dans `data/eventbridge.sqlite` au démarrage de l'API.
+La base locale est créée automatiquement dans `data/bridgeevent.sqlite` au démarrage de l'API.
 
 ## Supabase
 
@@ -41,7 +41,7 @@ La configuration Supabase locale active **Confirm email** et autorise le retour 
 
 Pour le projet hébergé, dans **Authentication > Sign In / Providers > Email**, active **Confirm email**. Dans **Authentication > URL Configuration**, règle **Site URL** sur l'URL publique du site et ajoute ses URL de redirection autorisées. Ajoute également `http://localhost:5173/` pour les tests locaux. `SUPABASE_EMAIL_REDIRECT_URL`, défini dans le `.env` du serveur, doit correspondre à l'une de ces URL.
 
-Pour Brevo, le projet hébergé utilise **Enable custom SMTP**, serveur `smtp-relay.brevo.com`, port `587`, nom d'expéditeur `EventBridge` et adresse d'expéditeur `gabriel.prevost06@gmail.com`. Dans **Brevo > Settings > SMTP & API > SMTP**, utilise le **SMTP login** indiqué par Brevo comme nom d'utilisateur et une **SMTP key** comme mot de passe — pas une clé API. Le mot de passe est enregistré de manière chiffrée par Supabase. L'adresse d'expéditeur doit être validée dans Brevo; pour une meilleure délivrabilité, privilégie une adresse sur un domaine que tu contrôles et authentifie ce domaine (SPF/DKIM).
+Pour Brevo, le projet hébergé utilise **Enable custom SMTP**, serveur `smtp-relay.brevo.com`, port `587`, nom d'expéditeur `BridgeEvent` et adresse d'expéditeur `gabriel.prevost06@gmail.com`. Dans **Brevo > Settings > SMTP & API > SMTP**, utilise le **SMTP login** indiqué par Brevo comme nom d'utilisateur et une **SMTP key** comme mot de passe — pas une clé API. Le mot de passe est enregistré de manière chiffrée par Supabase. L'adresse d'expéditeur doit être validée dans Brevo; pour une meilleure délivrabilité, privilégie une adresse sur un domaine que tu contrôles et authentifie ce domaine (SPF/DKIM).
 
 Dans le projet hébergé, **Authentication > SMTP Settings** doit avoir **Enable custom SMTP** activé. Le SMTP par défaut de Supabase est limité aux adresses autorisées de l'équipe du projet et à un faible quota; il convient aux essais, pas à la production. Ne mets jamais le SMTP login, la SMTP key ni d'autres identifiants dans le frontend ou le dépôt. Après inscription, l'utilisateur doit ouvrir le lien reçu avant de pouvoir se connecter.
 

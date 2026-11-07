@@ -92,7 +92,7 @@ export default function ProviderFinder({
     try {
       const conversation = await createConversation(provider.id);
       const message = [
-        translateText('Demande de devis EventBridge'),
+        translateText('Demande de devis BridgeEvent'),
         `${translateText('Date souhaitée')} : ${quoteDate || translateText('à préciser')}${quoteDate ? ` (${formatDate(quoteDate, locale)})` : ''}`,
         `${translateText('Prestation')} : ${activeFilters.category || translateText('à préciser')}`,
         `${translateText('Ville')} : ${activeFilters.city || translateText('à préciser')}`,

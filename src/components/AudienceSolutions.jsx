@@ -3,7 +3,7 @@ export default function AudienceSolutions({ onProjectClick }) {
     <section className="section audiences" id="prestataire">
       <div className="section-head">
         <div className="kicker light-kicker">Deux publics, un même élan</div>
-        <h2>EventBridge avance avec vous.</h2>
+        <h2>BridgeEvent avance avec vous.</h2>
         <p>Une expérience claire pour les particuliers. Une vitrine utile pour les professionnels.</p>
       </div>
       <div className="audience-grid">

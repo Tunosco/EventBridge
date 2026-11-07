@@ -3,6 +3,12 @@
 // - en développement, par le proxy Vite vers http://localhost:3001.
 // VITE_API_URL reste disponible pour une API hébergée ailleurs.
 const API_URL = import.meta.env.VITE_API_URL || '/api';
+const TOKEN_KEY = 'bridgeevent_token';
+const LEGACY_TOKEN_KEY = 'eventbridge_token';
+
+function getStoredToken() {
+  return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
+}
 
 async function request(path, options = {}) {
   const { headers: optionHeaders, ...requestOptions } = options;
@@ -14,7 +20,7 @@ async function request(path, options = {}) {
     });
   } catch (error) {
     throw new Error(
-      `L'API EventBridge est injoignable (${API_URL}). Démarrez-la avec « npm run server ».`,
+      `L'API BridgeEvent est injoignable (${API_URL}). Démarrez-la avec « npm run server ».`,
       { cause: error },
     );
   }
@@ -39,20 +45,20 @@ export function completeEmailConfirmation(accessToken) {
 }
 
 export function getCurrentUser() {
-  const token = localStorage.getItem('eventbridge_token');
+  const token = getStoredToken();
   if (!token) return Promise.resolve(null);
   return request('/me', { headers: { Authorization: `Bearer ${token}` } })
     .then((result) => result.user)
     .catch(() => {
-      if (localStorage.getItem('eventbridge_token') === token) {
-        localStorage.removeItem('eventbridge_token');
+      if (getStoredToken() === token) {
+        localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(LEGACY_TOKEN_KEY);
       }
       return null;
     });
 }
 
 function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem('eventbridge_token')}` };
+  return { Authorization: `Bearer ${getStoredToken()}` };
 }
 
 export function updateCurrentUser(payload) {
@@ -94,7 +100,7 @@ export function searchProviders(search, favoritesOnly = false, filters = {}) {
   if (city) parameters.set('city', city);
   if (maxBudget) parameters.set('maxBudget', maxBudget);
   if (date) parameters.set('date', date);
-  const token = localStorage.getItem('eventbridge_token');
+  const token = getStoredToken();
   return request(`/providers?${parameters.toString()}`, { headers: token ? authHeaders() : {} });
 }
 
@@ -210,4 +216,3 @@ export function updateMyPublicKey(publicKey) {
 export function getMyPublicKey() {
   return request('/me/public-key', { headers: authHeaders() });
 }
-
