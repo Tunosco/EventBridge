@@ -24,8 +24,19 @@ async function request(path, options = {}) {
       { cause: error },
     );
   }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Une erreur est survenue.');
+  const responseBody = await response.text();
+  let data = {};
+  try {
+    data = responseBody ? JSON.parse(responseBody) : {};
+  } catch {
+    data = {};
+  }
+  if (!response.ok) {
+    throw new Error(
+      data.error
+      || (responseBody.trim() ? `L’API a renvoyé une réponse invalide (HTTP ${response.status}).` : `L’API a renvoyé une erreur (HTTP ${response.status}).`),
+    );
+  }
   return data;
 }
 

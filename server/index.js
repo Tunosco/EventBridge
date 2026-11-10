@@ -1502,6 +1502,16 @@ if (frontendAvailable) {
   app.get(/.*/, (_request, response) => response.sendFile(path.join(frontendDirectory, 'index.html')));
 }
 
+app.use((error, request, response, next) => {
+  if (response.headersSent) return next(error);
+  console.error('[api] Erreur non gérée.', {
+    method: request.method,
+    path: request.originalUrl,
+    error,
+  });
+  response.status(500).json({ error: 'Le serveur a rencontré une erreur. Réessayez dans quelques instants.' });
+});
+
 export { app };
 
 if (process.env.VERCEL) {
