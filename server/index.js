@@ -717,41 +717,54 @@ app.post('/api/auth/register', async (request, response) => {
 });
 
 app.post('/api/auth/login', async (request, response) => {
-  const { email, motDePasse } = request.body;
-  const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
-  if (!user) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-  if (supabaseAuth && !user.supabase_auth_id) {
-    return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
-  }
-  if (user.supabase_auth_id && !supabaseAuth) {
-    return response.status(503).json({ error: 'La confirmation email ne peut pas être vérifiée pour le moment.' });
-  }
-  if (user.supabase_auth_id) {
-    const { data, error } = await withTimeout(
-      supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' }),
-      8000,
-      'Supabase n’a pas répondu à temps.',
-    );
-    if (error) {
-      const notConfirmed = error?.code === 'email_not_confirmed' || error?.message?.toLowerCase().includes('email not confirmed');
-      if (notConfirmed) {
-        return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
-      }
-      if (error?.code === 'invalid_credentials') {
-        return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-      }
-      console.error('[auth] Connexion Supabase impossible.', error);
-      return response.status(503).json({ error: 'Le service de connexion est temporairement indisponible. Réessayez dans quelques instants.' });
-    } else if (data.user?.id !== user.supabase_auth_id) {
-      return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
-    } else if (!data.user.email_confirmed_at) {
+  try {
+    const { email, motDePasse } = request.body;
+    const user = await db.prepare('SELECT id, nom, email, mot_de_passe_hash, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(email?.trim());
+    if (!user) return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+    if (supabaseAuth && !user.supabase_auth_id) {
       return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
     }
-  } else if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
-    return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+    if (user.supabase_auth_id && !supabaseAuth) {
+      return response.status(503).json({ error: 'La confirmation email ne peut pas être vérifiée pour le moment.' });
+    }
+    if (user.supabase_auth_id) {
+      const { data, error } = await withTimeout(
+        supabaseAuth.auth.signInWithPassword({ email: email.trim(), password: motDePasse || '' }),
+        8000,
+        'Supabase n’a pas répondu à temps.',
+      );
+      if (error) {
+        const notConfirmed = error?.code === 'email_not_confirmed' || error?.message?.toLowerCase().includes('email not confirmed');
+        if (notConfirmed) {
+          return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
+        }
+        if (error?.code === 'invalid_credentials') {
+          return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+        }
+        console.error('[auth] Connexion Supabase impossible.', {
+          code: error?.code,
+          status: error?.status,
+          message: error?.message,
+        });
+        return response.status(503).json({ error: 'Le service de connexion est temporairement indisponible. Réessayez dans quelques instants.' });
+      } else if (data.user?.id !== user.supabase_auth_id) {
+        return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+      } else if (!data.user.email_confirmed_at) {
+        return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
+      }
+    } else if (!verifyPassword(motDePasse || '', user.mot_de_passe_hash)) {
+      return response.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+    }
+    await recordUserLogin(user.id);
+    response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
+  } catch (error) {
+    console.error('[auth] Erreur inattendue pendant la connexion.', {
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    response.status(503).json({ error: 'Le service de connexion est temporairement indisponible. Réessayez dans quelques instants.' });
   }
-  await recordUserLogin(user.id);
-  response.json({ token: createSession(user.id), user: await getUserProfile(user.id) });
 });
 
 app.post('/api/auth/confirm', async (request, response) => {
