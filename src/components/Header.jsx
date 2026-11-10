@@ -38,7 +38,7 @@ export default function Header({
 
   const isProvider = user?.typeUtilisateur === 'prestataire';
   const text = labels[language] || labels.fr;
-  const profileImage = user?.photoUrl || 'https://i.pravatar.cc/240?img=12';
+  const profileImage = user?.photoUrl || '/images/photo-profil-neutre.webp';
   const profileName = [user?.prenom, user?.nom].filter(Boolean).join(' ') || text.space;
   const isClientSpace = isAuthenticated && !isProvider && ['events', 'messages'].includes(activePage);
   const isPublicHome = activePage === 'home';

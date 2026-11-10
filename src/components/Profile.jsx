@@ -9,7 +9,7 @@ export default function Profile({ user, onBack, onEdit }) {
         <h1>{translateText('Mon profil')}</h1>
       </div>
       <section className="profile-card" aria-labelledby="profile-name">
-        <img className="profile-photo" src="https://i.pravatar.cc/240?img=12" alt={translateText('Photo de profil')} />
+        <img className="profile-photo" src={user.photoUrl || '/images/photo-profil-neutre.webp'} alt={translateText('Photo de profil')} />
         <div className="profile-details">
           <h2 id="profile-name">{profileName}</h2>
           <div className="profile-contact-list">

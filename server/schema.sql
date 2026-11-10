@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS utilisateur (
   code_postal TEXT,
   supabase_auth_id TEXT,
   derniere_connexion TEXT,
+  photo_url TEXT,
   type_utilisateur TEXT NOT NULL DEFAULT 'client' CHECK (type_utilisateur IN ('client', 'prestataire')),
   is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP

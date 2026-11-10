@@ -214,7 +214,7 @@ async function getUserProfile(userId) {
   if (providerProfile) {
     await db.prepare("UPDATE utilisateur SET type_utilisateur = 'prestataire' WHERE id = ? AND type_utilisateur <> 'prestataire'").run(userId);
   }
-  const profile = await db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS "codePostal", type_utilisateur AS "typeUtilisateur", is_admin AS "isAdmin" FROM utilisateur WHERE id = ?').get(userId);
+  const profile = await db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS "codePostal", photo_url AS "photoUrl", type_utilisateur AS "typeUtilisateur", is_admin AS "isAdmin" FROM utilisateur WHERE id = ?').get(userId);
   if (profile) profile.isAdmin = await isAdmin(userId);
   return profile;
 }
@@ -359,6 +359,15 @@ function normalizeHttpUrl(value) {
   } catch {
     return undefined;
   }
+}
+
+function validateProfilePhoto(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  const match = value.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!match) return undefined;
+  const byteLength = Math.floor(match[2].length * 3 / 4) - (match[2].endsWith('==') ? 2 : match[2].endsWith('=') ? 1 : 0);
+  return byteLength >= 1 && byteLength <= 2 * 1024 * 1024 ? value : undefined;
 }
 
 function shiftEventDate(value, days) {
@@ -1000,12 +1009,14 @@ app.delete('/api/me/favorite-providers/:providerId', authUser, async (request, r
 });
 
 app.put('/api/me', authUser, async (request, response) => {
-  const { prenom, nom, email, telephone, codePostal } = request.body;
+  const { prenom, nom, email, telephone, codePostal, photoUrl } = request.body;
   if (!prenom?.trim() || !nom?.trim() || !email?.trim()) return response.status(400).json({ error: 'Le prénom, le nom et l’adresse email sont requis.' });
+  const validatedPhoto = validateProfilePhoto(photoUrl);
+  if (validatedPhoto === undefined) return response.status(400).json({ error: 'La photo doit être au format JPG, PNG ou WebP et ne pas dépasser 2 Mo.' });
 
   try {
-    await db.prepare('UPDATE utilisateur SET prenom = ?, nom = ?, email = ?, telephone = ?, code_postal = ? WHERE id = ?').run(
-      prenom.trim(), nom.trim(), email.trim(), telephone?.trim() || null, codePostal?.trim() || null, request.userId,
+    await db.prepare('UPDATE utilisateur SET prenom = ?, nom = ?, email = ?, telephone = ?, code_postal = ?, photo_url = ? WHERE id = ?').run(
+      prenom.trim(), nom.trim(), email.trim(), telephone?.trim() || null, codePostal?.trim() || null, validatedPhoto, request.userId,
     );
     const user = await getUserProfile(request.userId);
     response.json({ user });

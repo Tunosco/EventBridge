@@ -10,6 +10,7 @@ export default function ProfileEdit({ user, onUserUpdated, onDirtyChange }) {
     email: user.email || '',
     telephone: user.telephone || '',
     codePostal: user.codePostal || '',
+    photoUrl: user.photoUrl || '',
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -22,6 +23,20 @@ export default function ProfileEdit({ user, onUserUpdated, onDirtyChange }) {
   }, [isDirty, onDirtyChange]);
 
   const updateField = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+
+  const handlePhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      setError('La photo doit être au format JPG, PNG ou WebP et ne pas dépasser 2 Mo.');
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setForm((current) => ({ ...current, photoUrl: String(reader.result) }));
+    reader.onerror = () => setError('Impossible de lire la photo sélectionnée.');
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -47,10 +62,11 @@ export default function ProfileEdit({ user, onUserUpdated, onDirtyChange }) {
         <h1>{translateText('Modifier le profil')}</h1>
       </div>
       <form className="profile-card profile-edit-card" onSubmit={handleSubmit} aria-labelledby="profile-edit-name">
-        <img className="profile-photo" src="https://i.pravatar.cc/240?img=12" alt={translateText('Photo de profil')} />
+        <img className="profile-photo" src={form.photoUrl || '/images/photo-profil-neutre.webp'} alt={translateText('Photo de profil')} />
         <div className="profile-details">
           <h2 id="profile-edit-name">{profileName}</h2>
           <div className="profile-edit-fields">
+            <label>{translateText('Photo de profil')}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} /></label>
             <label>{translateText('Prénom')}<input name="prenom" value={form.prenom} onChange={updateField} required /></label>
             <label>{translateText('Nom')}<input name="nom" value={form.nom} onChange={updateField} required /></label>
             <label>{translateText('Email')}<input name="email" type="email" value={form.email} onChange={updateField} required /></label>

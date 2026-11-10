@@ -116,6 +116,7 @@ export async function initializeDatabase() {
 	if (!userColumns.includes('code_postal')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN code_postal TEXT');
 	if (!userColumns.includes('supabase_auth_id')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN supabase_auth_id TEXT');
 	if (!userColumns.includes('derniere_connexion')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN derniere_connexion TEXT');
+	if (!userColumns.includes('photo_url')) sqlite.exec('ALTER TABLE utilisateur ADD COLUMN photo_url TEXT');
 	sqlite.exec(`UPDATE utilisateur SET prenom = 'Utilisateur'
 		WHERE prenom IS NULL OR TRIM(prenom) = ''`);
 	sqlite.exec(`CREATE TRIGGER IF NOT EXISTS utilisateur_prenom_required_insert
