@@ -22,6 +22,16 @@ npm run dev
 
 La base locale est créée automatiquement dans `data/bridgeevent.sqlite` au démarrage de l'API.
 
+## Référencement
+
+Le frontend publie automatiquement les éléments SEO essentiels dans `public/` :
+
+- `robots.txt` autorise l'exploration du site et déclare le sitemap;
+- `sitemap.xml` déclare l'URL publique principale;
+- `index.html` contient les balises meta, Open Graph, Twitter Cards et les données structurées de BridgeEvent.
+
+Après chaque mise en production sur `https://bridgeevent.fr/`, ajoute cette adresse dans Google Search Console et Bing Webmaster Tools, puis soumets `https://bridgeevent.fr/sitemap.xml`. Le référencement peut ensuite prendre plusieurs jours et n'est pas garanti par la seule soumission du sitemap.
+
 ## Supabase
 
 1. Crée un projet sur [supabase.com](https://supabase.com) et attends que son état soit **Active**. La base PostgreSQL est hébergée et démarrée automatiquement par Supabase.

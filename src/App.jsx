@@ -243,6 +243,40 @@ export default function App() {
   }, [language]);
 
   useEffect(() => {
+    const publicPage = page === 'home';
+    const pageNames = {
+      home: 'Accueil',
+      history: 'Notre histoire',
+      contact: 'Contact',
+      provider: 'Espace prestataire',
+      providers: 'Prestataires',
+      events: 'Mes événements',
+      messages: 'Messages',
+      profile: 'Profil',
+      'profile-edit': 'Modifier mon profil',
+      settings: 'Paramètres',
+    };
+    const metadata = publicPage
+      ? {
+          title: 'Accueil | BridgeEvent',
+          description: "BridgeEvent vous aide à imaginer, organiser et réussir votre mariage, anniversaire ou événement professionnel avec les bons prestataires.",
+          robots: 'index, follow, max-image-preview:large',
+        }
+      : {
+          title: `${pageNames[page] || 'Page'} | BridgeEvent`,
+          description: 'BridgeEvent, la plateforme pour imaginer et organiser des événements avec les bons prestataires.',
+          robots: 'noindex, nofollow',
+        };
+
+    document.title = metadata.title;
+    document.querySelector('meta[name="description"]')?.setAttribute('content', metadata.description);
+    document.querySelector('meta[name="robots"]')?.setAttribute('content', metadata.robots);
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', 'https://bridgeevent.fr/');
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', metadata.title);
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', metadata.description);
+  }, [page]);
+
+  useEffect(() => {
     if (!showIntro) document.getElementById('app')?.focus();
   }, [showIntro]);
 
