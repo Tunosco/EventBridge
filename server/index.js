@@ -21,9 +21,43 @@ const allowLocalFallback = !supabaseAuthEnabled
 const publicAppUrl = process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
 const googleOAuthRedirectUrl = process.env.SUPABASE_GOOGLE_REDIRECT_URL
   || `${publicAppUrl.replace(/\/+$/, '')}/api/auth/google/callback`;
+const supportRateLimit = new Map();
+const SUPPORT_CATEGORIES = {
+  technique: ['L’application ne fonctionne pas', 'Une fonctionnalité ne marche pas', 'Problème d’affichage', 'Autre problème technique'],
+  compte: ['Connexion impossible', 'Modifier mes informations', 'Supprimer mon compte', 'Autre demande liée au compte'],
+  reservation: ['Annulation ou modification', 'Problème avec un prestataire ou un client', 'Prestation non conforme', 'Autre problème de réservation'],
+  paiement: ['Erreur de paiement', 'Demande de remboursement', 'Problème de facture', 'Autre problème de paiement'],
+  signalement: ['Comportement inapproprié', 'Suspicion d’arnaque', 'Faux profil ou fausses informations', 'Autre signalement'],
+  partenariat: ['Proposer un partenariat', 'Proposer une collaboration', 'Demande presse ou média', 'Autre proposition'],
+  suggestion: ['Proposer une fonctionnalité', 'Améliorer l’expérience', 'Donner mon avis', 'Autre suggestion'],
+  autre: ['Question générale', 'Demande d’informations', 'Autre'],
+};
+const SUPPORT_CATEGORY_LABELS = {
+  technique: 'Problème technique / bug',
+  compte: 'Mon compte et mes informations',
+  reservation: 'Réservation ou prestation',
+  paiement: 'Paiement ou facturation',
+  signalement: 'Signaler un utilisateur ou un comportement',
+  partenariat: 'Partenariat ou collaboration',
+  suggestion: 'Suggestion ou amélioration',
+  autre: 'Autre demande',
+};
+const SUPPORT_STATUS_LABELS = {
+  nouvelle: 'Nouvelle',
+  en_cours: 'En cours',
+  en_attente_reponse: 'En attente de réponse',
+  resolue: 'Résolue',
+  fermee: 'Fermée',
+};
+const SUPPORT_URGENCY_LABELS = {
+  tres_urgent: 'Très urgent',
+  urgent: 'Urgent',
+  peu_urgent: 'Peu urgent',
+  pas_urgent: 'Pas urgent',
+};
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '12mb' }));
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -133,9 +167,37 @@ function authUser(request, response, next) {
         runSafely(db.prepare('DELETE FROM session WHERE token = ?'), token);
         return response.status(403).json({ error: 'Confirmez votre adresse email avec le lien reçu avant de vous connecter.' });
       }
+
       request.userId = userId;
       next();
     }).catch(() => response.status(503).json({ error: 'La confirmation email ne peut pas être vérifiée pour le moment.' }));
+  });
+}
+
+function optionalAuthUser(request, response, next) {
+  const token = request.headers.authorization?.replace('Bearer ', '');
+  if (!token) return next();
+  resolveSession(token).then((userId) => {
+    if (userId) request.userId = userId;
+    next();
+  }).catch(() => next());
+}
+
+async function isAdmin(userId) {
+  const user = await db.prepare('SELECT email, is_admin AS "isAdmin" FROM utilisateur WHERE id = ?').get(userId);
+  if (!user) return false;
+  const configuredAdmins = String(process.env.ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
+  return Boolean(user.isAdmin) || configuredAdmins.includes(String(user.email).toLowerCase());
+}
+
+function adminUser(request, response, next) {
+  if (!request.userId) return response.status(401).json({ error: 'Authentification requise.' });
+  isAdmin(request.userId).then((allowed) => {
+    if (!allowed) return response.status(403).json({ error: 'Accès administrateur requis.' });
+    next();
+  }).catch((error) => {
+    console.error('[support] Vérification administrateur impossible.', error);
+    response.status(503).json({ error: 'Le service est temporairement indisponible.' });
   });
 }
 
@@ -144,7 +206,9 @@ async function getUserProfile(userId) {
   if (providerProfile) {
     await db.prepare("UPDATE utilisateur SET type_utilisateur = 'prestataire' WHERE id = ? AND type_utilisateur <> 'prestataire'").run(userId);
   }
-  return db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS "codePostal", type_utilisateur AS "typeUtilisateur" FROM utilisateur WHERE id = ?').get(userId);
+  const profile = await db.prepare('SELECT id, prenom, nom, email, telephone, code_postal AS "codePostal", type_utilisateur AS "typeUtilisateur", is_admin AS "isAdmin" FROM utilisateur WHERE id = ?').get(userId);
+  if (profile) profile.isAdmin = await isAdmin(userId);
+  return profile;
 }
 
 async function recordUserLogin(userId) {
@@ -158,6 +222,116 @@ async function isClient(userId) {
 
 async function isProvider(userId) {
   return Boolean(await db.prepare('SELECT utilisateur_id FROM prestataire WHERE utilisateur_id = ?').get(userId));
+}
+
+function parseSupportThresholds() {
+  const defaults = { tresUrgent: 90, urgent: 65, peuUrgent: 30 };
+  const raw = String(process.env.SUPPORT_PRIORITY_THRESHOLDS || '');
+  raw.split(',').forEach((item) => {
+    const [key, value] = item.split('=').map((part) => part.trim());
+    if (key in defaults && Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= 100) defaults[key] = Number(value);
+  });
+  return defaults;
+}
+
+function clampPriority(value) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+async function classifySupportTicket({ userId, category, subcategory, message }) {
+  const text = `${subcategory} ${message}`.toLowerCase();
+  const thresholds = parseSupportThresholds();
+  const criticalTerms = ['menace', 'menacé', 'violence', 'danger', 'sécurité', 'agression', 'fraude importante', 'arnaque'];
+  const blockingTerms = ['bloqué', 'bloquante', 'impossible', 'absent', 'double paiement', 'débit deux fois', 'ne fonctionne plus'];
+  const hasCriticalSignal = category === 'signalement' && criticalTerms.some((term) => text.includes(term))
+    || criticalTerms.some((term) => text.includes(term) && ['technique', 'paiement', 'reservation'].includes(category));
+  let score = { technique: 35, compte: 45, reservation: 60, paiement: 70, signalement: 75, partenariat: 15, suggestion: 15, autre: 10 }[category] || 10;
+  if (blockingTerms.some((term) => text.includes(term))) score += 15;
+  if (category === 'paiement' && (text.includes('double') || text.includes('fraude'))) score += 15;
+  if (category === 'reservation' && (text.includes('absent') || text.includes('annulation'))) score += 10;
+  let eventDate = null;
+  if (userId) {
+    const event = await db.prepare(`SELECT MIN(date_evenement) AS "eventDate"
+      FROM evenement WHERE client_id = ? AND date_evenement IS NOT NULL AND date(date_evenement) >= date('now')`).get(userId);
+    eventDate = event?.eventDate || null;
+  }
+  if (eventDate && ['reservation', 'paiement'].includes(category)) {
+    const daysUntilEvent = Math.ceil((new Date(`${eventDate}T00:00:00Z`).getTime() - Date.now()) / 86400000);
+    if (daysUntilEvent <= 1) score += 35;
+    else if (daysUntilEvent <= 3) score += 20;
+    else if (daysUntilEvent <= 7) score += 10;
+  }
+  score = clampPriority(score);
+  const urgency = hasCriticalSignal ? 'tres_urgent'
+    : score >= thresholds.tresUrgent ? 'tres_urgent'
+      : score >= thresholds.urgent ? 'urgent'
+        : score >= thresholds.peuUrgent ? 'peu_urgent' : 'pas_urgent';
+  const needsHumanReview = message.trim().length < 40 || (category === 'signalement' && !message.trim().includes(' '));
+  const reasons = [];
+  if (hasCriticalSignal) reasons.push('Un signal de sécurité ou de menace a été détecté : une vérification humaine prioritaire est requise.');
+  if (eventDate && ['reservation', 'paiement'].includes(category)) reasons.push(`Un événement à venir a été trouvé dans le compte (date : ${eventDate}).`);
+  if (blockingTerms.some((term) => text.includes(term))) reasons.push('Le message contient un indice de blocage ou de conséquence importante.');
+  if (!reasons.length) reasons.push('Le classement repose sur la catégorie, la sous-catégorie et les termes du message.');
+  const actions = hasCriticalSignal
+    ? ['Vérifier rapidement les faits rapportés sans traiter l’accusation comme établie.', 'Contacter l’équipe habilitée et conserver les éléments utiles.']
+    : category === 'paiement'
+      ? ['Vérifier la transaction et l’historique de facturation.', 'Demander les éléments manquants si nécessaire.']
+      : category === 'reservation'
+        ? ['Vérifier la réservation et la date de l’événement.', 'Contacter les parties concernées si nécessaire.']
+        : ['Lire le message intégral et demander des précisions si nécessaire.'];
+  return {
+    score,
+    urgency,
+    reason: reasons.join(' '),
+    actions,
+    needsHumanReview,
+  };
+}
+
+function parseAttachments(attachments) {
+  if (attachments === undefined) return [];
+  if (!Array.isArray(attachments) || attachments.length > 5) throw new Error('Les pièces jointes sont invalides.');
+  const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf']);
+  let totalSize = 0;
+  return attachments.map((attachment) => {
+    if (!attachment || typeof attachment.name !== 'string' || typeof attachment.type !== 'string'
+      || !allowedTypes.has(attachment.type) || !Number.isInteger(attachment.size)
+      || attachment.size < 1 || attachment.size > 5 * 1024 * 1024 || typeof attachment.data !== 'string'
+      || !/^[A-Za-z0-9+/]+={0,2}$/.test(attachment.data)) throw new Error('Une pièce jointe est invalide ou non autorisée.');
+    totalSize += attachment.size;
+    if (totalSize > 10 * 1024 * 1024) throw new Error('La taille totale des pièces jointes dépasse 10 Mo.');
+    return { name: attachment.name.replace(/[^\w.\- ]/g, '_').slice(0, 120), type: attachment.type, size: attachment.size, data: attachment.data };
+  });
+}
+
+function serializeJson(value) {
+  return JSON.stringify(value);
+}
+
+async function nextSupportTicketNumber() {
+  const year = new Date().getUTCFullYear();
+  const row = await db.prepare("SELECT COUNT(*) AS count FROM support_ticket WHERE ticket_number LIKE ?").get(`BE-${year}-%`);
+  return `BE-${year}-${String(Number(row?.count || 0) + 1).padStart(4, '0')}`;
+}
+
+function mapSupportTicket(ticket) {
+  return {
+    ...ticket,
+    ticketNumber: ticket.ticketNumber || ticket.ticket_number,
+    requesterName: ticket.requesterName || ticket.requester_name,
+    requesterEmail: ticket.requesterEmail || ticket.requester_email,
+    priorityScore: ticket.priorityScore ?? ticket.priority_score,
+    priorityReason: ticket.priorityReason || ticket.priority_reason,
+    assigneeId: ticket.assigneeId ?? ticket.assignee_id,
+    createdAt: ticket.createdAt || ticket.created_at,
+    updatedAt: ticket.updatedAt || ticket.updated_at,
+    categoryLabel: SUPPORT_CATEGORY_LABELS[ticket.category] || ticket.category,
+    urgencyLabel: SUPPORT_URGENCY_LABELS[ticket.urgency] || ticket.urgency,
+    statusLabel: SUPPORT_STATUS_LABELS[ticket.status] || ticket.status,
+    attachments: typeof ticket.attachments_json === 'string' ? JSON.parse(ticket.attachments_json || '[]') : (ticket.attachments_json || []),
+    recommendedActions: typeof ticket.recommended_actions_json === 'string' ? JSON.parse(ticket.recommended_actions_json || '[]') : (ticket.recommended_actions_json || []),
+    needsHumanReview: Boolean(ticket.needs_human_review),
+  };
 }
 
 function isValidEventDate(value) {
@@ -603,6 +777,152 @@ app.get('/api/me', authUser, async (request, response) => {
   const user = await getUserProfile(request.userId);
   if (!user) return response.status(401).json({ error: 'Session invalide.' });
   response.json({ user });
+});
+
+app.get('/api/support/options', (_request, response) => {
+  response.json({ categories: Object.entries(SUPPORT_CATEGORY_LABELS).map(([value, label]) => ({
+    value, label, subcategories: SUPPORT_CATEGORIES[value],
+  })), statuses: SUPPORT_STATUS_LABELS, urgencies: SUPPORT_URGENCY_LABELS });
+});
+
+app.post('/api/support-tickets', optionalAuthUser, async (request, response) => {
+  const { name, email, category, subcategory, message, bookingReference } = request.body || {};
+  const requester = request.userId
+    ? await db.prepare('SELECT prenom, nom, email FROM utilisateur WHERE id = ?').get(request.userId)
+    : null;
+  const requesterName = String(name ?? (requester ? `${requester.prenom} ${requester.nom}` : '')).trim();
+  const requesterEmail = String(email ?? requester?.email ?? '').trim().toLowerCase();
+  if (!requesterName || requesterName.length > 120 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(requesterEmail)) {
+    return response.status(400).json({ error: 'Un nom complet et une adresse email valide sont requis.' });
+  }
+  if (!Object.hasOwn(SUPPORT_CATEGORIES, category) || !SUPPORT_CATEGORIES[category].includes(subcategory)) {
+    return response.status(400).json({ error: 'Le motif ou la précision sélectionnée est invalide.' });
+  }
+  const cleanMessage = typeof message === 'string' ? message.trim() : '';
+  if (cleanMessage.length < 10 || cleanMessage.length > 5000) {
+    return response.status(400).json({ error: 'La description doit contenir entre 10 et 5000 caractères.' });
+  }
+  if (['reservation', 'paiement'].includes(category) && bookingReference !== undefined
+    && (typeof bookingReference !== 'string' || bookingReference.trim().length > 120)) {
+    return response.status(400).json({ error: 'La référence de réservation est invalide.' });
+  }
+  const rateKey = `${request.userId || request.ip}:${new Date().toISOString().slice(0, 13)}`;
+  const attempts = supportRateLimit.get(rateKey) || 0;
+  if (attempts >= 5) return response.status(429).json({ error: 'Trop de demandes rapprochées. Réessayez plus tard.' });
+  supportRateLimit.set(rateKey, attempts + 1);
+  let attachments;
+  try {
+    attachments = parseAttachments(request.body.attachments);
+  } catch (error) {
+    return response.status(400).json({ error: error.message });
+  }
+  const analysis = await classifySupportTicket({ userId: request.userId, category, subcategory, message: cleanMessage });
+  const ticketNumber = await nextSupportTicketNumber();
+  const ticket = await db.transaction(async () => {
+    const created = await db.prepare(`INSERT INTO support_ticket
+      (ticket_number, requester_id, requester_name, requester_email, category, subcategory, message,
+       booking_reference, attachments_json, priority_score, urgency, priority_reason,
+       recommended_actions_json, needs_human_review)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
+      ticketNumber, request.userId || null, requesterName, requesterEmail, category, subcategory, cleanMessage,
+      ['reservation', 'paiement'].includes(category) ? bookingReference?.trim() || null : null,
+      serializeJson(attachments), analysis.score, analysis.urgency, analysis.reason,
+      serializeJson(analysis.actions), analysis.needsHumanReview ? 1 : 0,
+    );
+    await db.prepare(`INSERT INTO support_ticket_history
+      (ticket_id, actor_user_id, action_type, new_value_json, note) VALUES (?, ?, ?, ?, ?)`).run(
+      created.id, request.userId || null, 'created', serializeJson({ urgency: analysis.urgency, score: analysis.score }), 'Analyse automatique initiale.',
+    );
+    if (analysis.urgency === 'tres_urgent') {
+      await db.prepare(`INSERT INTO support_notification (ticket_id, notification_type) VALUES (?, ?)`)
+        .run(created.id, 'priority_admin');
+    }
+    return created;
+  });
+  response.status(201).json({ ticket: { id: ticket.id, ticketNumber, urgency: analysis.urgency, priorityScore: analysis.score } });
+});
+
+app.get('/api/me/support-tickets', authUser, async (request, response) => {
+  const tickets = await db.prepare(`SELECT id, ticket_number AS "ticketNumber", requester_name AS "requesterName",
+    category, subcategory, priority_score AS "priorityScore", urgency, status, created_at AS "createdAt", updated_at AS "updatedAt"
+    FROM support_ticket WHERE requester_id = ? ORDER BY created_at DESC LIMIT 50`).all(request.userId);
+  response.json({ tickets: tickets.map(mapSupportTicket) });
+});
+
+app.get('/api/admin/support-tickets', authUser, adminUser, async (request, response) => {
+  const filters = request.query || {};
+  const conditions = [];
+  const parameters = [];
+  if (SUPPORT_CATEGORIES[filters.category]) { conditions.push('category = ?'); parameters.push(filters.category); }
+  if (SUPPORT_STATUS_LABELS[filters.status]) { conditions.push('status = ?'); parameters.push(filters.status); }
+  if (SUPPORT_URGENCY_LABELS[filters.urgency]) { conditions.push('urgency = ?'); parameters.push(filters.urgency); }
+  if (filters.assignee === 'unassigned') conditions.push('assignee_id IS NULL');
+  else if (/^\d+$/.test(String(filters.assignee || ''))) { conditions.push('assignee_id = ?'); parameters.push(Number(filters.assignee)); }
+  if (typeof filters.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(filters.date)) { conditions.push('date(created_at) = date(?)'); parameters.push(filters.date); }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const tickets = await db.prepare(`SELECT t.id, t.ticket_number AS "ticketNumber", t.created_at AS "createdAt",
+    t.requester_name AS "requesterName", t.requester_email AS "requesterEmail", t.category, t.subcategory,
+    t.message, t.priority_score AS "priorityScore", t.urgency, t.status, t.assignee_id AS "assigneeId",
+    TRIM(COALESCE(a.prenom, '') || ' ' || COALESCE(a.nom, '')) AS "assigneeName", t.needs_human_review AS "needsHumanReview"
+    FROM support_ticket t LEFT JOIN utilisateur a ON a.id = t.assignee_id ${where}
+    ORDER BY t.priority_score DESC, t.created_at ASC LIMIT 200`).all(...parameters);
+  response.json({ tickets: tickets.map(mapSupportTicket) });
+});
+
+app.get('/api/admin/support-team', authUser, adminUser, async (_request, response) => {
+  const configuredAdmins = new Set(String(process.env.ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
+  const users = await db.prepare('SELECT id, prenom, nom, email, is_admin AS "isAdmin" FROM utilisateur ORDER BY nom, prenom').all();
+  response.json({ team: users.filter((user) => Boolean(user.isAdmin) || configuredAdmins.has(String(user.email).toLowerCase())) });
+});
+
+app.get('/api/admin/support-tickets/:ticketId', authUser, adminUser, async (request, response) => {
+  const ticket = await db.prepare(`SELECT t.*, TRIM(COALESCE(a.prenom, '') || ' ' || COALESCE(a.nom, '')) AS "assigneeName"
+    FROM support_ticket t LEFT JOIN utilisateur a ON a.id = t.assignee_id WHERE t.id = ?`).get(Number(request.params.ticketId));
+  if (!ticket) return response.status(404).json({ error: 'Ticket introuvable.' });
+  const history = await db.prepare(`SELECT h.*, TRIM(COALESCE(u.prenom, '') || ' ' || COALESCE(u.nom, '')) AS "actorName"
+    FROM support_ticket_history h LEFT JOIN utilisateur u ON u.id = h.actor_user_id
+    WHERE h.ticket_id = ? ORDER BY h.created_at ASC`).all(ticket.id);
+  response.json({ ticket: mapSupportTicket(ticket), history });
+});
+
+app.patch('/api/admin/support-tickets/:ticketId', authUser, adminUser, async (request, response) => {
+  const ticketId = Number(request.params.ticketId);
+  const current = await db.prepare('SELECT * FROM support_ticket WHERE id = ?').get(ticketId);
+  if (!current) return response.status(404).json({ error: 'Ticket introuvable.' });
+  const { status, urgency, priorityScore, assigneeId, note, reply } = request.body || {};
+  if (status !== undefined && !SUPPORT_STATUS_LABELS[status]) return response.status(400).json({ error: 'Statut invalide.' });
+  if (urgency !== undefined && !SUPPORT_URGENCY_LABELS[urgency]) return response.status(400).json({ error: 'Niveau d’urgence invalide.' });
+  if (priorityScore !== undefined && (!Number.isInteger(priorityScore) || priorityScore < 0 || priorityScore > 100)) {
+    return response.status(400).json({ error: 'Le score doit être compris entre 0 et 100.' });
+  }
+  if (assigneeId !== undefined && assigneeId !== null && (!Number.isInteger(assigneeId) || !await db.prepare('SELECT id FROM utilisateur WHERE id = ?').get(assigneeId))) {
+    return response.status(400).json({ error: 'Responsable invalide.' });
+  }
+  if (reply !== undefined && (typeof reply !== 'string' || reply.trim().length < 1 || reply.trim().length > 5000)) {
+    return response.status(400).json({ error: 'La réponse est invalide.' });
+  }
+  const updates = {
+    status: status ?? current.status,
+    urgency: urgency ?? current.urgency,
+    priority_score: priorityScore ?? current.priority_score,
+    assignee_id: assigneeId === undefined ? current.assignee_id : assigneeId,
+    updated_at: new Date().toISOString(),
+  };
+  await db.transaction(async () => {
+    await db.prepare(`UPDATE support_ticket SET status = ?, urgency = ?, priority_score = ?, assignee_id = ?, updated_at = ? WHERE id = ?`)
+      .run(updates.status, updates.urgency, updates.priority_score, updates.assignee_id, updates.updated_at, ticketId);
+    const changes = {};
+    for (const [key, value] of Object.entries(updates)) if (value !== current[key]) changes[key] = { from: current[key], to: value };
+    if (reply?.trim()) changes.reply = reply.trim();
+    if (Object.keys(changes).length || note?.trim()) {
+      await db.prepare(`INSERT INTO support_ticket_history
+        (ticket_id, actor_user_id, action_type, previous_value_json, new_value_json, note)
+        VALUES (?, ?, ?, ?, ?, ?)`).run(ticketId, request.userId, reply?.trim() ? 'reply' : 'updated',
+        serializeJson(current), serializeJson(changes), note?.trim() || reply?.trim() || null);
+    }
+  });
+  const updated = await db.prepare('SELECT * FROM support_ticket WHERE id = ?').get(ticketId);
+  response.json({ ticket: mapSupportTicket(updated) });
 });
 
 app.get('/api/me/provider-profile', authUser, async (request, response) => {

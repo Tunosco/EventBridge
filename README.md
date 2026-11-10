@@ -77,3 +77,18 @@ Le schéma SQLite local reste défini dans `server/schema.sql`. Le schéma Postg
 Le prénom et l'email sont obligatoires; l'email et le téléphone, lorsqu'il est renseigné, sont uniques. Les migrations conservent les règles RLS et les suppressions en cascade déjà utilisées par l'application.
 
 L'inscription et la connexion de l'interface utilisent l'API. Les mots de passe sont hachés avec `scrypt` et ne sont jamais stockés en clair.
+
+### Centre d'assistance
+
+La page « Contact » permet d'envoyer un ticket persistant avec sous-catégorie,
+référence de réservation et pièces jointes contrôlées côté serveur. Les règles de
+priorité sont exécutées par l'API ; elles ne simulent pas de service IA et
+signalent les informations insuffisantes pour une vérification humaine.
+
+Après application de la migration `support_center`, autorisez les responsables
+avec `is_admin = TRUE` dans `utilisateur` ou définissez `ADMIN_EMAILS` côté
+serveur (liste d'adresses séparées par des virgules). Les seuils peuvent être
+ajustés sans modifier le code avec
+`SUPPORT_PRIORITY_THRESHOLDS=tresUrgent=90,urgent=65,peuUrgent=30`.
+La clé Supabase secrète et `ADMIN_EMAILS` restent exclusivement dans
+l'environnement du serveur.

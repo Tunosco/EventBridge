@@ -227,3 +227,41 @@ export function updateMyPublicKey(publicKey) {
 export function getMyPublicKey() {
   return request('/me/public-key', { headers: authHeaders() });
 }
+
+export function getSupportOptions() {
+  return request('/support/options');
+}
+
+export function createSupportTicket(payload) {
+  const token = getStoredToken();
+  return request('/support-tickets', {
+    method: 'POST',
+    headers: token ? authHeaders() : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getMySupportTickets() {
+  return request('/me/support-tickets', { headers: authHeaders() });
+}
+
+export function getAdminSupportTickets(filters = {}) {
+  const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
+  return request(`/admin/support-tickets?${query.toString()}`, { headers: authHeaders() });
+}
+
+export function getAdminSupportTicket(ticketId) {
+  return request(`/admin/support-tickets/${ticketId}`, { headers: authHeaders() });
+}
+
+export function getAdminSupportTeam() {
+  return request('/admin/support-team', { headers: authHeaders() });
+}
+
+export function updateAdminSupportTicket(ticketId, payload) {
+  return request(`/admin/support-tickets/${ticketId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+}

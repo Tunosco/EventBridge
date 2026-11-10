@@ -6,6 +6,7 @@ import HomePage from './components/HomePage';
 import IntroOverlay from './components/IntroOverlay';
 import ContactModal from './components/ContactModal';
 import ContactPage from './components/ContactPage';
+import SupportAdmin from './components/SupportAdmin';
 import StoryPage from './components/StoryPage';
 const Profile = lazy(() => import('./components/Profile'));
 const ProfileEdit = lazy(() => import('./components/ProfileEdit'));
@@ -35,6 +36,7 @@ import './styles/prototype-polish.css';
 import './styles/visuel-reference.css';
 import './styles/visuel-final.css';
 import './styles/cookie-consent.css';
+import './styles/support.css';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true);
@@ -284,6 +286,7 @@ export default function App() {
       profile: 'Profil',
       'profile-edit': 'Modifier mon profil',
       settings: 'Paramètres',
+      'support-admin': 'Assistance',
     };
     const metadata = publicPage
       ? {
@@ -330,7 +333,9 @@ export default function App() {
         {page === 'history' ? (
           <StoryPage language={language} onFindProviders={() => handleProviderSearch('')} />
         ) : page === 'contact' ? (
-          <ContactPage language={language} />
+          <ContactPage language={language} user={user} />
+        ) : page === 'support-admin' && user?.isAdmin ? (
+          <SupportAdmin user={user} />
         ) : page === 'provider' ? (
           <ProviderSpace user={user} section={providerSection} onNavigateSection={handleAccountSection} isAuthenticated={Boolean(user)} onAuth={(type) => setContactType(type)} onBack={() => navigateToAccountHome()} onFindProviders={() => handleProviderSearch('')} />
         ) : page === 'providers' ? (

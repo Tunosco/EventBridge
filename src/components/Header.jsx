@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 const labels = {
-  fr: { home: 'Accueil', create: 'Créer un événement', providers: 'Trouver un prestataire', explore: 'Explorer les prestataires', story: 'Notre histoire', contact: 'Contact', login: 'Se connecter', space: 'Mon espace', client: 'Espace client', provider: 'Espace prestataire', profile: 'Profil', settings: 'Paramètres', logout: 'Se déconnecter', clientEvents: 'Mes événements', messages: 'Messagerie', availability: 'Disponibilités', tasks: 'Mes tâches', favorites: 'Mes favoris', openProfile: 'Ouvrir le menu du profil', openMenu: 'Ouvrir le menu', closeMenu: 'Fermer le menu', language: 'Langue', providersList: 'Prestataires' },
+  fr: { home: 'Accueil', create: 'Créer un événement', providers: 'Trouver un prestataire', explore: 'Explorer les prestataires', story: 'Notre histoire', contact: 'Contact', login: 'Se connecter', space: 'Mon espace', provider: 'Espace prestataire', assistance: 'Assistance', client: 'Espace client', profile: 'Profil', settings: 'Paramètres', logout: 'Se déconnecter', clientEvents: 'Mes événements', messages: 'Messagerie', availability: 'Disponibilités', tasks: 'Mes tâches', favorites: 'Mes favoris', openProfile: 'Ouvrir le menu du profil', openMenu: 'Ouvrir le menu', closeMenu: 'Fermer le menu', language: 'Langue', providersList: 'Prestataires' },
   en: { home: 'Home', create: 'Create an event', providers: 'Find a provider', explore: 'Explore providers', story: 'Our story', contact: 'Contact', login: 'Sign in', space: 'My space', client: 'Client space', provider: 'Provider space', profile: 'Profile', settings: 'Settings', logout: 'Sign out', clientEvents: 'My events', messages: 'Messages', availability: 'Availability', tasks: 'My tasks', favorites: 'My favourites', openProfile: 'Open profile menu', openMenu: 'Open menu', closeMenu: 'Close menu', language: 'Language', providersList: 'Providers' },
   it: { home: 'Home', create: 'Crea un evento', providers: 'Trova un fornitore', explore: 'Esplora i fornitori', story: 'La nostra storia', contact: 'Contatti', login: 'Accedi', space: 'Il mio spazio', client: 'Spazio clienti', provider: 'Spazio fornitori', profile: 'Profilo', settings: 'Impostazioni', logout: 'Esci', clientEvents: 'I miei eventi', messages: 'Messaggi', availability: 'Disponibilità', tasks: 'Le mie attività', favorites: 'Preferiti', openProfile: 'Apri il menu del profilo', openMenu: 'Apri il menu', closeMenu: 'Chiudi il menu', language: 'Lingua', providersList: 'Fornitori' },
 };
@@ -73,6 +73,7 @@ export default function Header({
             </button>
           )}
           {!isProvider && <button className="nav-link" onClick={navigate(() => onCreateEvent?.())}>{text.create}</button>}
+          {user?.isAdmin && <button className={`nav-link${activePage === 'support-admin' ? ' is-active' : ''}`} onClick={navigate(() => onNavigate?.('support-admin'))}>{text.assistance}</button>}
           <button className="nav-link" onClick={navigate(() => onProviderSearch?.(''))}>
             {isProvider ? text.explore : text.providers}
           </button>

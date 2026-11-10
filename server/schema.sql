@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS utilisateur (
   supabase_auth_id TEXT,
   derniere_connexion TEXT,
   type_utilisateur TEXT NOT NULL DEFAULT 'client' CHECK (type_utilisateur IN ('client', 'prestataire')),
+  is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),
   date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -134,6 +135,60 @@ CREATE TABLE IF NOT EXISTS message (
   lu_le TEXT,
   FOREIGN KEY (conversation_id) REFERENCES conversation(id) ON DELETE CASCADE,
   FOREIGN KEY (expediteur_id) REFERENCES utilisateur(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS support_ticket (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_number TEXT NOT NULL UNIQUE,
+  requester_id INTEGER,
+  requester_name TEXT NOT NULL,
+  requester_email TEXT NOT NULL COLLATE NOCASE,
+  category TEXT NOT NULL,
+  subcategory TEXT NOT NULL,
+  message TEXT NOT NULL CHECK (LENGTH(TRIM(message)) BETWEEN 10 AND 5000),
+  booking_reference TEXT,
+  attachments_json TEXT NOT NULL DEFAULT '[]',
+  priority_score INTEGER NOT NULL CHECK (priority_score BETWEEN 0 AND 100),
+  urgency TEXT NOT NULL CHECK (urgency IN ('tres_urgent', 'urgent', 'peu_urgent', 'pas_urgent')),
+  priority_reason TEXT NOT NULL,
+  recommended_actions_json TEXT NOT NULL DEFAULT '[]',
+  needs_human_review INTEGER NOT NULL DEFAULT 0 CHECK (needs_human_review IN (0, 1)),
+  status TEXT NOT NULL DEFAULT 'nouvelle' CHECK (status IN ('nouvelle', 'en_cours', 'en_attente_reponse', 'resolue', 'fermee')),
+  assignee_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (requester_id) REFERENCES utilisateur(id) ON DELETE SET NULL,
+  FOREIGN KEY (assignee_id) REFERENCES utilisateur(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS support_ticket_priority_idx
+  ON support_ticket (priority_score DESC, created_at ASC);
+CREATE INDEX IF NOT EXISTS support_ticket_requester_idx
+  ON support_ticket (requester_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS support_ticket_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id INTEGER NOT NULL,
+  actor_user_id INTEGER,
+  action_type TEXT NOT NULL,
+  previous_value_json TEXT,
+  new_value_json TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (ticket_id) REFERENCES support_ticket(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_user_id) REFERENCES utilisateur(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS support_ticket_history_ticket_idx
+  ON support_ticket_history (ticket_id, created_at ASC);
+
+CREATE TABLE IF NOT EXISTS support_notification (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id INTEGER NOT NULL,
+  notification_type TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  read_at TEXT,
+  FOREIGN KEY (ticket_id) REFERENCES support_ticket(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS categorie_prestation (

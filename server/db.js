@@ -133,6 +133,9 @@ export async function initializeDatabase() {
 	if (!userColumns.includes('public_key')) {
 		sqlite.exec('ALTER TABLE utilisateur ADD COLUMN public_key TEXT');
 	}
+	if (!userColumns.includes('is_admin')) {
+		sqlite.exec('ALTER TABLE utilisateur ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1))');
+	}
 	sqlite.exec(`UPDATE utilisateur SET type_utilisateur = 'prestataire'
 		WHERE type_utilisateur <> 'prestataire'
 		AND EXISTS (SELECT 1 FROM prestataire WHERE prestataire.utilisateur_id = utilisateur.id)`);
