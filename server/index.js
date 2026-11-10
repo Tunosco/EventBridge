@@ -184,7 +184,15 @@ function optionalAuthUser(request, response, next) {
 }
 
 async function isAdmin(userId) {
-  const user = await db.prepare('SELECT email, is_admin AS "isAdmin" FROM utilisateur WHERE id = ?').get(userId);
+  let user;
+  try {
+    user = await db.prepare('SELECT email, is_admin AS "isAdmin" FROM utilisateur WHERE id = ?').get(userId);
+  } catch (error) {
+    const missingAdminColumn = error?.code === '42703'
+      || /no such column|column .*is_admin does not exist/i.test(error?.message || '');
+    if (!missingAdminColumn) throw error;
+    user = await db.prepare('SELECT email FROM utilisateur WHERE id = ?').get(userId);
+  }
   if (!user) return false;
   const configuredAdmins = String(process.env.ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
   return Boolean(user.isAdmin) || configuredAdmins.includes(String(user.email).toLowerCase());
