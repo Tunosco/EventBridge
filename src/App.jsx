@@ -388,7 +388,7 @@ export default function App() {
           />
         )}
       </Suspense>
-      <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}><img src="/images/bridgeevent-logo.png" alt="BridgeEvent" /></a><small>{translate('Le lien entre vos idées et les bonnes personnes.', language)}</small>        {pendingNavigation && (
+      <footer><div><a className="brand" href="#accueil" onClick={() => setPage('home')}>BRIDGE<small>EVENT</small></a><small>{translate('Le lien entre vos idées et les bonnes personnes.', language)}</small>        {pendingNavigation && (
           <div className="settings-delete-dialog-backdrop" role="presentation">
             <section className="settings-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-profile-title">
               <h2 id="unsaved-profile-title">Etes-vous sûr ?</h2>

@@ -87,11 +87,6 @@ export default function ContactPage({ language = 'fr', user }) {
           <button className="button button-primary support-submit" type="submit" disabled={submitting}>{submitting ? 'Enregistrement…' : 'Envoyer ma demande'}</button>
           {status && <p className={`support-status is-${status.type}`} role={status.type === 'error' ? 'alert' : 'status'}>{status.message}</p>}
         </form>
-        <aside className="support-aside">
-          <div><span className="support-aside-number">01</span><h3>Un accueil humain</h3><p>Votre demande est enregistrée et orientée automatiquement, sans que vous ayez à choisir un niveau d’urgence.</p></div>
-          <div><span className="support-aside-number">02</span><h3>Un suivi clair</h3><p>Les demandes envoyées depuis votre compte restent visibles dans votre espace.</p></div>
-          {!user && <p className="support-aside-note">Connectez-vous pour retrouver l’historique de vos demandes.</p>}
-        </aside>
       </div>
       {user && tickets.length > 0 && <section className="support-history"><span className="eyebrow">Mon suivi</span><h2>Mes demandes récentes</h2><div className="support-history-list">{tickets.map((ticket) => <article key={ticket.id}><strong>{ticket.ticketNumber}</strong><span>{ticket.categoryLabel}</span><span>{ticket.statusLabel}</span><time dateTime={ticket.createdAt}>{new Date(ticket.createdAt).toLocaleDateString('fr-FR')}</time></article>)}</div></section>}
     </main>
