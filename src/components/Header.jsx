@@ -53,7 +53,7 @@ export default function Header({
     <>
       <header className="eb-reference-header">
         <button className="brand" type="button" aria-label="BridgeEvent" onClick={navigate(() => onNavigate?.('home'))}>
-          BRIDGE<small>EVENT</small>
+          <img src="/images/bridgeevent-logo.png" alt="" />
         </button>
         <button
           className="menu-button mobile-menu-toggle"

@@ -230,6 +230,20 @@ footer .brand small {
   letter-spacing: 3px;
 }
 
+header .brand img,
+footer .brand img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+footer .brand img {
+  width: 76px;
+  height: 76px;
+}
+
 footer .brand small {
   font-family: 'Jost', sans-serif;
   font-size: 10px;
@@ -354,6 +368,13 @@ body.homeheader .eb-reference-header {
   margin-top: 7px;
   font: 400 10px 'Jost', sans-serif;
   letter-spacing: 7px;
+}
+
+.eb-reference-header .brand img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .eb-reference-header nav {

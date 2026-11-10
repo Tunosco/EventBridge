@@ -18,8 +18,9 @@ const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
 const requireEmailConfirmation = String(process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION || 'true').toLowerCase() !== 'false';
 const allowLocalFallback = !supabaseAuthEnabled
   || (process.env.NODE_ENV !== 'production' && String(process.env.AUTH_ALLOW_LOCAL_FALLBACK || '').toLowerCase() === 'true');
+const publicAppUrl = process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
 const googleOAuthRedirectUrl = process.env.SUPABASE_GOOGLE_REDIRECT_URL
-  || `${process.env.PUBLIC_APP_URL || 'http://localhost:5173'}/api/auth/google/callback`;
+  || `${publicAppUrl.replace(/\/+$/, '')}/api/auth/google/callback`;
 
 app.use(cors());
 app.use(express.json());

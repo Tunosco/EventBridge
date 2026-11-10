@@ -115,7 +115,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .homeheader header .nav-panel button:hover{color:#640017!important;background:#F4E0E3!important}
 .homeheader #account{background:#640017;color:white;border:1px solid rgba(255,255,255,.18)}
 .homeheader #account:hover{background:#790b29;color:white}
-.story-intro .story-logo{display:block;width:clamp(118px,12vw,165px);height:clamp(118px,12vw,165px);object-fit:contain;margin:2px auto 28px;filter:none}
+.story-intro .story-logo{display:block;width:clamp(118px,12vw,165px);height:clamp(118px,12vw,165px);object-fit:cover;border-radius:50%;margin:2px auto 28px;filter:none}
 .story-intro{padding-top:10px}
 .occasion-mosaic img {object-fit:cover}
 @media (max-width:750px) {
@@ -682,4 +682,3 @@ body.eb-workspace-mode nav#eb-main-nav .eb-nav-primary{background:#640017!import
 #eb-main-nav .eb-current-role {font-weight:700!important;color:#640017!important;border:1px solid #e4d6d9;border-radius:24px;padding:10px 14px;white-space:nowrap}
 body.homeheader #eb-main-nav .eb-current-role {background:#fff;color:#640017!important}
 @media(max-width:760px){#eb-main-nav .eb-current-role{width:100%;text-align:left}}
-
