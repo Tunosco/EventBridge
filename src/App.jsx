@@ -14,7 +14,7 @@ const MyEvents = lazy(() => import('./components/MyEvents'));
 const ProviderDirectory = lazy(() => import('./components/ProviderDirectory'));
 const ProviderSpace = lazy(() => import('./components/ProviderSpace'));
 const Messaging = lazy(() => import('./components/Messaging'));
-import { completeEmailConfirmation, getCurrentUser, getMyEvents } from './lib/api';
+import { completeEmailConfirmation, completeGoogleAuth, getCurrentUser, getMyEvents } from './lib/api';
 import ClientEmptyState from './components/ClientEmptyState';
 import { LanguageProvider, translate } from './lib/i18n';
 import CookieConsent, { STORAGE_KEY as COOKIE_PREFERENCES_KEY } from './components/CookieConsent';
@@ -216,6 +216,24 @@ export default function App() {
   useEffect(() => {
     const confirmationParams = new URLSearchParams(window.location.hash.slice(1));
     const queryParams = new URLSearchParams(window.location.search);
+    const googleAuth = queryParams.get('google_auth');
+    const googleError = queryParams.get('google_auth_error');
+    if (googleAuth || googleError) {
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+      setShowIntro(false);
+      if (googleError) {
+        setAuthNotice({ message: googleError, type: 'error' });
+      } else {
+        completeGoogleAuth()
+          .then(({ token, user: googleUser }) => {
+            localStorage.setItem('bridgeevent_token', token);
+            setUser(googleUser);
+            navigateAfterAuthentication(googleUser);
+            setAuthNotice({ message: 'Connexion Google réussie.', type: 'success' });
+          })
+          .catch((googleAuthError) => setAuthNotice({ message: googleAuthError.message, type: 'error' }));
+      }
+    }
     const accessToken = confirmationParams.get('access_token');
     const authError = confirmationParams.get('error') || queryParams.get('error');
     if (confirmationHandled.current || (!accessToken && !authError)) return;

@@ -37,6 +37,17 @@ export function loginAccount(payload) {
   return request('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+export function startGoogleAuth() {
+  window.location.assign(`${API_URL}/auth/google/start`);
+}
+
+export function completeGoogleAuth() {
+  return request('/auth/google/complete', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
 export function completeEmailConfirmation(accessToken) {
   return request('/auth/confirm', {
     method: 'POST',

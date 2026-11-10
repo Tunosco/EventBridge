@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { loginAccount, registerAccount } from '../lib/api';
+import { loginAccount, registerAccount, startGoogleAuth } from '../lib/api';
 import { useTranslation } from '../lib/i18n';
 import '../styles/auth-form.css';
 import '../styles/signup-name-fields.css';
@@ -166,6 +166,16 @@ export default function ContactModal({ type, user, onAuthenticated, onLoggedOut,
               : (isProviderSignup ? 'Créer mon compte prestataire' : isSignup ? 'Créer mon compte' : mode === 'connexion' ? 'Se connecter' : 'Envoyer ma demande'))}
           </button>
         </form>}
+        {isAuth && !sent && (
+          <div className="google-auth">
+            <div className="google-auth-divider"><span>ou</span></div>
+            <button type="button" className="google-auth-button" onClick={startGoogleAuth}>
+              <span className="google-mark" aria-hidden="true">G</span>
+              {translateText(isSignup ? 'S’inscrire avec Google' : 'Continuer avec Google')}
+            </button>
+            <small className="google-auth-note">Google nous transmet votre nom et votre adresse e-mail pour créer ou retrouver votre compte. <a href="/politique-confidentialite.html">Voir la politique de confidentialité</a>.</small>
+          </div>
+        )}
         {isAuth && (!sent || verificationPending) && <>
           <button className="modal-switch" onClick={switchMode}>{translateText(sent ? 'Retour à la connexion' : isSignup ? 'J’ai déjà un compte' : 'Créer un compte')}</button>
           {isProviderSignup && !sent && <p className="provider-login-hint">{translateText('Vous pouvez vous connecter en tant que prestataire grâce au bouton « Se connecter » en haut de page.')}</p>}

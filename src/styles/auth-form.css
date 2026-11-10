@@ -23,6 +23,67 @@
   outline-offset: 2px;
 }
 
+.google-auth {
+  margin-top: 18px;
+}
+
+.google-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.google-auth-divider::before,
+.google-auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.google-auth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 16px;
+  background: var(--white);
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.google-auth-button:hover {
+  border-color: var(--coral);
+}
+
+.google-mark {
+  color: #4285f4;
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.google-auth-note {
+  display: block;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.google-auth-note a {
+  color: var(--coral-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .provider-signup-card {
   width: min(720px, 100%);
   max-height: calc(100vh - 44px);

@@ -10,6 +10,7 @@ import { db, initializeDatabase, isPostgres } from './db.js';
 const app = express();
 const port = Number(process.env.PORT || 3001);
 const sessionCache = new Map();
+const googleOAuthRequests = new Map();
 const supabaseAuthEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY);
 const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
 // La confirmation est activée par défaut pour les comptes Supabase. Elle ne
@@ -17,6 +18,8 @@ const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
 const requireEmailConfirmation = String(process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION || 'true').toLowerCase() !== 'false';
 const allowLocalFallback = !supabaseAuthEnabled
   || (process.env.NODE_ENV !== 'production' && String(process.env.AUTH_ALLOW_LOCAL_FALLBACK || '').toLowerCase() === 'true');
+const googleOAuthRedirectUrl = process.env.SUPABASE_GOOGLE_REDIRECT_URL
+  || `${process.env.PUBLIC_APP_URL || 'http://localhost:5173'}/api/auth/google/callback`;
 
 app.use(cors());
 app.use(express.json());
@@ -31,6 +34,34 @@ function verifyPassword(password, storedHash) {
   const [salt, hash] = storedHash.split(':');
   const candidate = crypto.scryptSync(password, salt, 64).toString('hex');
   return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(hash, 'hex'));
+}
+
+function base64Url(buffer) {
+  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function createPkcePair() {
+  const verifier = base64Url(crypto.randomBytes(32));
+  const challenge = base64Url(crypto.createHash('sha256').update(verifier).digest());
+  return { verifier, challenge };
+}
+
+function parseCookies(request) {
+  return Object.fromEntries((request.headers.cookie || '').split(';').filter(Boolean).map((part) => {
+    const separator = part.indexOf('=');
+    return [part.slice(0, separator).trim(), decodeURIComponent(part.slice(separator + 1))];
+  }));
+}
+
+function setCookie(response, name, value, options = {}) {
+  const attributes = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
+  if (options.maxAge !== undefined) attributes.push(`Max-Age=${options.maxAge}`);
+  if (process.env.NODE_ENV === 'production') attributes.push('Secure');
+  response.append('Set-Cookie', attributes.join('; '));
+}
+
+function clearCookie(response, name) {
+  setCookie(response, name, '', { maxAge: 0 });
 }
 
 function runSafely(statement, ...parameters) {
@@ -234,6 +265,100 @@ app.get('/api/providers', async (request, response) => {
     date: String(request.query.date || ''),
   };
   response.json(await getProviders(String(request.query.q || ''), userId, favoritesOnly, filters));
+});
+
+app.get('/api/auth/google/start', (_request, response) => {
+  if (!supabaseAuthEnabled) return response.status(503).json({ error: 'La connexion Google n’est pas configurée.' });
+  const state = base64Url(crypto.randomBytes(32));
+  const { verifier, challenge } = createPkcePair();
+  googleOAuthRequests.set(state, { verifier, createdAt: Date.now() });
+  setCookie(response, 'bridgeevent_google_state', state, { maxAge: 600 });
+  const authorizeUrl = new URL(`${process.env.SUPABASE_URL}/auth/v1/authorize`);
+  authorizeUrl.searchParams.set('provider', 'google');
+  authorizeUrl.searchParams.set('redirect_to', googleOAuthRedirectUrl);
+  authorizeUrl.searchParams.set('code_challenge', challenge);
+  authorizeUrl.searchParams.set('code_challenge_method', 'S256');
+  authorizeUrl.searchParams.set('state', state);
+  response.redirect(authorizeUrl.toString());
+});
+
+app.get('/api/auth/google/callback', async (request, response) => {
+  const { code, state, error: oauthError } = request.query;
+  const cookies = parseCookies(request);
+  const oauthRequest = typeof state === 'string' ? googleOAuthRequests.get(state) : null;
+  googleOAuthRequests.delete(state);
+  clearCookie(response, 'bridgeevent_google_state');
+  if (oauthError) return response.redirect(`/?google_auth_error=${encodeURIComponent(String(oauthError))}`);
+  if (!code || !state || !oauthRequest || cookies.bridgeevent_google_state !== state
+    || Date.now() - oauthRequest.createdAt > 10 * 60 * 1000) {
+    return response.redirect('/?google_auth_error=La%20connexion%20Google%20a%20expir%C3%A9.%20R%C3%A9essayez.');
+  }
+
+  try {
+    const tokenResponse = await withTimeout(fetch(`${process.env.SUPABASE_URL}/auth/v1/token?grant_type=pkce`, {
+      method: 'POST',
+      headers: { apikey: process.env.SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_code: code, code_verifier: oauthRequest.verifier }),
+    }), 8000, 'Supabase n’a pas répondu à temps.');
+    const tokenData = await tokenResponse.json();
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      return response.redirect('/?google_auth_error=La%20connexion%20Google%20a%20%C3%A9chou%C3%A9.');
+    }
+    const { data, error } = await supabaseAuth.auth.getUser(tokenData.access_token);
+    const googleUser = data?.user;
+    if (error || !googleUser?.id || !googleUser.email || !googleUser.email_confirmed_at) {
+      return response.redirect('/?google_auth_error=Le%20compte%20Google%20n%E2%80%99est%20pas%20confirm%C3%A9.');
+    }
+
+    let user = await db.prepare('SELECT id, supabase_auth_id FROM utilisateur WHERE supabase_auth_id = ?').get(googleUser.id);
+    if (!user) {
+      const existingUser = await db.prepare('SELECT id, supabase_auth_id FROM utilisateur WHERE LOWER(email) = LOWER(?)').get(googleUser.email);
+      if (existingUser?.supabase_auth_id && existingUser.supabase_auth_id !== googleUser.id) {
+        return response.redirect('/?google_auth_error=Cette%20adresse%20est%20d%C3%A9j%C3%A0%20li%C3%A9e%20%C3%A0%20un%20autre%20compte.');
+      }
+      if (existingUser) {
+        await db.prepare('UPDATE utilisateur SET supabase_auth_id = ? WHERE id = ?').run(googleUser.id, existingUser.id);
+        user = existingUser;
+      } else {
+        const metadata = googleUser.user_metadata || {};
+        const created = await db.prepare(
+          'INSERT INTO utilisateur (prenom, nom, email, mot_de_passe_hash, supabase_auth_id, type_utilisateur) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+        ).get(
+          String(metadata.given_name || metadata.first_name || '').trim() || 'Utilisateur',
+          String(metadata.family_name || metadata.last_name || '').trim() || 'Google',
+          googleUser.email,
+          hashPassword(crypto.randomBytes(32).toString('hex')),
+          googleUser.id,
+          'client',
+        );
+        await db.prepare('INSERT INTO client (utilisateur_id) VALUES (?)').run(created.id);
+        user = created;
+      }
+    }
+    await recordUserLogin(user.id);
+    setCookie(response, 'bridgeevent_google_session', createSession(user.id), { maxAge: 60 });
+    response.redirect('/?google_auth=success');
+  } catch (error) {
+    console.error('[auth] Connexion Google impossible.', error);
+    response.redirect('/?google_auth_error=La%20connexion%20Google%20est%20temporairement%20indisponible.');
+  }
+});
+
+app.post('/api/auth/google/complete', async (request, response) => {
+  try {
+    const token = parseCookies(request).bridgeevent_google_session;
+    clearCookie(response, 'bridgeevent_google_session');
+    const userId = await resolveSession(token);
+    if (!userId) {
+      return response.status(401).json({ error: 'Le lien de connexion Google est invalide ou expiré.' });
+    }
+    const user = await getUserProfile(userId);
+    if (!user) return response.status(401).json({ error: 'Session Google invalide.' });
+    response.json({ token, user });
+  } catch (error) {
+    console.error('[auth] Finalisation Google impossible.', error);
+    response.status(500).json({ error: 'Impossible de finaliser la connexion Google.' });
+  }
 });
 
 // Supabase peut rester sans réponse : on borne l'attente pour retourner une
