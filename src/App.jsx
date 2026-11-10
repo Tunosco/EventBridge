@@ -68,6 +68,7 @@ export default function App() {
   useEffect(() => {
     document.body.classList.toggle('homeheader', page === 'home');
     document.body.classList.toggle('ux-workspace', WORKSPACE_PAGES.has(page));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     return () => {
       document.body.classList.remove('homeheader');
       document.body.classList.remove('ux-workspace');
@@ -381,7 +382,7 @@ export default function App() {
             </section>
           </div>
         )}
-      </div><nav><button onClick={() => setPage('history')}>{translate('Notre histoire', language)}</button><button onClick={() => setPage('contact')}>{translate('Contact', language)}</button><button onClick={handleProviderSpaceClick}>{translate('Espace prestataire', language)}</button><button onClick={() => setContactType('connexion')}>{translate('Connexion', language)}</button></nav><small>{translate('Vos événements, simplement', language)}</small></footer>
+      </div><nav><button onClick={() => setPage('history')}>{translate('Notre histoire', language)}</button><button onClick={() => setPage('contact')}>{translate('Contact', language)}</button><button onClick={handleProviderSpaceClick}>{translate('Espace prestataire', language)}</button><button onClick={() => setContactType('connexion')}>{translate('Connexion', language)}</button></nav><small>{translate('Vos événements, simplement', language)}</small><CookieConsent onAnalyticsChange={setAnalyticsConsent} /></footer>
       {page === 'home' && <div className="home-bottom-stripe" aria-hidden="true" />}
       {contactType && <ContactModal type={contactType} user={user} onAuthenticated={handleAuthenticated} onLoggedOut={handleLoggedOut} onClose={() => {
         if (contactType === 'event-auth-required') eventCreationPendingAuth.current = false;
@@ -389,7 +390,6 @@ export default function App() {
       }} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
-      <CookieConsent onAnalyticsChange={setAnalyticsConsent} />
       {analyticsConsent && <Analytics />}
     </>
     </LanguageProvider>

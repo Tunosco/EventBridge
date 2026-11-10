@@ -43,8 +43,8 @@ export default function CookieConsent({ onAnalyticsChange }) {
 
   if (!visible) {
     return hasSavedPreferences ? (
-      <button type="button" className="cookie-manage-button" onClick={() => { setCustomizing(true); setVisible(true); }}>
-        Cookies
+      <button type="button" className="cookie-manage-link" onClick={() => { setCustomizing(true); setVisible(true); }}>
+        Gérer les cookies
       </button>
     ) : null;
   }
