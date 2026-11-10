@@ -17,6 +17,7 @@ const Messaging = lazy(() => import('./components/Messaging'));
 import { completeEmailConfirmation, getCurrentUser, getMyEvents } from './lib/api';
 import ClientEmptyState from './components/ClientEmptyState';
 import { LanguageProvider, translate } from './lib/i18n';
+import CookieConsent, { STORAGE_KEY as COOKIE_PREFERENCES_KEY } from './components/CookieConsent';
 
 const WORKSPACE_PAGES = new Set(['provider', 'events', 'messages', 'profile', 'settings']);
 import './styles/global.css';
@@ -33,6 +34,7 @@ import './styles/prototype-theme.css';
 import './styles/prototype-polish.css';
 import './styles/visuel-reference.css';
 import './styles/visuel-final.css';
+import './styles/cookie-consent.css';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true);
@@ -52,6 +54,14 @@ export default function App() {
   const [providerDirectoryFavoritesOnly, setProviderDirectoryFavoritesOnly] = useState(false);
   const [providerSearchQuery, setProviderSearchQuery] = useState('');
   const [authNotice, setAuthNotice] = useState(null);
+  const [analyticsConsent, setAnalyticsConsent] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(COOKIE_PREFERENCES_KEY));
+      return stored?.version === 1 && stored.preferences?.analytics === true;
+    } catch {
+      return false;
+    }
+  });
   const confirmationHandled = useRef(false);
   const authRequestVersion = useRef(0);
   const eventCreationPendingAuth = useRef(false);
@@ -379,7 +389,8 @@ export default function App() {
       }} />}
       </div>
       {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
-      <Analytics />
+      <CookieConsent onAnalyticsChange={setAnalyticsConsent} />
+      {analyticsConsent && <Analytics />}
     </>
     </LanguageProvider>
   );
