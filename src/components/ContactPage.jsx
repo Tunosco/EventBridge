@@ -42,6 +42,54 @@ export default function ContactPage({ language = 'fr', user }) {
     setSubcategory(categories[value].subcategories[0]);
   };
 
+  const handleFileChange = (event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    const allowedTypes = new Set([
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/svg+xml',
+      'application/zip',
+      'text/plain',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'video/mp4',
+      'video/quicktime',
+      'video/webm',
+      'audio/mpeg',
+      'audio/wav',
+      'audio/mp4',
+    ]);
+    const maxFileSize = 5 * 1024 * 1024; // 5 Mo
+    const validFiles = [];
+    for (const file of selectedFiles) {
+      if (!allowedTypes.has(file.type)) {
+        setStatus({ type: 'error', message: `Le fichier "${file.name}" n'a pas un format valide (.pdf, .doc, .docx, .xls, .xlsx, .csv, .jpg, .jpeg, .png, .webp, .svg, .zip, .txt, .ppt, .pptx, .mp4, .mov, .webm, .mp3, .wav, .m4a).` });
+        event.target.value = '';
+        return;
+      }
+      if (file.size > maxFileSize) {
+        setStatus({ type: 'error', message: `Le fichier "${file.name}" dépasse la taille maximale autorisée de 5 Mo.` });
+        event.target.value = '';
+        return;
+      }
+      validFiles.push(file);
+    }
+    if (validFiles.length > 5) {
+      setStatus({ type: 'error', message: 'Vous ne pouvez pas sélectionner plus de 5 fichiers.' });
+      event.target.value = '';
+      return;
+    }
+    setFiles(validFiles);
+    setStatus(null);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -83,7 +131,16 @@ export default function ContactPage({ language = 'fr', user }) {
           </label>
           {['reservation', 'paiement'].includes(category) && <label>Référence de réservation <span className="support-optional">(facultatif)</span><input value={form.bookingReference} onChange={(event) => setForm({ ...form, bookingReference: event.target.value })} maxLength={120} /></label>}
           <label>Décrivez votre demande<textarea value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} rows={7} required minLength={10} maxLength={5000} /></label>
-          <label className="support-file-field">Captures d’écran et documents <span className="support-optional">(facultatif, 5 fichiers de 5 Mo maximum)</span><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" multiple onChange={(event) => setFiles(Array.from(event.target.files || []).slice(0, 5))} /><small>{files.length ? files.map((file) => file.name).join(', ') : 'PNG, JPG, WEBP ou PDF'}</small></label>
+          <label className="support-file-field">
+            Documents et médias <span className="support-optional">(facultatif, 5 fichiers de 5 Mo max : PDF, Office, images, archives, vidéo, audio)</span>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.webp,.svg,.zip,.txt,.ppt,.pptx,.mp4,.mov,.webm,.mp3,.wav,.m4a"
+              multiple
+              onChange={handleFileChange}
+            />
+            <small>{files.length ? files.map((file) => file.name).join(', ') : 'PDF, Word, Excel, Images, Vidéo, Audio, etc.'}</small>
+          </label>
           <button className="button button-primary support-submit" type="submit" disabled={submitting}>{submitting ? 'Enregistrement…' : 'Envoyer ma demande'}</button>
           {status && <p className={`support-status is-${status.type}`} role={status.type === 'error' ? 'alert' : 'status'}>{status.message}</p>}
         </form>
