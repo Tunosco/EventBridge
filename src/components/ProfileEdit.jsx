@@ -27,14 +27,36 @@ export default function ProfileEdit({ user, onUserUpdated, onDirtyChange }) {
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
-      setError('La photo doit être au format JPG, PNG ou WebP et ne pas dépasser 2 Mo.');
+
+    const allowedPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const isImageExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
+
+    if (!allowedPhotoTypes.includes(file.type) && !isImageExt) {
+      setError(`Le format de la photo "${file.name}" n'est pas pris en charge. Veuillez sélectionner une image au format JPG, PNG ou WebP.`);
       event.target.value = '';
       return;
     }
+
+    if (file.size === 0) {
+      setError(`Le fichier "${file.name}" est vide. Veuillez choisir une image valide.`);
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      const sizeMo = (file.size / (1024 * 1024)).toFixed(1);
+      setError(`La photo "${file.name}" est trop volumineuse (${sizeMo} Mo). La taille maximale autorisée pour la photo de profil est de 2 Mo.`);
+      event.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => setForm((current) => ({ ...current, photoUrl: String(reader.result) }));
-    reader.onerror = () => setError('Impossible de lire la photo sélectionnée.');
+    reader.onload = () => {
+      setForm((current) => ({ ...current, photoUrl: String(reader.result) }));
+      setError('');
+    };
+    reader.onerror = () => setError('Une erreur est survenue lors de la lecture de la photo sélectionnée.');
     reader.readAsDataURL(file);
   };
 

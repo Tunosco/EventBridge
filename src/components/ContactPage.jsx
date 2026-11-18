@@ -69,23 +69,66 @@ export default function ContactPage({ language = 'fr', user }) {
     const maxFileSize = 5 * 1024 * 1024; // 5 Mo
     const validFiles = [];
     for (const file of selectedFiles) {
-      if (!allowedTypes.has(file.type)) {
-        setStatus({ type: 'error', message: `Le fichier "${file.name}" n'a pas un format valide (.pdf, .doc, .docx, .xls, .xlsx, .csv, .jpg, .jpeg, .png, .webp, .svg, .zip, .txt, .ppt, .pptx, .mp4, .mov, .webm, .mp3, .wav, .m4a).` });
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'ppt', 'pptx'].includes(ext);
+      const isImage = ['jpg', 'jpeg', 'png', 'webp', 'svg'].includes(ext);
+      const isArchive = ext === 'zip';
+      const isVideo = ['mp4', 'mov', 'webm'].includes(ext);
+      const isAudio = ['mp3', 'wav', 'm4a'].includes(ext);
+
+      if (!allowedTypes.has(file.type) && !isDocument && !isImage && !isArchive && !isVideo && !isAudio) {
+        if (isDocument) {
+          // Accept by extension fallback if MIME type is generic
+        } else {
+          setStatus({
+            type: 'error',
+            message: `Le format du fichier "${file.name}" n'est pas pris en charge. Veuillez joindre un document (.pdf, .doc, .docx, .xls, .xlsx, .csv, .txt, .ppt, .pptx), une image (.jpg, .jpeg, .png, .webp, .svg), une archive (.zip), une vidéo (.mp4, .mov, .webm) ou un fichier audio (.mp3, .wav, .m4a).`,
+          });
+          event.target.value = '';
+          return;
+        }
+      }
+
+      if (file.size === 0) {
+        setStatus({
+          type: 'error',
+          message: `Le fichier "${file.name}" est vide. Veuillez sélectionner un fichier valide.`,
+        });
         event.target.value = '';
         return;
       }
+
       if (file.size > maxFileSize) {
-        setStatus({ type: 'error', message: `Le fichier "${file.name}" dépasse la taille maximale autorisée de 5 Mo.` });
+        const sizeMo = (file.size / (1024 * 1024)).toFixed(1);
+        setStatus({
+          type: 'error',
+          message: `Le fichier "${file.name}" est trop volumineux (${sizeMo} Mo). La taille maximale autorisée par fichier est de 5 Mo.`,
+        });
         event.target.value = '';
         return;
       }
       validFiles.push(file);
     }
-    if (validFiles.length > 5) {
-      setStatus({ type: 'error', message: 'Vous ne pouvez pas sélectionner plus de 5 fichiers.' });
+
+    const totalSize = validFiles.reduce((acc, f) => acc + f.size, 0);
+    if (totalSize > 10 * 1024 * 1024) {
+      setStatus({
+        type: 'error',
+        message: 'La taille totale cumulée de vos fichiers dépasse la limite de 10 Mo. Veuillez réduire le nombre ou la taille des fichiers joints.',
+      });
       event.target.value = '';
       return;
     }
+
+    if (validFiles.length > 5) {
+      setStatus({
+        type: 'error',
+        message: 'Vous ne pouvez pas joindre plus de 5 fichiers simultanément à votre demande.',
+      });
+      event.target.value = '';
+      return;
+    }
+
     setFiles(validFiles);
     setStatus(null);
   };
