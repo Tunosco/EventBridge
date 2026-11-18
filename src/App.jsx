@@ -171,7 +171,7 @@ export default function App() {
     navigateOrWarn(() => {
       if (user?.typeUtilisateur === 'prestataire') {
         setProviderSection(section);
-        setPage(section === 'messages' ? 'messages' : 'provider');
+        setPage('provider');
         return;
       }
       const clientPages = {
@@ -328,7 +328,7 @@ export default function App() {
       }} onProjectClick={handleProjectClick} onProviderSearch={(search) => navigateOrWarn(() => handleProviderSearch(search))} onLoggedOut={handleLoggedOut} onProfileMenuClick={(toggleMenu) => navigateOrWarn(toggleMenu)} onProfileClick={() => {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
         else navigateOrWarn(() => setPage('profile'));
-      }} onSettingsClick={() => navigateOrWarn(() => setPage('settings'))} onAccountSection={handleAccountSection} onMessagesClick={() => navigateOrWarn(() => setPage('messages'))} onCreateEvent={() => navigateOrWarn(() => handleCreateEventClick())} user={user} isAuthenticated={Boolean(user)} />
+      }} onSettingsClick={() => navigateOrWarn(() => setPage('settings'))} onAccountSection={handleAccountSection} onMessagesClick={() => handleAccountSection('messages')} onCreateEvent={() => navigateOrWarn(() => handleCreateEventClick())} user={user} isAuthenticated={Boolean(user)} />
       <Suspense fallback={<main aria-busy="true">{translate('Chargement…', language)}</main>}>
         {page === 'history' ? (
           <StoryPage language={language} onFindProviders={() => handleProviderSearch('')} />

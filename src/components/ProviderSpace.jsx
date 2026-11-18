@@ -3,8 +3,9 @@ import ProviderCalendarPage from './ProviderCalendarPage';
 import ProviderDashboard from './ProviderDashboard';
 import ProviderProfile from './ProviderProfile';
 import ProviderPublicProfile from './ProviderPublicProfile';
-import ProviderTasks from './ProviderTasks';
+import ProviderTabPage from './ProviderTabPage';
 import WorkspaceShell from './WorkspaceShell';
+import Messaging from './Messaging';
 import { useTranslation } from '../lib/i18n';
 
 export default function ProviderSpace({ user, section, onNavigateSection, isAuthenticated, onAuth, onBack, onFindProviders, language = 'fr' }) {
@@ -42,13 +43,19 @@ export default function ProviderSpace({ user, section, onNavigateSection, isAuth
         onHome={onBack}
         language={currentLanguage}
       >
-        {section === 'home' && <ProviderDashboard onEditProfile={() => onNavigateSection('profile')} onFindProviders={onFindProviders} />}
-        {section === 'events' && <ProviderDashboard eventsOnly onFindProviders={onFindProviders} />}
+        {section === 'home' && <ProviderDashboard onEditProfile={() => onNavigateSection('profile')} onFindProviders={onFindProviders} onNavigateSection={onNavigateSection} />}
+        {['services', 'requests', 'proquotes', 'reservations', 'followup'].includes(section) && (
+          <ProviderTabPage
+            section={section}
+            onEditProfile={() => onNavigateSection('profile')}
+            onNavigateSection={onNavigateSection}
+          />
+        )}
         {section === 'availability' && <ProviderAvailability />}
-        {section === 'tasks' && <ProviderTasks />}
         {section === 'calendar' && <ProviderCalendarPage />}
         {section === 'profile' && <ProviderProfile />}
         {section === 'preview' && <ProviderPublicProfile />}
+        {section === 'messages' && <Messaging user={user} />}
       </WorkspaceShell>
     </main>
   );
