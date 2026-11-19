@@ -43,13 +43,9 @@ export default function ProviderSpace({ user, section, onNavigateSection, isAuth
         onHome={onBack}
         language={currentLanguage}
       >
-        {section === 'home' && <ProviderDashboard onEditProfile={() => onNavigateSection('profile')} onFindProviders={onFindProviders} onNavigateSection={onNavigateSection} />}
+        {section === 'home' && <ProviderDashboard onFindProviders={onFindProviders} onNavigateSection={onNavigateSection} />}
         {['services', 'requests', 'proquotes', 'reservations', 'followup'].includes(section) && (
-          <ProviderTabPage
-            section={section}
-            onEditProfile={() => onNavigateSection('profile')}
-            onNavigateSection={onNavigateSection}
-          />
+          <ProviderTabPage section={section} onNavigateSection={onNavigateSection} />
         )}
         {section === 'availability' && <ProviderAvailability />}
         {section === 'calendar' && <ProviderCalendarPage />}

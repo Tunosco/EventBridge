@@ -26,7 +26,7 @@ function profileCompletion(profile) {
   return Math.round((fields.filter((field) => profile[field]).length / fields.length) * 100);
 }
 
-export default function ProviderDashboard({ onEditProfile, onFindProviders, onNavigateSection, eventsOnly = false, servicesOnly = false, sectionTitle, sectionDescription }) {
+export default function ProviderDashboard({ onFindProviders, onNavigateSection, eventsOnly = false, servicesOnly = false, sectionTitle, sectionDescription }) {
   const { locale, translateText } = useTranslation();
   const [dashboard, setDashboard] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -68,15 +68,11 @@ export default function ProviderDashboard({ onEditProfile, onFindProviders, onNa
             <h1>{translateText('Mes prestations')}</h1>
             <p className="ux-muted">{translateText('Présentez les services que les clients peuvent réserver.')}</p>
           </div>
-          <button className="ux-btn ux-primary" type="button" onClick={onEditProfile}>
-            <Icon name="briefcase" />
-            <span>{translateText('Modifier ma vitrine')}</span>
-          </button>
         </div>
         <section className="ux-panel">
           <div className="ux-heading">
             <div>
-              <h2>{translateText('Ma vitrine')}</h2>
+              <h2>{translateText('Mes prestations')}</h2>
               <p>{translateText('Vos prestations publiées et leurs tarifs.')}</p>
             </div>
           </div>
@@ -84,7 +80,7 @@ export default function ProviderDashboard({ onEditProfile, onFindProviders, onNa
             <ul className="ux-activity-list">
               {prestations.map((prestation) => (
                 <li key={prestation.id}>
-                  <button className="ux-activity" type="button" onClick={onEditProfile}>
+                  <button className="ux-activity" type="button" onClick={() => onNavigateSection?.('profile')}>
                     <span className="ux-activity-icon"><Icon name="star" /></span>
                     <span className="ux-activity-text">{prestation.titre}<small>{translateText(prestation.categorie)}</small></span>
                     <span className="ux-activity-value">{prestation.prix !== null && prestation.prix !== undefined ? `${Number(prestation.prix).toLocaleString(locale)} €` : ''}</span>
@@ -150,10 +146,6 @@ export default function ProviderDashboard({ onEditProfile, onFindProviders, onNa
             <Icon name="calendar" />
             <span>{translateText('Gérer mes disponibilités')}</span>
           </button>
-          <button className="ux-btn ux-primary" type="button" onClick={onEditProfile}>
-            <Icon name="briefcase" />
-            <span>{translateText('Modifier ma vitrine')}</span>
-          </button>
         </div>
       </div>
 
@@ -202,7 +194,7 @@ export default function ProviderDashboard({ onEditProfile, onFindProviders, onNa
             </div>
           </div>
           <div className="provider-quick-actions">
-            <button type="button" onClick={onEditProfile}><Icon name="briefcase" /><span>{translateText('Compléter ma vitrine')}<small>{completion} %</small></span></button>
+            <button type="button" onClick={() => onNavigateSection?.('profile')}><Icon name="briefcase" /><span>{translateText('Compléter mon profil')}<small>{completion} %</small></span></button>
             <button type="button" onClick={() => onNavigateSection?.('followup')}><Icon name="check" /><span>{translateText('Mes tâches')}<small>{openTasks.length} {translateText('à traiter')}</small></span></button>
             <button type="button" onClick={() => onNavigateSection?.('calendar')}><Icon name="calendar" /><span>{translateText('Mon agenda')}<small>{translateText('Voir mes engagements')}</small></span></button>
           </div>
@@ -218,16 +210,16 @@ export default function ProviderDashboard({ onEditProfile, onFindProviders, onNa
         <section className="ux-panel">
           <div className="ux-heading">
             <div>
-              <h2>{translateText('Ma vitrine')}</h2>
+              <h2>{translateText('Mes prestations')}</h2>
               <p>{translateText('Les prestations que les clients voient.')}</p>
             </div>
-            <button className="ux-link" type="button" onClick={onEditProfile}>{translateText('Modifier')}</button>
+            <button className="ux-link" type="button" onClick={() => onNavigateSection?.('profile')}>{translateText('Modifier')}</button>
           </div>
           {prestations?.length ? (
             <ul className="ux-activity-list">
               {prestations.map((prestation) => (
                 <li key={prestation.id}>
-                  <button className="ux-activity" type="button" onClick={onEditProfile}>
+                  <button className="ux-activity" type="button" onClick={() => onNavigateSection?.('profile')}>
                     <span className="ux-activity-icon"><Icon name="star" /></span>
                     <span className="ux-activity-text">{prestation.titre}<small>{translateText(prestation.categorie)}</small></span>
                     <span className="ux-activity-value">{prestation.prix !== null && prestation.prix !== undefined ? `${Number(prestation.prix).toLocaleString(locale)} €` : ''}</span>
@@ -252,3 +244,4 @@ export default function ProviderDashboard({ onEditProfile, onFindProviders, onNa
     </div>
   );
 }
+

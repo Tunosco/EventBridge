@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getProviderProfile, updateProviderProfile } from '../lib/api';
 import { useTranslation } from '../lib/i18n';
-import ProviderPublicProfile from './ProviderPublicProfile';
 
 const emptyProfile = {
   siret: '', siteWeb: '', adressePostale: '', description: '',
@@ -10,14 +9,20 @@ const emptyProfile = {
 export default function ProviderProfile() {
   const { translateText } = useTranslation();
   const [profile, setProfile] = useState(emptyProfile);
+  const [savedProfile, setSavedProfile] = useState(emptyProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     getProviderProfile()
-      .then((result) => setProfile({ ...emptyProfile, ...result.profile }))
+      .then((result) => {
+        const nextProfile = { ...emptyProfile, ...result.profile };
+        setProfile(nextProfile);
+        setSavedProfile(nextProfile);
+      })
       .catch((loadError) => setError(loadError.message))
       .finally(() => setLoading(false));
   }, []);
@@ -31,7 +36,10 @@ export default function ProviderProfile() {
     setError('');
     try {
       const result = await updateProviderProfile(profile);
-      setProfile({ ...emptyProfile, ...result.profile });
+      const nextProfile = { ...emptyProfile, ...result.profile };
+      setProfile(nextProfile);
+      setSavedProfile(nextProfile);
+      setIsEditing(false);
       setMessage('Votre profil prestataire a été enregistré.');
     } catch (saveError) {
       setError(saveError.message);
@@ -50,22 +58,25 @@ export default function ProviderProfile() {
       </div>
       <div className="provider-profile-editor-head">
         <img className="provider-avatar" src="/images/photo-profil-neutre.webp" alt={translateText('Photo du prestataire')} />
-        <div><span className="kicker">{translateText('Votre vitrine')}</span><h2>{translateText('Modifier mon profil')}</h2></div>
+        <div><h2>{translateText('Profil prestataire')}</h2></div>
+        <button className="ux-btn ux-primary" type="button" onClick={() => {
+          if (isEditing) setProfile(savedProfile);
+          setIsEditing((editing) => !editing);
+        }}>
+          {isEditing ? translateText('Annuler') : translateText('Modifier')}
+        </button>
       </div>
       <form className="provider-profile-form" onSubmit={handleSubmit}>
         <div className="provider-form-grid">
-          <label>{translateText('SIRET')}<input name="siret" value={profile.siret} onChange={updateField} inputMode="numeric" /></label>
-          <label>{translateText('Adresse postale')}<input name="adressePostale" value={profile.adressePostale} onChange={updateField} /></label>
-          <label>{translateText('Site internet')}<input name="siteWeb" type="url" value={profile.siteWeb} onChange={updateField} placeholder="https://exemple.fr" /></label>
-          <label className="provider-description-field">{translateText('Description de vos prestations')}<textarea name="description" value={profile.description} onChange={updateField} rows="6" /></label>
+          {isEditing && <>
+            <label>{translateText('SIRET')}<input name="siret" value={profile.siret} onChange={updateField} inputMode="numeric" /></label>
+            <label>{translateText('Adresse postale')}<input name="adressePostale" value={profile.adressePostale} onChange={updateField} /></label>
+          </>}
+          <label>{translateText('Site internet')}<input name="siteWeb" type="url" value={profile.siteWeb} onChange={updateField} disabled={!isEditing} placeholder="https://exemple.fr" /></label>
+          <label className="provider-description-field">{translateText('Description de vos prestations')}<textarea name="description" value={profile.description} onChange={updateField} disabled={!isEditing} rows="6" /></label>
         </div>
         {message && <p className="settings-message" role="status">{message}</p>}
-        <button className="button button-primary" type="submit" disabled={saving}>{saving ? translateText('Enregistrement...') : translateText('Enregistrer le profil')}</button>
-      </form>
-      <section className="provider-profile-preview" aria-labelledby="provider-preview-title">
-        <div className="ux-heading"><div><span className="kicker">{translateText('Aperçu public')}</span><h2 id="provider-preview-title">{translateText('Votre profil vu par les clients')}</h2></div></div>
-        <ProviderPublicProfile profile={profile} />
-      </section>
-    </div>
+        {isEditing && <button className="button button-primary" type="submit" disabled={saving}>{saving ? translateText('Enregistrement...') : translateText('Enregistrer le profil')}</button>}
+      </form>`r`n    </div>
   );
 }

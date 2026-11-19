@@ -12,7 +12,7 @@ function getSafeHttpUrl(value) {
   }
 }
 
-export default function ProviderPublicProfile({ profile: providedProfile } = {}) {
+export default function ProviderPublicProfile({ profile: providedProfile, showPrivateDetails = false } = {}) {
   const { translateText } = useTranslation();
   const [profile, setProfile] = useState(providedProfile || null);
   const [error, setError] = useState('');
@@ -39,7 +39,8 @@ export default function ProviderPublicProfile({ profile: providedProfile } = {})
         <h2>{translateText('Profil prestataire')}</h2>
         {profile.description && <p className="provider-public-description">{profile.description}</p>}
         <dl className="provider-public-details">
-          {profile.adressePostale && <div><dt>{translateText('Adresse')}</dt><dd>{profile.adressePostale}</dd></div>}
+          {showPrivateDetails && profile.adressePostale && <div><dt>{translateText('Adresse')}</dt><dd>{profile.adressePostale}</dd></div>}
+          {showPrivateDetails && profile.siret && <div><dt>{translateText('SIRET')}</dt><dd>{profile.siret}</dd></div>}
           {safeSiteWeb && <div><dt>{translateText('Site internet')}</dt><dd><a href={safeSiteWeb} target="_blank" rel="noreferrer">{safeSiteWeb}</a></dd></div>}
         </dl>
       </div>

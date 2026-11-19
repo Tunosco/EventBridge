@@ -8,7 +8,7 @@ const pageCopy = {
   services: {
     title: 'Mes prestations',
     description: 'Gérez les offres visibles par les clients.',
-    panel: 'Votre vitrine',
+    panel: 'Mes prestations',
     panelDescription: 'Les prestations publiées sur votre profil.',
   },
   requests: {
@@ -46,7 +46,7 @@ function eventDate(event, locale) {
   return formatDate(event.dateDebut, locale) || '-';
 }
 
-export default function ProviderTabPage({ section, onEditProfile, onNavigateSection }) {
+export default function ProviderTabPage({ section, onNavigateSection }) {
   const { locale, translateText } = useTranslation();
   const [dashboard, setDashboard] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -82,12 +82,6 @@ export default function ProviderTabPage({ section, onEditProfile, onNavigateSect
           <h1>{translateText(copy.title)}</h1>
           <p className="ux-muted">{translateText(copy.description)}</p>
         </div>
-        {section === 'services' && (
-          <button className="ux-btn ux-primary" type="button" onClick={onEditProfile}>
-            <Icon name="briefcase" />
-            <span>{translateText('Modifier ma vitrine')}</span>
-          </button>
-        )}
         {section === 'followup' && (
           <button className="ux-btn ux-primary" type="button" onClick={() => onNavigateSection?.('calendar')}>
             <Icon name="calendar" />
@@ -109,7 +103,7 @@ export default function ProviderTabPage({ section, onEditProfile, onNavigateSect
             <ul className="ux-activity-list">
               {prestations.map((prestation) => (
                 <li key={prestation.id}>
-                  <button className="ux-activity" type="button" onClick={onEditProfile}>
+                  <button className="ux-activity" type="button" onClick={() => onNavigateSection?.('profile')}>
                     <span className="ux-activity-icon"><Icon name="star" /></span>
                     <span className="ux-activity-text">{prestation.titre}<small>{translateText(prestation.categorie)}</small></span>
                     <span className="ux-activity-value">{prestation.prix !== null && prestation.prix !== undefined ? `${Number(prestation.prix).toLocaleString(locale)} €` : ''}</span>
@@ -117,7 +111,7 @@ export default function ProviderTabPage({ section, onEditProfile, onNavigateSect
                 </li>
               ))}
             </ul>
-          ) : <p className="ux-empty">{translateText('Ajoutez votre première prestation depuis votre vitrine.')}</p>
+          ) : <p className="ux-empty">{translateText('Ajoutez votre première prestation depuis votre espace prestataire.')}</p>
         )}
 
         {section === 'requests' && (
@@ -163,3 +157,4 @@ export default function ProviderTabPage({ section, onEditProfile, onNavigateSect
     </div>
   );
 }
+
