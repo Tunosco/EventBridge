@@ -98,13 +98,15 @@ export default function HomePage({ language = 'fr', onCreateEvent, onProviderSea
           Comment <span className="eb-hero-word">allez-vous</span> célébrer&nbsp;?
         </h1>
         <p>{text.types}</p>
+        <p className="hero-seo-intro">BridgeEvent vous aide à organiser votre mariage, anniversaire, baby shower ou événement professionnel avec des prestataires de confiance.</p>
       </section>
 
       <div className="editorbody">
-        <section className="eb-home-story">
+        <section className="eb-home-story" aria-labelledby="story-title">
           <span className="eyebrow">{text.storyEyebrow}</span>
-          <h2>{text.storyTitle}</h2>
+          <h2 id="story-title">{text.storyTitle}</h2>
           <p>{text.storyText}</p>
+          <p>De l’idée aux derniers préparatifs, trouvez les professionnels adaptés à votre budget, votre date et votre lieu.</p>
         </section>
 
         <section className="eb-category-section" aria-labelledby="collections">
