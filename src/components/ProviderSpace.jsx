@@ -3,6 +3,7 @@ import ProviderCalendarPage from './ProviderCalendarPage';
 import ProviderDashboard from './ProviderDashboard';
 import ProviderProfile from './ProviderProfile';
 import ProviderPublicProfile from './ProviderPublicProfile';
+import ProviderReviews from './ProviderReviews';
 import ProviderTabPage from './ProviderTabPage';
 import WorkspaceShell from './WorkspaceShell';
 import Messaging from './Messaging';
@@ -52,6 +53,7 @@ export default function ProviderSpace({ user, section, onNavigateSection, isAuth
         {section === 'profile' && <ProviderProfile />}
         {section === 'preview' && <ProviderPublicProfile />}
         {section === 'messages' && <Messaging user={user} />}
+        {section === 'reviews' && <ProviderReviews />}
       </WorkspaceShell>
     </main>
   );

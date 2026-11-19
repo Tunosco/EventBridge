@@ -155,6 +155,18 @@ export function getProviderDashboard(includePastEvents = false) {
   return request(`/me/provider-dashboard${query}`, { headers: authHeaders() });
 }
 
+export function getProviderReviews() {
+  return request('/me/provider-reviews', { headers: authHeaders() });
+}
+
+export function replyToProviderReview(reviewId, reponse) {
+  return request(`/me/provider-reviews/${reviewId}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ reponse }),
+  });
+}
+
 export function getAvailability() {
   return request('/me/availability', { headers: authHeaders() });
 }

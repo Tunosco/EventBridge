@@ -41,19 +41,27 @@ export default function ProviderReviews() {
   };
 
   return (
-    <div className="provider-reviews-page">
+    <div className="provider-reviews-page provider-tab-page">
       <div className="ux-pagehead">
         <div>
-          <span className="ux-overline">{translateText('Espace prestataire')}</span>
-          <h1>{translateText('Avis')}</h1>
-          <p className="ux-muted">{translateText('Consultez les retours de vos clients et répondez-leur.')}</p>
+          <span className="ux-overline">{translateText('Votre réputation')}</span>
+          <h1>{translateText('Les avis de vos clients')}</h1>
+          <p className="ux-muted">{translateText('Valorisez votre savoir-faire grâce aux retours de vos clients et prenez le temps de leur répondre.')}</p>
         </div>
       </div>
       {error && <p className="form-error" role="alert">{translateText(error)}</p>}
-      {loading ? <p className="ux-empty">{translateText('Chargement…')}</p> : reviews.length ? (
-        <div className="provider-reviews-list">
-          {reviews.map((review) => (
-            <article className="ux-panel provider-review-card" key={review.id}>
+      <section className="ux-panel provider-review-panel">
+        <div className="ux-heading">
+          <div>
+            <h2>{translateText('Retours reçus')}</h2>
+            <p>{translateText('Chaque avis est une occasion de remercier vos clients et de faire grandir votre activité.')}</p>
+          </div>
+          <span className="provider-review-count" aria-label={`${reviews.length} avis`}>{reviews.length}</span>
+        </div>
+        {loading ? <p className="ux-empty">{translateText('Chargement…')}</p> : reviews.length ? (
+          <div className="provider-reviews-list">
+            {reviews.map((review) => (
+              <article className="provider-review-card" key={review.id}>
               <div className="provider-review-header">
                 <div><strong>{review.clientName}</strong><small>{formatDateTime(review.dateCreation)}</small></div>
                 <Stars value={review.note} />
@@ -66,9 +74,10 @@ export default function ProviderReviews() {
                 <button className="button button-primary" type="submit" disabled={savingId === review.id || !(drafts[review.id] ?? '').trim()}>{savingId === review.id ? translateText('Enregistrement…') : translateText('Publier la réponse')}</button>
               </form>
             </article>
-          ))}
-        </div>
-      ) : <p className="ux-empty">{translateText('Vous n’avez pas encore reçu d’avis.')}</p>}
+            ))}
+          </div>
+        ) : <p className="ux-empty">{translateText('Vous n’avez pas encore reçu d’avis. Les premiers retours de vos clients apparaîtront ici.')}</p>}
+      </section>
     </div>
   );
 }

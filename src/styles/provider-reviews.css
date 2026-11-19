@@ -1,10 +1,32 @@
+.provider-review-panel {
+  max-width: 980px;
+}
+
+.provider-review-count {
+  display: grid;
+  min-width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ux-paper, var(--sky));
+  color: var(--ux-wine, var(--navy));
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .provider-reviews-list {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .provider-review-card {
-  padding: 24px;
+  padding: 20px 0;
+  border-top: 1px solid var(--ux-line, var(--line));
+}
+
+.provider-review-card:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .provider-review-header {
@@ -20,7 +42,7 @@
 }
 
 .provider-review-header small {
-  color: var(--muted);
+  color: var(--ux-muted, var(--muted));
   margin-top: 5px;
 }
 
@@ -31,17 +53,35 @@
 }
 
 .provider-review-card > p {
+  max-width: 720px;
+  margin: 14px 0 0;
+  color: var(--ux-text, var(--ink));
   line-height: 1.6;
 }
 
 .provider-review-card form {
   display: grid;
+  max-width: 720px;
   gap: 8px;
   margin-top: 20px;
 }
 
+.provider-review-card form label {
+  color: var(--ux-text, var(--navy));
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .provider-review-card textarea {
   width: 100%;
+  min-height: 86px;
+  padding: 10px 11px;
+  border: 1px solid var(--ux-line, var(--line));
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
   resize: vertical;
 }
 
