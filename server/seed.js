@@ -39,7 +39,7 @@ const PRESTATAIRES = [
 		description: 'Une sélection musicale pensée pour votre soirée, de l’apéro au dernier verre.',
 		photo: '/images/prototype/tempo.jpg',
 		prestations: [
-			['DJ soirée – 6 heures', 'Sonorisation complète et animation de la piste de danse.', 650],
+			['DJ soirée - 6 heures', 'Sonorisation complète et animation de la piste de danse.', 650],
 			['Animation musicale', 'Animation musicale sur mesure.', 300],
 		],
 	},
@@ -59,8 +59,8 @@ const PRESTATAIRES = [
 		description: 'Un cadre de réception enchanter, jardin botanique et terrasses sur la Côte.',
 		photo: '/images/prototype/jardins.jpg',
 		prestations: [
-			['Location du jardin – journée', 'Jardin privatisé pour votre réception.', 2400],
-			['Terrasse – cocktail dînatoire', 'Location de la terrasse en soirée.', 950],
+			['Location du jardin - journée', 'Jardin privatisé pour votre réception.', 2400],
+			['Terrasse - cocktail dînatoire', 'Location de la terrasse en soirée.', 950],
 		],
 	},
 	{
@@ -69,7 +69,7 @@ const PRESTATAIRES = [
 		description: 'Vidéastes et photographes de l’événementiel, films de mariage et aftermovies.',
 		photo: '/images/prototype/regards.jpg',
 		prestations: [
-			['Vidéo d’événement – 1 jour', 'Captation et montage d’un aftermovie.', 1100],
+			['Vidéo d’événement - 1 jour', 'Captation et montage d’un aftermovie.', 1100],
 			['Photographie mariages', 'Reportage photo complet de votre mariage.', 700],
 		],
 	},

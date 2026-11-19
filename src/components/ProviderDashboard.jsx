@@ -11,7 +11,7 @@ function eventDateRange(event, locale, translateText) {
   if (!startLabel) return translateText('Date à définir');
   const endLabel = formatDate(event.dateFin || event.dateDebut, locale);
   return endLabel && event.dateFin && event.dateFin !== event.dateDebut
-    ? `${startLabel} – ${endLabel}`
+    ? `${startLabel} - ${endLabel}`
     : startLabel;
 }
 

@@ -43,7 +43,7 @@ function isPast(event) {
 }
 
 function eventDate(event, locale) {
-  return formatDate(event.dateDebut, locale) || '—';
+  return formatDate(event.dateDebut, locale) || '-';
 }
 
 export default function ProviderTabPage({ section, onEditProfile, onNavigateSection }) {

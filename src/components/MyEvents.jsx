@@ -55,7 +55,7 @@ function formatEventPeriod(event, locale) {
   const startLabel = formatDate(event.parsedDate, locale);
   return dateKey(event.parsedDate) === dateKey(endDate)
     ? startLabel
-    : `${startLabel} – ${formatDate(endDate, locale)}`;
+    : `${startLabel} - ${formatDate(endDate, locale)}`;
 }
 
 function EventSummary({ event, isPast = false, onManageProviders, onEdit, locale, translateText }) {

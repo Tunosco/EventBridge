@@ -164,7 +164,7 @@ export default function ProviderAvailability() {
       )}
       {loading ? <p>{translateText('Chargement des disponibilités…')}</p> : items.length ? (
         <ul className="provider-record-list">{items.map((item) => <li key={item.id}>
-          <div><strong>{formatDate(item.dateDebut, locale)} – {formatDate(item.dateFin, locale)}</strong><span className={`provider-status is-${item.statut}`}>{item.statut === 'disponible' ? translateText('Disponible') : translateText('Indisponible')}</span></div>
+          <div><strong>{formatDate(item.dateDebut, locale)} - {formatDate(item.dateFin, locale)}</strong><span className={`provider-status is-${item.statut}`}>{item.statut === 'disponible' ? translateText('Disponible') : translateText('Indisponible')}</span></div>
           <div className="provider-record-actions">
             <button type="button" onClick={() => editAvailability(item)}>{translateText('Modifier')}</button>
             <button type="button" onClick={() => changeStatus(item)}>{translateText('Marquer')} {item.statut === 'disponible' ? translateText('Indisponible') : translateText('Disponible')}</button>

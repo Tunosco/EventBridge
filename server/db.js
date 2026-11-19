@@ -193,4 +193,18 @@ export async function initializeDatabase() {
 	for (const column of ['siret', 'site_web', 'adresse_postale', 'banniere_url', 'photo_url']) {
 		if (!providerColumns.includes(column)) sqlite.exec(`ALTER TABLE prestataire ADD COLUMN ${column} TEXT`);
 	}
+	sqlite.exec(`CREATE TABLE IF NOT EXISTS avis_prestataire (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		prestataire_id INTEGER NOT NULL,
+		client_id INTEGER NOT NULL,
+		note INTEGER NOT NULL CHECK (note BETWEEN 1 AND 5),
+		commentaire TEXT NOT NULL CHECK (LENGTH(TRIM(commentaire)) BETWEEN 1 AND 4000),
+		reponse TEXT,
+		date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		date_reponse TEXT,
+		FOREIGN KEY (prestataire_id) REFERENCES prestataire(utilisateur_id) ON DELETE CASCADE,
+		FOREIGN KEY (client_id) REFERENCES client(utilisateur_id) ON DELETE CASCADE,
+		UNIQUE (prestataire_id, client_id)
+	)`);
+	sqlite.exec('CREATE INDEX IF NOT EXISTS avis_prestataire_owner_idx ON avis_prestataire (prestataire_id, date_creation DESC)');
 }

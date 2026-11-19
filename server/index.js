@@ -957,33 +957,31 @@ app.patch('/api/admin/support-tickets/:ticketId', authUser, adminUser, async (re
 
 app.get('/api/me/provider-profile', authUser, async (request, response) => {
   if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
-  const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", siret, site_web AS "siteWeb",
-    adresse_postale AS "adressePostale", description, banniere_url AS "banniereUrl", photo_url AS "photoUrl"
+  const profile = await db.prepare(`SELECT siret, site_web AS "siteWeb",
+    adresse_postale AS "adressePostale", description
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
   response.json({ profile: profile || {
-    raisonSociale: '', siret: '', siteWeb: '', adressePostale: '', description: '', banniereUrl: '', photoUrl: '',
+    siret: '', siteWeb: '', adressePostale: '', description: '',
   } });
 });
 
 app.put('/api/me/provider-profile', authUser, async (request, response) => {
   if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
-  const { raisonSociale, siret, siteWeb, adressePostale, description, banniereUrl, photoUrl } = request.body;
-  if (!raisonSociale?.trim()) return response.status(400).json({ error: 'La raison sociale est requise pour publier le profil.' });
+  const { siret, siteWeb, adressePostale, description } = request.body;
   if (normalizeHttpUrl(siteWeb) === undefined) {
     return response.status(400).json({ error: 'Le site internet doit utiliser une URL http ou https valide.' });
   }
-  await db.prepare(`INSERT INTO prestataire (utilisateur_id, nom_entreprise, siret, site_web, adresse_postale, description, banniere_url, photo_url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(utilisateur_id) DO UPDATE SET nom_entreprise = excluded.nom_entreprise, siret = excluded.siret,
-    site_web = excluded.site_web, adresse_postale = excluded.adresse_postale, description = excluded.description,
-    banniere_url = excluded.banniere_url, photo_url = excluded.photo_url`).run(
-    request.userId, raisonSociale.trim(), siret?.trim() || null, normalizeHttpUrl(siteWeb),
-    adressePostale?.trim() || null, description?.trim() || null, banniereUrl?.trim() || null, photoUrl?.trim() || null,
+  await db.prepare(`INSERT INTO prestataire (utilisateur_id, siret, site_web, adresse_postale, description)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(utilisateur_id) DO UPDATE SET siret = excluded.siret,
+    site_web = excluded.site_web, adresse_postale = excluded.adresse_postale, description = excluded.description`).run(
+    request.userId, siret?.trim() || null, normalizeHttpUrl(siteWeb),
+    adressePostale?.trim() || null, description?.trim() || null,
   );
-  const profile = await db.prepare(`SELECT nom_entreprise AS "raisonSociale", siret, site_web AS "siteWeb",
-    adresse_postale AS "adressePostale", description, banniere_url AS "banniereUrl", photo_url AS "photoUrl"
+  const profile = await db.prepare(`SELECT siret, site_web AS "siteWeb",
+    adresse_postale AS "adressePostale", description
     FROM prestataire WHERE utilisateur_id = ?`).get(request.userId);
-  response.json({ profile });
+  response.json({ profile: profile || { siret: '', siteWeb: '', adressePostale: '', description: '' } });
 });
 
 app.get('/api/me/favorite-providers', authUser, async (request, response) => {
@@ -1221,6 +1219,29 @@ app.get('/api/me/provider-dashboard', authUser, async (request, response) => {
       WHERE ep.prestataire_id = ? AND COALESCE(e.date_fin, e.date_evenement) >= ?
       ORDER BY e.date_evenement`).all(request.userId, new Date().toISOString().slice(0, 10));
   response.json({ profile, prestations, evenements });
+});
+
+app.get('/api/me/provider-reviews', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const reviews = await db.prepare(`SELECT a.id, a.note, a.commentaire, a.reponse, a.date_creation AS "dateCreation", a.date_reponse AS "dateReponse",
+    TRIM(COALESCE(u.prenom, '') || ' ' || COALESCE(u.nom, '')) AS "clientName"
+    FROM avis_prestataire a JOIN utilisateur u ON u.id = a.client_id
+    WHERE a.prestataire_id = ? ORDER BY a.date_creation DESC, a.id DESC`).all(request.userId);
+  response.json(reviews);
+});
+
+app.put('/api/me/provider-reviews/:reviewId', authUser, async (request, response) => {
+  if (!await isProvider(request.userId)) return response.status(403).json({ error: 'Réservé aux comptes prestataire.' });
+  const reviewId = Number(request.params.reviewId);
+  const reponse = String(request.body?.reponse || '').trim();
+  if (!Number.isInteger(reviewId) || reponse.length < 1 || reponse.length > 2000) {
+    return response.status(400).json({ error: 'La réponse doit contenir entre 1 et 2 000 caractères.' });
+  }
+  const result = await db.prepare(`UPDATE avis_prestataire SET reponse = ?, date_reponse = CURRENT_TIMESTAMP
+    WHERE id = ? AND prestataire_id = ?`).run(reponse, reviewId, request.userId);
+  if (!result.changes) return response.status(404).json({ error: 'Avis introuvable.' });
+  response.json(await db.prepare(`SELECT id, note, commentaire, reponse, date_creation AS "dateCreation", date_reponse AS "dateReponse"
+    FROM avis_prestataire WHERE id = ?`).get(reviewId));
 });
 
 app.get('/api/me/availability', authUser, async (request, response) => {

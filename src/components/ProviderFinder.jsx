@@ -171,9 +171,7 @@ export default function ProviderFinder({
             const categories = provider.categories ? provider.categories.split(',').map((category) => translateText(category.trim())) : [];
             return (
               <article className="card" key={provider.id}>
-                {provider.photoUrl
-                  ? <img className="provider-photo" src={provider.photoUrl} alt="" loading="lazy" />
-                  : <div className="provider-photo provider-result-initials" aria-hidden="true">{providerInitials(provider)}</div>}
+                <img className="provider-photo" src={provider.photoUrl || '/images/photo-profil-neutre.webp'} alt="" loading="lazy" />
                 <div className="banner">
                   <span className="pill">{categories[0] || translateText('Prestataire')}</span>
                   <button

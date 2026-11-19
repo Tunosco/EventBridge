@@ -1,4 +1,4 @@
--- EventBridge — alignement du schéma PostgreSQL avec le code de l'API.
+-- EventBridge - alignement du schéma PostgreSQL avec le code de l'API.
 -- Ajoute les éléments utilisés par le serveur qui manquaient à la migration
 -- initiale : participants de conversation, clé publique, sessions, et
 -- corrections de noms de colonnes (camelCase) dans les réponses JSON.

@@ -12,14 +12,19 @@ function getSafeHttpUrl(value) {
   }
 }
 
-export default function ProviderPublicProfile() {
+export default function ProviderPublicProfile({ profile: providedProfile } = {}) {
   const { translateText } = useTranslation();
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(providedProfile || null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (providedProfile) {
+      setProfile(providedProfile);
+      return undefined;
+    }
     getProviderProfile().then((result) => setProfile(result.profile)).catch((loadError) => setError(loadError.message));
-  }, []);
+    return undefined;
+  }, [providedProfile]);
 
   if (error) return <p className="form-error provider-profile-status" role="alert">{translateText(error)}</p>;
   if (!profile) return <p className="provider-profile-status">{translateText('Chargement du profil...')}</p>;
@@ -27,14 +32,13 @@ export default function ProviderPublicProfile() {
 
   return (
     <article className="provider-public-profile">
-      <div className="provider-public-banner" style={profile.banniereUrl ? { backgroundImage: `url(${profile.banniereUrl})` } : undefined} />
+      <div className="provider-public-banner" style={{ backgroundImage: `url('/images/bridgeevent-banniere.png')` }} />
       <div className="provider-public-body">
-        <img className="provider-public-avatar" src={profile.photoUrl || 'https://i.pravatar.cc/160?img=12'} alt={translateText('Photo du prestataire')} />
+        <img className="provider-public-avatar" src={profile.photoUrl || '/images/photo-profil-neutre.webp'} alt={translateText('Photo du prestataire')} />
         <span className="kicker">{translateText('Profil prestataire')}</span>
-        <h2>{profile.raisonSociale || translateText('Votre raison sociale')}</h2>
+        <h2>{translateText('Profil prestataire')}</h2>
         {profile.description && <p className="provider-public-description">{profile.description}</p>}
         <dl className="provider-public-details">
-          {profile.siret && <div><dt>SIRET</dt><dd>{profile.siret}</dd></div>}
           {profile.adressePostale && <div><dt>{translateText('Adresse')}</dt><dd>{profile.adressePostale}</dd></div>}
           {safeSiteWeb && <div><dt>{translateText('Site internet')}</dt><dd><a href={safeSiteWeb} target="_blank" rel="noreferrer">{safeSiteWeb}</a></dd></div>}
         </dl>

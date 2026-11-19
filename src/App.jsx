@@ -26,6 +26,7 @@ import './styles/auth-confirmation.css';
 import './styles/responsive-menu.css';
 import './styles/nav-link.css';
 import './styles/provider-space.css';
+import './styles/provider-reviews.css';
 import './styles/provider-profile-editor.css';
 import './styles/provider-space-controls.css';
 import './styles/provider-portal.css';

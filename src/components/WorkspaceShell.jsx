@@ -36,6 +36,7 @@ const copy = {
     favorites: 'Mes favoris',
     followup: 'Suivi',
     messages: 'Messagerie',
+    reviews: 'Avis',
     timeline: 'Déroulé de l’évènement',
     myProfile: 'Mon profil',
     myServices: 'Mes prestations',
@@ -60,6 +61,7 @@ const copy = {
     favorites: 'My favourites',
     followup: 'Follow-up',
     messages: 'Messaging',
+    reviews: 'Reviews',
     timeline: 'Event timeline',
     myProfile: 'My profile',
     myServices: 'My services',
@@ -84,6 +86,7 @@ const copy = {
     favorites: 'Preferiti',
     followup: 'Seguimento',
     messages: 'Messaggistica',
+    reviews: 'Recensioni',
     timeline: 'Timeline dell’evento',
     myProfile: 'Il mio profilo',
     myServices: 'Le mie prestazioni',
@@ -118,6 +121,7 @@ export default function WorkspaceShell({ role = 'client', active, onNavigate, on
       ['calendar', text.myCalendar, 'calendar'],
       ['followup', text.followup, 'trend'],
       ['messages', text.messages, 'message'],
+      ['reviews', text.reviews, 'star'],
     ]
     : [
       ...(showEvents ? [['events', text.myEvents, 'calendar']] : []),
