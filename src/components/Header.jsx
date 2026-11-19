@@ -36,6 +36,11 @@ export default function Header({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  // Reset the dropdown when authentication or the current account page changes.
+  useEffect(() => {
+    setAccountMenuOpen(false);
+  }, [isAuthenticated, user?.id, activePage]);
+
   const isProvider = user?.typeUtilisateur === 'prestataire';
   const text = labels[language] || labels.fr;
   const profileImage = user?.photoUrl || '/images/photo-profil-neutre.webp';

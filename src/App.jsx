@@ -325,7 +325,7 @@ export default function App() {
           if (nextPage === 'provider') handleProviderSpaceClick();
           else setPage(nextPage);
         });
-      }} onProjectClick={handleProjectClick} onProviderSearch={(search) => navigateOrWarn(() => handleProviderSearch(search))} onLoggedOut={handleLoggedOut} onProfileMenuClick={(toggleMenu) => navigateOrWarn(toggleMenu)} onProfileClick={() => {
+      }} onProjectClick={handleProjectClick} onProviderSearch={(search) => navigateOrWarn(() => handleProviderSearch(search))} onLoggedOut={handleLoggedOut} onProfileClick={() => {
         if (user?.typeUtilisateur === 'prestataire') handleAccountSection('profile');
         else navigateOrWarn(() => setPage('profile'));
       }} onSettingsClick={() => navigateOrWarn(() => setPage('settings'))} onAccountSection={handleAccountSection} onMessagesClick={() => handleAccountSection('messages')} onCreateEvent={() => navigateOrWarn(() => handleCreateEventClick())} user={user} isAuthenticated={Boolean(user)} />
