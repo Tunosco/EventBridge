@@ -679,6 +679,9 @@ body.homeheader .eb-reference-header {
   height: 570px;
   padding: 120px 24px 80px !important;
   background-position: center center !important;
+  background-image: url('/images/bridgeevent-hero.jpg');
+  background-size: cover;
+  background-repeat: no-repeat;
   text-align: center;
 }
 

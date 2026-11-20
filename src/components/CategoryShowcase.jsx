@@ -17,10 +17,10 @@ export default function CategoryShowcase({ language = 'fr', onCategoryClick }) {
         <article className="eb-category-card" key={category.id} data-category={category.id}>
           {category.id === 'decoration' ? (
             <span className="eb-decoration-crop">
-              <img src={category.image} alt="" style={{ objectPosition: category.position }} loading="lazy" />
+              <img src={category.image} alt="" style={{ objectPosition: category.position }} loading="lazy" decoding="async" />
             </span>
           ) : (
-            <img src={category.image} alt="" style={{ objectPosition: category.position }} loading="lazy" />
+            <img src={category.image} alt="" style={{ objectPosition: category.position }} loading="lazy" decoding="async" />
           )}
           <h3>{category.label[language] || category.label.fr}</h3>
           <button

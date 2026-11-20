@@ -138,7 +138,16 @@ export default function HomePage({ language = 'fr', onCreateEvent, onProviderSea
         </div>
         <section className="occasion" aria-labelledby="occasion-title">
           <div className="occasion-mosaic">
-            {occasion.images.map((image) => <img key={image} src={image} alt="" loading="lazy" />)}
+            {occasion.images.map((image, index) => (
+              <img
+                key={image}
+                src={image}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                fetchPriority={index === 0 ? 'low' : undefined}
+              />
+            ))}
           </div>
           <div className="occasion-copy">
             <span className="eyebrow">{text.occasionEyebrow}</span>
