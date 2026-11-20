@@ -590,10 +590,18 @@ body.homeheader .eb-reference-header {
 
 .eb-home .occasion {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+  grid-template-columns: minmax(280px, .65fr) minmax(0, .91875fr);
   gap: 42px;
   align-items: center;
   margin: 0 0 84px;
+}
+
+.eb-home .occasion-copy {
+  order: 1;
+}
+
+.eb-home .occasion-mosaic {
+  order: 2;
 }
 
 .eb-home .occasion-mosaic {
