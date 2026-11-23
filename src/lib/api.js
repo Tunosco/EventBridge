@@ -1,8 +1,13 @@
 // L'API est servie sur la même origine (/api) :
 // - en production, par le serveur Express qui sert aussi le frontend compilé ;
 // - en développement, par le proxy Vite vers http://localhost:3001.
-// VITE_API_URL reste disponible pour une API hébergée ailleurs.
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// En production, l'API est servie par le même déploiement que l'application.
+// Une URL externe reste possible pour les environnements qui en ont besoin,
+// mais l'URL publique historique ne doit pas détourner app.bridgeevent.fr.
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+const API_URL = configuredApiUrl && configuredApiUrl !== 'https://bridgeevent.fr/api'
+  ? configuredApiUrl.replace(/\/+$/, '')
+  : '/api';
 const TOKEN_KEY = 'bridgeevent_token';
 const LEGACY_TOKEN_KEY = 'eventbridge_token';
 
