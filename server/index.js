@@ -18,9 +18,25 @@ const supabaseAuth = supabaseAuthEnabled ? createContextClient() : null;
 const requireEmailConfirmation = String(process.env.AUTH_REQUIRE_EMAIL_CONFIRMATION || 'true').toLowerCase() !== 'false';
 const allowLocalFallback = !supabaseAuthEnabled
   || (process.env.NODE_ENV !== 'production' && String(process.env.AUTH_ALLOW_LOCAL_FALLBACK || '').toLowerCase() === 'true');
-const publicAppUrl = process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
-const googleOAuthRedirectUrl = process.env.SUPABASE_GOOGLE_REDIRECT_URL
-  || `${publicAppUrl.replace(/\/+$/, '')}/api/auth/google/callback`;
+const canonicalAppOrigin = 'https://app.bridgeevent.fr';
+function migratePublicUrl(value, fallback = canonicalAppOrigin) {
+  const configuredUrl = String(value || fallback).trim().replace(/\/+$/, '');
+  try {
+    const url = new URL(configuredUrl);
+    if (url.hostname === 'bridgeevent.fr' || url.hostname === 'www.bridgeevent.fr') {
+      url.hostname = 'app.bridgeevent.fr';
+      return url.toString().replace(/\/+$/, '');
+    }
+  } catch {
+    return fallback;
+  }
+  return configuredUrl;
+}
+const publicAppUrl = migratePublicUrl(process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL, 'http://localhost:5173');
+const googleOAuthRedirectUrl = migratePublicUrl(
+  process.env.SUPABASE_GOOGLE_REDIRECT_URL,
+  `${publicAppUrl}/api/auth/google/callback`,
+);
 const supportRateLimit = new Map();
 const SUPPORT_CATEGORIES = {
   technique: ['L’application ne fonctionne pas', 'Une fonctionnalité ne marche pas', 'Problème d’affichage', 'Autre problème technique'],
@@ -653,7 +669,7 @@ app.post('/api/auth/register', async (request, response) => {
         password: motDePasse,
         options: {
           data: { prenom: prenom.trim(), nom: nom.trim() },
-          emailRedirectTo: process.env.SUPABASE_EMAIL_REDIRECT_URL || 'https://bridgeevent.fr/',
+          emailRedirectTo: migratePublicUrl(process.env.SUPABASE_EMAIL_REDIRECT_URL, canonicalAppOrigin),
         },
       }),
       8000,

@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://bridgeevent.fr/sitemap.xml
+Sitemap: https://app.bridgeevent.fr/sitemap.xml

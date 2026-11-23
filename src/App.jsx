@@ -304,7 +304,7 @@ export default function App() {
     document.title = metadata.title;
     document.querySelector('meta[name="description"]')?.setAttribute('content', metadata.description);
     document.querySelector('meta[name="robots"]')?.setAttribute('content', metadata.robots);
-    document.querySelector('link[rel="canonical"]')?.setAttribute('href', 'https://bridgeevent.fr/');
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', 'https://app.bridgeevent.fr/');
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', metadata.title);
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', metadata.description);
   }, [page]);

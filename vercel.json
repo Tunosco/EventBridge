@@ -1,4 +1,17 @@
 {
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://app.bridgeevent.fr/$1",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "bridgeevent.fr"
+        }
+      ]
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
