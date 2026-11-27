@@ -207,30 +207,7 @@ export default function ProviderDashboard({ onFindProviders, onNavigateSection, 
           )}
         </section>
 
-        <section className="ux-panel">
-          <div className="ux-heading">
-            <div>
-              <h2>{translateText('Mes prestations')}</h2>
-              <p>{translateText('Les prestations que les clients voient.')}</p>
-            </div>
-            <button className="ux-link" type="button" onClick={() => onNavigateSection?.('profile')}>{translateText('Modifier')}</button>
-          </div>
-          {prestations?.length ? (
-            <ul className="ux-activity-list">
-              {prestations.map((prestation) => (
-                <li key={prestation.id}>
-                  <button className="ux-activity" type="button" onClick={() => onNavigateSection?.('profile')}>
-                    <span className="ux-activity-icon"><Icon name="star" /></span>
-                    <span className="ux-activity-text">{prestation.titre}<small>{translateText(prestation.categorie)}</small></span>
-                    <span className="ux-activity-value">{prestation.prix !== null && prestation.prix !== undefined ? `${Number(prestation.prix).toLocaleString(locale)} €` : ''}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="ux-empty">{translateText('Vos prestations publiées apparaîtront ici.')}</p>}
-        </section>
-
-        <section className="ux-panel">
+        <section className="ux-panel provider-planning-panel">
           <div className="ux-heading">
             <div>
               <h2>{translateText('Mon planning')}</h2>

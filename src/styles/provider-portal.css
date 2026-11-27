@@ -265,8 +265,8 @@
   margin: 0;
 }
 
-.provider-pipeline-panel {
-  grid-row: span 2;
+.provider-planning-panel {
+  grid-column: 1;
 }
 
 .provider-pipeline {
